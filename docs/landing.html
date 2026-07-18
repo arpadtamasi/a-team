@@ -1,0 +1,383 @@
+<style>
+  :root {
+    --ground: #f3f5f4;
+    --panel: #ffffff;
+    --panel-2: #ecefee;
+    --ink: #16201f;
+    --muted: #5a6a6b;
+    --hair: #d6dcda;
+    --accent: #c47f18;      /* signal amber */
+    --accent-ink: #8a5a06;
+    --go: #1f9c8a;          /* go teal */
+    --s-backlog: #6f7d84;
+    --s-ready: #3f7fc4;
+    --s-progress: #c47f18;
+    --s-review: #8867c9;
+    --s-done: #1f9c8a;
+    --shadow: 0 1px 0 rgba(0,0,0,.03), 0 12px 30px -18px rgba(20,40,40,.35);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Monaco, "Cascadia Code", Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0d1315;
+      --panel: #141d20;
+      --panel-2: #1a2427;
+      --ink: #e6ecea;
+      --muted: #8fa0a0;
+      --hair: #26333552;
+      --accent: #e6a63f;
+      --accent-ink: #f0bd6a;
+      --go: #3bbfab;
+      --s-backlog: #86969c;
+      --s-ready: #5ea1e0;
+      --s-progress: #e6a63f;
+      --s-review: #a88be6;
+      --s-done: #3bbfab;
+      --shadow: 0 1px 0 rgba(0,0,0,.2), 0 18px 40px -22px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #f3f5f4; --panel: #ffffff; --panel-2: #ecefee; --ink: #16201f;
+    --muted: #5a6a6b; --hair: #d6dcda; --accent: #c47f18; --accent-ink: #8a5a06;
+    --go: #1f9c8a; --s-backlog:#6f7d84; --s-ready:#3f7fc4; --s-progress:#c47f18;
+    --s-review:#8867c9; --s-done:#1f9c8a;
+    --shadow: 0 1px 0 rgba(0,0,0,.03), 0 12px 30px -18px rgba(20,40,40,.35);
+  }
+  :root[data-theme="dark"] {
+    --ground:#0d1315; --panel:#141d20; --panel-2:#1a2427; --ink:#e6ecea;
+    --muted:#8fa0a0; --hair:#26333552; --accent:#e6a63f; --accent-ink:#f0bd6a;
+    --go:#3bbfab; --s-backlog:#86969c; --s-ready:#5ea1e0; --s-progress:#e6a63f;
+    --s-review:#a88be6; --s-done:#3bbfab;
+    --shadow: 0 1px 0 rgba(0,0,0,.2), 0 18px 40px -22px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+  a { color: inherit; }
+
+  .mono { font-family: var(--mono); }
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--muted);
+  }
+
+  /* ---- top bar ---- */
+  .bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 0; border-bottom: 1px solid var(--hair);
+  }
+  .callsign { font-family: var(--mono); font-weight: 700; letter-spacing: .14em; }
+  .callsign b { color: var(--accent-ink); }
+  .bar .status {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--go);
+    box-shadow: 0 0 0 0 var(--go);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .live-dot { animation: pulse 2.4s ease-out infinite; }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--go) 60%, transparent); }
+      70% { box-shadow: 0 0 0 7px transparent; }
+      100% { box-shadow: 0 0 0 0 transparent; }
+    }
+  }
+
+  /* ---- hero ---- */
+  .hero { padding: 74px 0 40px; }
+  .hero h1 {
+    font-family: var(--mono); font-weight: 700;
+    font-size: clamp(38px, 8vw, 76px); line-height: .98; margin: 14px 0 0;
+    letter-spacing: -.01em; text-wrap: balance;
+  }
+  .hero h1 .dim { color: var(--muted); }
+  .hero .lede {
+    font-size: clamp(17px, 2.4vw, 21px); max-width: 60ch; margin: 22px 0 0;
+    color: var(--ink);
+  }
+  .hero .lede b { color: var(--accent-ink); font-weight: 600; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+  .btn {
+    font-family: var(--mono); font-size: 14px; letter-spacing: .02em;
+    text-decoration: none; padding: 12px 18px; border-radius: 8px;
+    border: 1px solid var(--hair); background: var(--panel); color: var(--ink);
+    display: inline-flex; gap: 9px; align-items: center; transition: transform .12s ease, border-color .12s ease;
+  }
+  .btn:hover { transform: translateY(-1px); border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #1b1405; font-weight: 600; }
+  .btn.primary:hover { color: #1b1405; }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---- lifecycle board ---- */
+  .board { margin: 30px 0 8px; }
+  .board-scroll { overflow-x: auto; padding-bottom: 6px; }
+  .lanes {
+    display: grid; grid-template-columns: repeat(5, minmax(150px, 1fr));
+    gap: 12px; min-width: 720px;
+  }
+  .lane {
+    background: var(--panel); border: 1px solid var(--hair); border-radius: 12px;
+    padding: 14px; box-shadow: var(--shadow); position: relative;
+  }
+  .lane .h {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 12px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .lane .card {
+    margin-top: 12px; border: 1px dashed var(--hair); border-radius: 8px;
+    padding: 9px 10px; font-family: var(--mono); font-size: 12.5px; color: var(--muted);
+    background: var(--panel-2);
+  }
+  .lane.active { border-color: color-mix(in srgb, var(--accent) 55%, var(--hair)); }
+  .lane.active .card {
+    border-style: solid; border-color: color-mix(in srgb, var(--accent) 45%, var(--hair));
+    color: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+  .lane .card b { color: var(--ink); font-weight: 600; }
+  .caption { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 14px; }
+
+  /* ---- sections ---- */
+  section { padding: 46px 0; border-top: 1px solid var(--hair); }
+  h2 {
+    font-family: var(--mono); font-size: clamp(20px, 3vw, 26px); letter-spacing: -.005em;
+    margin: 6px 0 4px; text-wrap: balance;
+  }
+  .section-lede { color: var(--muted); max-width: 62ch; margin: 6px 0 26px; }
+
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+  .tile {
+    background: var(--panel); border: 1px solid var(--hair); border-radius: 12px;
+    padding: 18px 18px 20px; box-shadow: var(--shadow);
+  }
+  .tile h3 { margin: 0 0 6px; font-size: 16px; letter-spacing: -.005em; }
+  .tile p { margin: 0; color: var(--muted); font-size: 14.5px; }
+  .tile .k {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent-ink); display: block; margin-bottom: 9px;
+  }
+
+  /* ---- ops list ---- */
+  .ops { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 34px; }
+  @media (max-width: 620px) { .ops { grid-template-columns: 1fr; } }
+  .op {
+    display: flex; gap: 12px; align-items: baseline; padding: 9px 0;
+    border-bottom: 1px solid var(--hair);
+  }
+  .op code {
+    font-family: var(--mono); font-size: 13px; color: var(--accent-ink);
+    background: var(--panel-2); padding: 2px 7px; border-radius: 5px; white-space: nowrap;
+  }
+  .op span { color: var(--muted); font-size: 14px; }
+
+  /* ---- partnership ---- */
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: stretch; }
+  @media (max-width: 620px) { .duo { grid-template-columns: 1fr; } }
+  .panel {
+    border-radius: 14px; padding: 22px; border: 1px solid var(--hair); background: var(--panel);
+    box-shadow: var(--shadow);
+  }
+  .panel .role { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+  .panel.you .role { color: var(--accent-ink); }
+  .panel.gs .role { color: var(--go); }
+  .panel h3 { margin: 8px 0 8px; font-size: 20px; font-family: var(--mono); }
+  .panel p { margin: 0; color: var(--muted); font-size: 14.5px; }
+  .join {
+    font-family: var(--mono); font-size: 12.5px; color: var(--muted); text-align: center;
+    margin-top: 16px;
+  }
+  .join b { color: var(--ink); }
+
+  /* ---- terminal ---- */
+  .term {
+    background: #0c1214; border: 1px solid #223034; border-radius: 12px; overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .term .tt {
+    display: flex; align-items: center; gap: 7px; padding: 11px 14px;
+    border-bottom: 1px solid #1c2a2d;
+  }
+  .term .tt i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .term .tt .t { margin-left: 8px; font-family: var(--mono); font-size: 12px; color: #6f8286; }
+  .term pre {
+    margin: 0; padding: 18px; overflow-x: auto; font-family: var(--mono);
+    font-size: 13.5px; line-height: 1.75; color: #cdd8d8;
+  }
+  .term .c { color: #6f8286; }
+  .term .g { color: #4bbfa9; }
+  .term .a { color: #e6a63f; }
+  .cur { display: inline-block; width: 8px; height: 15px; background: #e6a63f; transform: translateY(2px); }
+  @media (prefers-reduced-motion: no-preference) { .cur { animation: blink 1.1s step-end infinite; } }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  footer { padding: 34px 0 60px; color: var(--muted); font-size: 13px; }
+  footer .mono { color: var(--ink); }
+  .footlinks { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 8px; font-family: var(--mono); font-size: 13px; }
+</style>
+
+<div class="wrap">
+  <div class="bar">
+    <div class="callsign">A&#8209;<b>TEAM</b></div>
+    <div class="status"><span class="live-dot"></span> CONTROL PLANE · ONLINE</div>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">AI-native Scrum control plane · Claude Code</div>
+    <h1>Your agents ship.<br><span class="dim">A&#8209;Team keeps them</span> accountable.</h1>
+    <p class="lede">
+      A-Team is the <b>agent dev team</b>: a lightweight, one-goal-per-sprint Scrum method
+      built entirely as Claude Code skills. Backlog, tickets, sprints, and delivery run
+      through explicit operations with append-only history, real metrics, and human
+      approval gates. Fast agents, without the pile of untracked TODOs.
+    </p>
+    <div class="cta-row">
+      <a class="btn primary" href="#install">▚ Install in 30s</a>
+      <a class="btn" href="https://github.com/arpadtamasi/a-team">View on GitHub</a>
+    </div>
+  </header>
+
+  <div class="board">
+    <div class="board-scroll">
+      <div class="lanes">
+        <div class="lane">
+          <div class="h"><span class="dot" style="background:var(--s-backlog)"></span>backlog</div>
+          <div class="card">captured, not yet ready</div>
+        </div>
+        <div class="lane">
+          <div class="h"><span class="dot" style="background:var(--s-ready)"></span>ready</div>
+          <div class="card">DoR met · estimated</div>
+        </div>
+        <div class="lane active">
+          <div class="h"><span class="dot" style="background:var(--s-progress)"></span>in&#95;progress</div>
+          <div class="card"><b>#142 sprint-metrics</b><br>owned · cycle time running</div>
+        </div>
+        <div class="lane">
+          <div class="h"><span class="dot" style="background:var(--s-review)"></span>review</div>
+          <div class="card">candidate + evidence</div>
+        </div>
+        <div class="lane">
+          <div class="h"><span class="dot" style="background:var(--s-done)"></span>done</div>
+          <div class="card">accepted · DoD passed</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Every ticket moves through one owning operation. A state value alone is never proof its transition happened.</div>
+  </div>
+
+  <section>
+    <div class="eyebrow">Why</div>
+    <h2>Rigor over vibes</h2>
+    <p class="section-lede">
+      AI agents ship code fast. Left ungoverned, they invent scope, hide regressions, and
+      report "done" with no evidence. A-Team is the control plane that keeps them honest.
+    </p>
+    <div class="grid">
+      <div class="tile">
+        <span class="k">Explicit lifecycle</span>
+        <h3>One owner per transition</h3>
+        <p>backlog → ready → in&#95;progress → review → done, each through its own operation, each with a matching append-only event.</p>
+      </div>
+      <div class="tile">
+        <span class="k">Ready &amp; Done</span>
+        <h3>Contracts, not intentions</h3>
+        <p>A ticket enters a sprint only when outcome, scope, acceptance, and verification are pinned down — and closes only with real evidence.</p>
+      </div>
+      <div class="tile">
+        <span class="k">Measurement</span>
+        <h3>Metrics from the record</h3>
+        <p>Lead, cycle, review and blocked time; throughput, committed velocity, first-pass acceptance, carry-over. Derived, never hand-set.</p>
+      </div>
+      <div class="tile">
+        <span class="k">Token accounting</span>
+        <h3>Cost you can attribute</h3>
+        <p>Provider-reported usage attributed by ticket, sprint, and purpose. Unavailable counts stay null — never invented or prorated.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Operations</div>
+    <h2>Fifteen skills, one control plane</h2>
+    <p class="section-lede">Invoke with <code class="mono">/a-team &lt;operation&gt;</code>, or just ask in plain words. Each one owns its slice of the lifecycle and respects the approval gates.</p>
+    <div class="ops">
+      <div class="op"><code>capture-work</code><span>idea or finding → backlog ticket</span></div>
+      <div class="op"><code>refine-ticket</code><span>make it ready: clear, bounded, estimated</span></div>
+      <div class="op"><code>plan-sprint</code><span>set the goal and commitment</span></div>
+      <div class="op"><code>start-ticket</code><span>claim work, start cycle time</span></div>
+      <div class="op"><code>block-ticket</code><span>record or resolve an impediment</span></div>
+      <div class="op"><code>submit-review</code><span>hand off a candidate with evidence</span></div>
+      <div class="op"><code>review-ticket</code><span>judge against contract and DoD</span></div>
+      <div class="op"><code>close-ticket</code><span>record accepted delivery</span></div>
+      <div class="op"><code>disposition-ticket</code><span>park or reject without claiming delivery</span></div>
+      <div class="op"><code>reconcile-history</code><span>append-only history correction</span></div>
+      <div class="op"><code>close-sprint</code><span>demonstrate and archive the sprint</span></div>
+      <div class="op"><code>retro</code><span>one approved operating change</span></div>
+      <div class="op"><code>report-status</code><span>read-only snapshot of current work</span></div>
+      <div class="op"><code>report-metrics</code><span>recompute delivery and token metrics</span></div>
+      <div class="op"><code>howto</code><span>which operation applies, and how to ask</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Composes with gstack</div>
+    <h2>Product team, meet the dev team</h2>
+    <p class="section-lede">
+      A-Team doesn't replace your planning stack — it executes it. Pair it with
+      <a href="https://github.com/garrytan/gstack">gstack</a> and the roles split cleanly.
+    </p>
+    <div class="duo">
+      <div class="panel gs">
+        <div class="role">gstack · product team</div>
+        <h3>Designs the product</h3>
+        <p>CEO strategy, engineering and design reviews, discovery, QA, and shipping. It produces the plans, findings, and evidence.</p>
+      </div>
+      <div class="panel you">
+        <div class="role">A-Team · dev team</div>
+        <h3>Delivers it</h3>
+        <p>Turns those plans into committed, reviewed, delivered tickets under Scrum discipline — owning priority, acceptance, closure, and metrics.</p>
+      </div>
+    </div>
+    <p class="join">A gstack report is <b>evidence</b> for a Scrum operation — never a Scrum state. A-Team runs standalone too; gstack is optional.</p>
+  </section>
+
+  <section id="install">
+    <div class="eyebrow">Install</div>
+    <h2>Clone it, invoke it</h2>
+    <p class="section-lede">One command. Free, MIT-licensed, all Markdown.</p>
+    <div class="term">
+      <div class="tt">
+        <i style="background:#e05a4d"></i><i style="background:#e6a63f"></i><i style="background:#3bbfab"></i>
+        <span class="t">claude-code — ~/project</span>
+      </div>
+<pre><span class="c"># drop A-Team into your Claude Code skills</span>
+<span class="g">git clone</span> --single-branch --depth 1 \
+  https://github.com/arpadtamasi/a-team.git <span class="a">~/.claude/skills/a-team</span>
+
+<span class="c"># then, in Claude Code:</span>
+<span class="a">/a-team</span> plan-sprint <span class="cur"></span>
+</pre>
+    </div>
+    <p class="caption">Copy <span class="mono">AGENTS.md</span> to your repo root and adapt it — the method relies on the found-work rule and code guidelines it defines.</p>
+  </section>
+
+  <footer>
+    <div class="callsign mono">A&#8209;<b style="color:var(--accent-ink)">TEAM</b></div>
+    <div>An AI-native Scrum control plane for Claude Code. MIT licensed.</div>
+    <div class="footlinks">
+      <a href="https://github.com/arpadtamasi/a-team">GitHub</a>
+      <a href="https://github.com/arpadtamasi/a-team/blob/main/METHOD.md">METHOD.md</a>
+      <a href="https://github.com/arpadtamasi/a-team/blob/main/GSTACK.md">GSTACK.md</a>
+      <a href="https://progos.hu">Progos</a>
+    </div>
+  </footer>
+</div>

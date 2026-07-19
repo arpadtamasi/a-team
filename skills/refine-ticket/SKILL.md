@@ -1,6 +1,6 @@
 ---
 name: refine-ticket
-description: Refine an existing Scrum backlog item into one independently executable, estimable, and verifiable work contract, or explain exactly why it cannot become ready. Use this skill whenever the user asks to refine, clarify, estimate, scope, make sprint-ready, decompose, turn into a spike, add acceptance criteria, add verification, or assess whether a ticket can fit a sprint—even when they do not name the skill. Do not use it to capture new work, prioritize, schedule, start, implement, review, or close a ticket.
+description: Talk through and refine an existing backlog item into one independently executable, estimable, and verifiable work contract, or explain plainly why it cannot become ready. Use whenever the user asks to discuss a task, clarify what it should achieve, estimate, scope, make work ready, split it, investigate an uncertainty, define how completion will be checked, or assess whether it can fit a sprint—even when they do not know Scrum terminology or name the skill. Do not use it to capture new work, prioritize, schedule, start, implement, review, or close a ticket.
 compatibility: Requires repository filesystem access and existing Scrum backlog and ticket artifacts; shared definitions come from the live project-management method.
 ---
 
@@ -8,13 +8,33 @@ compatibility: Requires repository filesystem access and existing Scrum backlog 
 
 Turn an existing backlog item into an honest work contract. Readiness is a conclusion supported by the ticket and repository, not a formatting exercise. A good refinement may leave the item in `backlog`.
 
+## Conversation contract
+
+The user does not need to provide Scrum-formatted answers. Translate ordinary language into
+the ticket contract and use the live package's `GLOSSARY.md` for shared meanings.
+
+Inspect the repository first, then ask only for material facts or decisions that cannot be
+discovered. Ask one focused question at a time, normally in this order when still unknown:
+
+1. What should become observably different?
+2. Why is that useful now?
+3. What must be included, and what should wait?
+4. What would convince the user that it is complete?
+5. Is there a decision or other work that genuinely must happen first?
+
+Do not ask the user to write acceptance criteria, choose a Definition of Ready/Done status,
+or assign story points. Draft those from the answers and repository evidence, explain the
+proposal in plain language, and ask for approval only for material product, scope, or
+architecture decisions required by the method. Do not present a long questionnaire when
+one answer may make later questions unnecessary.
+
 ## Boundaries
 
 Refine without implementing, starting, scheduling, or prioritizing the work.
 
 Do not:
 
-- create or modify a sprint, including `scrum/sprint.md`;
+- create or modify a sprint, including `a-team/sprint.md`;
 - assign a branch;
 - set `started_at`, `review_at`, or `done_at`;
 - invent product or architecture decisions, evidence, commands, tests, measurements, dependencies, or historical timestamps;
@@ -29,9 +49,9 @@ Do not:
 3. Read `.claude/skills/a-team/schemas/ticket.md` and `.claude/skills/a-team/schemas/events.md` for exact shared contracts.
 4. Follow the selected method when it conflicts with this skill.
 
-Target only the `scrum/` artifact structure. Do not create missing Scrum infrastructure to make refinement possible.
+Target only the `a-team/` artifact structure. Do not create missing Scrum infrastructure to make refinement possible.
 
-`scrum/backlog.md` and `scrum/tickets/` must already exist. Treat their absence as a blocker. If metrics infrastructure is absent, refinement may proceed when the method allows it, but report that lifecycle logging is unavailable rather than inventing a substitute.
+`a-team/backlog.md` and `a-team/tickets/` must already exist. Treat their absence as a blocker. If metrics infrastructure is absent, refinement may proceed when the method allows it, but report that lifecycle logging is unavailable rather than inventing a substitute.
 
 ## Identify the target
 
@@ -56,7 +76,7 @@ Read enough repository evidence to judge the contract:
 - referenced research and decision logs;
 - relevant source, tests, harnesses, package scripts, and architecture documentation;
 - branch or ownership information exposed by repository state;
-- `scrum/metrics/events.jsonl` when it exists;
+- `a-team/metrics/events.jsonl` when it exists;
 - tickets with the same or overlapping outcome.
 
 Use repository language, ID conventions, lanes, and terminology. Prefer repository artifacts over chat history when both describe the same fact.
@@ -213,9 +233,9 @@ Leave `Result` empty or state only that work has not started. A concise `Refinem
 
 ## Update the backlog and event log
 
-Update only the target's compact entry in `scrum/backlog.md` with its state, story points, dependencies, link, and one-line outcome. Keep its priority unless the user separately requests reprioritization or existing dependency order is objectively invalid. Refinement does not move work into `scrum/sprint.md`.
+Update only the target's compact entry in `a-team/backlog.md` with its state, story points, dependencies, link, and one-line outcome. Keep its priority unless the user separately requests reprioritization or existing dependency order is objectively invalid. Refinement does not move work into `a-team/sprint.md`.
 
-When a ticket transitions to `ready` and `scrum/metrics/events.jsonl` exists, append one `ticket_ready` event using the same transition timestamp and conforming to `.claude/skills/a-team/schemas/events.md`.
+When a ticket transitions to `ready` and `a-team/metrics/events.jsonl` exists, append one `ticket_ready` event using the same transition timestamp and conforming to `.claude/skills/a-team/schemas/events.md`.
 
 Follow a different compatible schema when the selected method requires it. Parse the new line as JSON. Do not log `ticket_ready` when status remains `backlog`, and do not invent another metrics format when the expected file is absent.
 
@@ -251,3 +271,7 @@ Keep the final report concise. Include:
 - whether a lifecycle event was logged.
 
 When status remains `backlog`, name each condition that prevents readiness.
+
+Lead the report with what is now clear and what still needs a decision. Put internal state,
+skill, and field names secondarily; never require the user to understand them to choose the
+next step.

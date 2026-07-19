@@ -45,7 +45,7 @@ Read:
 
 - the entire ticket, including current state, outcome, dependencies, timestamps, blocked periods, sprint, branch, sessions, evidence, and Result;
 - the matching compact backlog entry;
-- `scrum/sprint.md` and relevant sprint history;
+- `a-team/sprint.md` and relevant sprint history;
 - lifecycle and token events for the ticket;
 - live branch/worktree evidence when a branch claim exists.
 

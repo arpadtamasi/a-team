@@ -12,7 +12,7 @@ Close one active sprint from evidence. Completion activity is not a demonstratio
 
 Resolve from the request and live repository:
 
-- the active sprint in `scrum/sprint.md`;
+- the active sprint in `a-team/sprint.md`;
 - any demonstration evidence supplied by the user;
 - current committed and stretch ticket state;
 - lifecycle and token events exposed by the repository.
@@ -27,7 +27,7 @@ gstack review, QA, investigation, or ship artifacts may support the demonstratio
 2. Read `.claude/skills/a-team/schemas/sprint.md`, `.claude/skills/a-team/schemas/metrics.md`, `.claude/skills/a-team/schemas/events.md`, and `.claude/skills/a-team/schemas/tokens.md` for exact shared contracts.
 3. Follow the live method over this skill if their operational rules conflict.
 
-Do not invent missing infrastructure. `scrum/tickets/` and `scrum/metrics/events.jsonl` must already exist. An active closure requires `scrum/sprint.md`; when it is absent, only the idempotent closed-state checks below apply. This operation may create the canonical `scrum/sprints/` directory for the first archive because the live schema defines its exact contents; never create an alternate history location.
+Do not invent missing infrastructure. `a-team/tickets/` and `a-team/metrics/events.jsonl` must already exist. An active closure requires `a-team/sprint.md`; when it is absent, only the idempotent closed-state checks below apply. This operation may create the canonical `a-team/sprints/` directory for the first archive because the live schema defines its exact contents; never create an alternate history location.
 
 ## Inspect live state
 
@@ -56,10 +56,10 @@ Calculate the sprint metrics exactly as defined in `.claude/skills/a-team/schema
 
 Use one current ISO 8601 timestamp with timezone for the real closure.
 
-1. Create `scrum/sprints/` when this is the first closure, then create `scrum/sprints/<sprint-id>.md` using the exact schema. Preserve commitment facts, set archive status to `closed`, and rewrite ticket links from `tickets/...` to `../tickets/...`.
+1. Create `a-team/sprints/` when this is the first closure, then create `a-team/sprints/<sprint-id>.md` using the exact schema. Preserve commitment facts, set archive status to `closed`, and rewrite ticket links from `tickets/...` to `../tickets/...`.
 2. Append exactly one `sprint_closed` event conforming to `.claude/skills/a-team/schemas/events.md`.
 3. Validate the complete archive, every rewritten link, the matching event, ticket accounting, and calculated metrics.
-4. Delete `scrum/sprint.md`. Its absence now canonically means no active sprint when no unmatched start event exists.
+4. Delete `a-team/sprint.md`. Its absence now canonically means no active sprint when no unmatched start event exists.
 5. Do not alter the backlog or ticket files merely to make closure metrics agree. Report their inconsistent state for the owning skill.
 
 Events are append-only. Detect an existing event by sprint and event type before appending. Never edit old lines; append a correction only when the method defines one and the user authorizes it.

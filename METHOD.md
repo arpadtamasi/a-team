@@ -16,27 +16,55 @@ An operational skill may add safeguards and procedural detail, but it must not r
 
 ## Sources of truth
 
-The method (this package: `METHOD.md`, `schemas/`, `skills/`, `PROCESSES.md`, `GSTACK.md`)
-lives under `.claude/skills/a-team/`; the project data it operates on lives under `scrum/`
-at the repository root.
+In this source repository, the method package is the root `METHOD.md`, `schemas/`, `skills/`,
+`PROCESSES.md`, and `GSTACK.md`. In a consuming repository it lives under
+`.claude/skills/a-team/`. In both layouts, the project data it operates on lives under
+`a-team/` at the repository root.
 
 | Artifact | Responsibility |
 | --- | --- |
-| `scrum/backlog.md` | Ordered current work inventory and priority |
-| `scrum/sprint.md` | Active sprint commitment and live sprint state |
-| `scrum/tickets/*.md` | Durable work contracts and ticket lifecycle state |
-| `scrum/metrics/events.jsonl` | Append-only lifecycle and token event history |
-| `scrum/metrics/summary.json` | Replaceable metric report derived from canonical records |
-| `scrum/sprints/*.md` | Closed sprint archives |
-| `scrum/retros/*.md` | Retrospective observations and experiments |
+| `a-team/backlog.md` | Ordered current work inventory and priority |
+| `a-team/sprint.md` | Active sprint commitment and live sprint state |
+| `a-team/tickets/*.md` | Durable work contracts and ticket lifecycle state |
+| `a-team/metrics/events.jsonl` | Append-only lifecycle and token event history |
+| `a-team/metrics/summary.json` | Replaceable metric report derived from canonical records |
+| `a-team/sprints/*.md` | Closed sprint archives |
+| `a-team/retros/*.md` | Retrospective observations and experiments |
 | `schemas/*.md` | Exact shared shapes, enums, and formulas |
 | `skills/*/SKILL.md` | Operational procedures |
 | `PROCESSES.md` | Human-readable workflow map |
 | `GSTACK.md` | External gstack integration boundary |
 
+An uninitialized repository has none of the canonical `a-team/` control-plane artifacts.
+`init-workspace` alone may create the minimal backlog, ticket directory, and empty event log
+defined by `schemas/backlog.md`. It creates no ticket, sprint, history, or priority decision.
+
 Repository artifacts, not chat history, are authoritative. Derived reports never override their source records.
 
 External workflows may provide discovery, plans, implementation, findings, verification, or shipping evidence. They cannot set Scrum priority, commitment, lifecycle state, readiness, acceptance, closure, or metrics; only the owning Scrum operation may do that.
+
+## Git baseline and durable project-management state
+
+Every sprint starts from one inspectable Git baseline. Immediately before `plan-sprint`
+writes an approved commitment, the repository index and worktree, including untracked files,
+must be clean and `HEAD` must be a real commit. The sprint record and `sprint_started` event
+preserve that full commit SHA as `baseline_commit`.
+
+Do not hide existing implementation inside a baseline and later claim it as sprint delivery.
+Before the first governed sprint or after interrupted external work, classify every pending
+change, attribute it to durable work where applicable, and either commit it as explicitly
+disclosed pre-sprint state or disposition it through its owning process. Pre-baseline work
+contributes no sprint points or cycle-time evidence.
+
+Planning writes project-management state after the baseline was selected. Commit the
+approved `a-team/sprint.md` and matching appended `sprint_started` event before any ticket
+starts. `start-ticket` requires a clean tree, requires the recorded baseline to be an
+ancestor of the current `HEAD`, and verifies that committed `HEAD` contains the exact active
+sprint and start event.
+
+A dirty or uncommitted repository is a planning/start prerequisite failure, not permission
+to stash, discard, absorb, or auto-commit another owner's work. Git commits and publication
+still require the authority granted by the user and repository rules.
 
 ## Sprint
 
@@ -87,6 +115,7 @@ State changes must be made through the owning operation, update the durable tick
 
 | Transition or operation | Owning skill |
 | --- | --- |
+| absent Scrum infrastructure → initialized empty workspace | `init-workspace` |
 | idea or finding → captured backlog ticket | `capture-work` |
 | `backlog` → `ready` | `refine-ticket` |
 | commit ready tickets to the sprint | `plan-sprint` |
@@ -102,6 +131,12 @@ State changes must be made through the owning operation, update the durable tick
 | read-only process guidance and routing | `howto` |
 | read-only status reporting | `report-status` |
 | lifecycle-read-only metric reporting and derived-summary refresh | `report-metrics` |
+| deduplicate and report public A-Team package feedback | `report-issue` |
+
+`report-issue` is an external package-intake operation, not a Scrum lifecycle transition.
+A GitHub issue has no Scrum status, priority, estimate, sprint membership, or authorization
+to begin. An explicit maintainer decision must route accepted upstream work through
+`capture-work` in the package's development backlog.
 
 `parked` and `rejected` are explicit non-delivery dispositions. They preserve ticket history, contribute no completed velocity, and may not rewrite accepted `done` work. Later continuation uses a new linked ticket rather than reopening the terminal contract.
 

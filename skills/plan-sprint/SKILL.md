@@ -40,6 +40,12 @@ Distinguish repository facts, user-provided constraints, and planning assumption
 
 Detect an active sprint from `sprint.md`, sprint files, tickets, and unmatched `sprint_started`/`sprint_closed` events. Absence of `sprint.md` plus a fully matched history means no active sprint. If those sources disagree, stop and report the inconsistency. Never create a second active sprint.
 
+Inspect Git with untracked files included. Before presenting a committable proposal, report
+whether the index and worktree are clean and identify the current full `HEAD` commit object
+ID. A dirty
+tree may be investigated and classified read-only, but it cannot become an approved sprint
+baseline. Do not stash, discard, absorb, stage, or commit pending changes under this skill.
+
 ## Build the proposal
 
 1. Choose exactly one observable sprint goal. Describe a demonstrable outcome, not activity or a list of tickets.
@@ -68,6 +74,10 @@ Present the proposal with:
 
 Without approval, stop after the proposal and make no file or event changes.
 
+If the repository is dirty, present planning content only as a draft and name the baseline
+prerequisite. Do not request approval for a proposal that cannot legally be committed from
+the observed Git state.
+
 ## Commit an approved sprint
 
 Immediately before writing, re-read all proposal inputs. If state changed materially, invalidate the approval and present a revised proposal.
@@ -75,18 +85,24 @@ Immediately before writing, re-read all proposal inputs. If state changed materi
 After explicit approval:
 
 1. Reconfirm there is no active sprint and every selected ticket is still `ready`, unclaimed, dependency-safe, and in the approved category.
-2. Use the current local date as the sprint identifier unless the live repository has an unambiguous compatible convention. Obtain the current local time at the moment of commitment and format it as ISO 8601 with timezone; never reconstruct or invent it.
-3. Create or update `sprint.md` in the exact live-method or established repository format. Record active status, identifier, approved goal, committed and stretch ticket links with unchanged points, risks, carry-over, and approval evidence sufficient to identify the approved proposal. Do not put unapproved work into it.
-4. Do not change ticket status, `started_at`, branch, scope, estimate, or sprint assignment. `start-ticket` owns beginning work and assignment.
-5. Append one `sprint_started` event using the same timestamp and conforming to `.claude/skills/a-team/schemas/events.md`.
+2. Require `git status --porcelain=v1 --untracked-files=all` to be empty, resolve `HEAD^{commit}` to the repository's full lowercase hexadecimal object ID, and preserve it as `baseline_commit`. Refuse an unborn branch, missing Git repository, staged change, modified file, untracked file, abbreviated ID, or non-commit object. Never clean or commit on the user's behalf under planning authority.
+3. Use the current local date as the sprint identifier unless the live repository has an unambiguous compatible convention. Obtain the current local time at the moment of commitment and format it as ISO 8601 with timezone; never reconstruct or invent it.
+4. Create or update `sprint.md` in the exact live-method or established repository format. Record active status, identifier, Git baseline, approved goal, committed and stretch ticket links with unchanged points, risks, carry-over, and approval evidence sufficient to identify the approved proposal. Do not put unapproved work into it.
+5. Do not change ticket status, `started_at`, branch, scope, estimate, or sprint assignment. `start-ticket` owns beginning work and assignment.
+6. Append one `sprint_started` event using the same timestamp and `baseline_commit`, conforming to `.claude/skills/a-team/schemas/events.md`.
 
 The event log is append-only. Never edit or reorder existing lines. Before appending, check `sprint.md` and the entire relevant event history for the same sprint start. If the approved sprint is already recorded consistently, report the operation as already applied and append nothing. If only part of the state exists or fields disagree, stop for reconciliation rather than duplicating the event.
 
 Record planning token usage only if the tool or provider exposes it. Preserve reported provider categories and identifiers, use purpose `planning`, set exposed-but-unknown fields to `null`, and never estimate from text length. Append token events; do not rewrite lifecycle history.
 
+Planning intentionally leaves the new sprint file and event as a PM-only Git diff. Report
+the exact files and require them to be committed before `start-ticket`; do not claim that
+the repository remains clean after writing the commitment.
+
 ## Safety rules
 
 - Human approval is required before any commitment write.
+- A clean committed Git baseline is required before any commitment write.
 - Do not implement, start, claim, block, refine, reprioritize, or alter ticket scope.
 - Do not mark any ticket `in_progress` or set its sprint field.
 - Do not create a branch, switch branches, or repair stale branches.
@@ -100,6 +116,7 @@ Review the diff and confirm:
 
 - the proposal had explicit approval and did not change after approval;
 - there is exactly one active sprint and exactly one observable goal;
+- the recorded baseline is the exact clean pre-write `HEAD` and is identical in the sprint file and start event;
 - every committed and stretch ticket was `ready` at commitment time;
 - committed and stretch work are distinct and committed points sum correctly;
 - ticket state, estimates, lifecycle timestamps, scope, and branches did not change;
@@ -109,6 +126,10 @@ Review the diff and confirm:
 - no duplicate `sprint_started` event was introduced;
 - no unavailable tokens, velocity, evidence, decisions, or history were invented;
 - only the operation-owned files changed.
+
+Confirm that the post-write diff contains only the approved sprint file and appended
+event/token lines, and report that `start-ticket` remains blocked until this PM state is
+committed.
 
 If validation fails, repair only an unambiguous write from this invocation. Otherwise stop and report the inconsistency; never rewrite old events.
 

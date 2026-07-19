@@ -27,7 +27,7 @@ Without approval, produce a proposal and do not write a retro or alter process f
 2. Read `.claude/skills/a-team/schemas/sprint.md`, `.claude/skills/a-team/schemas/metrics.md`, and `.claude/skills/a-team/schemas/tokens.md` for exact shared contracts.
 3. The live method wins over this skill.
 
-Do not invent missing sprint, ticket, metrics, or history artifacts. An approved retro may create its own dated file under an existing `scrum/retros/` directory when the method and conventions define it. Otherwise report the missing prerequisite.
+Do not invent missing sprint, ticket, metrics, or history artifacts. An approved retro may create its own dated file under an existing `a-team/retros/` directory when the method and conventions define it. Otherwise report the missing prerequisite.
 
 ## Inspect live evidence
 
@@ -83,7 +83,7 @@ Present the evidence and proposed change before mutation unless the user has alr
 For an approved change:
 
 1. Use the current ISO 8601 timestamp with timezone as `accepted_at`; never backfill an invented acceptance time.
-2. Create one convention-matching record under `scrum/retros/`, using a date-based name that cannot overwrite another retro.
+2. Create one convention-matching record under `a-team/retros/`, using a date-based name that cannot overwrite another retro.
 3. Record cadence, covered period, evidence, Helped/Slowed us down/Change content, decision owner when known, effective point, and affected method or skill files.
 4. If no change is accepted, say so plainly; a valid negative result needs no forced change.
 

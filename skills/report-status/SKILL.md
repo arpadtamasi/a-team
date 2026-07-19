@@ -24,18 +24,18 @@ Use read-only inspection such as file reads, searches, directory listings, and n
 2. Read `.claude/skills/a-team/schemas/ticket.md`, `.claude/skills/a-team/schemas/sprint.md`, and `.claude/skills/a-team/schemas/events.md` for exact shared contracts.
 3. Distinguish method requirements from observed state.
 
-Missing infrastructure is a report finding, not permission to create it. An absent `scrum/sprint.md` is not missing infrastructure when event history has no unmatched `sprint_started`; report “no active sprint.” A missing `scrum/sprints/` directory means no closure history yet when no closed-sprint event claims otherwise.
+Missing infrastructure is a report finding, not permission to create it. An absent `a-team/sprint.md` is not missing infrastructure when event history has no unmatched `sprint_started`; report “no active sprint.” A missing `a-team/sprints/` directory means no closure history yet when no closed-sprint event claims otherwise.
 
 ## Inspect live state
 
 Read, when present:
 
-- `scrum/sprint.md` and recent `scrum/sprints/` records;
-- ordered `scrum/backlog.md`;
-- all relevant `scrum/tickets/` frontmatter and dependencies;
+- `a-team/sprint.md` and recent `a-team/sprints/` records;
+- ordered `a-team/backlog.md`;
+- all relevant `a-team/tickets/` frontmatter and dependencies;
 - branches, worktrees, and repository status through read-only version-control inspection;
-- `scrum/metrics/events.jsonl` for claimed sessions, blockers, and recent transitions;
-- `scrum/metrics/summary.json` only as a derived cross-check, never as stronger truth than tickets and events.
+- `a-team/metrics/events.jsonl` for claimed sessions, blockers, and recent transitions;
+- `a-team/metrics/summary.json` only as a derived cross-check, never as stronger truth than tickets and events.
 - repository-visible gstack plan, review, QA, investigation, or ship artifacts when they materially affect current work, and existing local `~/.gstack/projects/<project-slug>/` metadata only when safely readable and relevant.
 
 Validate every JSONL line consulted. Do not infer a ticket state from prose when canonical frontmatter exists. Do not assume a populated branch exists: compare recorded ownership with live branches or worktrees. Do not expose secrets or unrelated file contents.

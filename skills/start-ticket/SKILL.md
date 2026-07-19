@@ -34,6 +34,16 @@ Before changing anything, inspect:
 
 Resolve inconsistencies before mutation. Chat history does not override repository state.
 
+Require the index and worktree, including untracked files, to be clean before starting.
+Resolve the active sprint's full commit-object `baseline_commit` and refuse if it is missing, malformed,
+or not an ancestor of current `HEAD`. Verify from committed Git content—not merely the
+worktree—that `HEAD` contains the exact active `a-team/sprint.md` and its matching
+`sprint_started` event. This proves the PM commitment was durably committed after its
+baseline and before feature work began.
+
+Do not stash, discard, absorb, stage, or commit pending changes to satisfy this gate. Report
+the exact dirty paths or missing committed PM artifact and leave the ticket unchanged.
+
 ## Preconditions
 
 Start only when all of these are true:
@@ -94,6 +104,7 @@ This operation is not used to re-start a ticket already `in_progress`, blocked, 
 Review state and diff and confirm:
 
 - the ticket was ready and committed in the single active sprint immediately before transition;
+- the pre-start Git tree was clean, the recorded baseline is an ancestor of `HEAD`, and the exact sprint commitment and start event already exist in committed `HEAD`;
 - dependencies were demonstrably satisfied and ownership was clear;
 - status is `in_progress`, sprint matches `sprint.md`, and `started_at` is the actual start timestamp;
 - the original `started_at` was not reset or reconstructed;

@@ -15,7 +15,7 @@ Create at most one backlog item per invocation unless the user explicitly reques
 Do not:
 
 - implement or start the work;
-- create or modify a sprint, including `scrum/sprint.md`;
+- create or modify a sprint, including `a-team/sprint.md`;
 - assign a branch;
 - estimate story points;
 - mark the ticket `ready`;
@@ -43,7 +43,7 @@ A gstack plan task, TODO, review finding, QA defect, ship follow-up, or retro su
 
 1. Read `AGENTS.md`.
 2. Read `.claude/skills/a-team/METHOD.md` as the canonical definition of the workflow and ticket model.
-3. Read `.claude/skills/a-team/schemas/ticket.md` and `.claude/skills/a-team/schemas/events.md` for the exact shared ticket and event contracts.
+3. Read `.claude/skills/a-team/schemas/backlog.md`, `.claude/skills/a-team/schemas/ticket.md`, and `.claude/skills/a-team/schemas/events.md` for the exact shared backlog, ticket, and event contracts.
 4. If the applicable method conflicts with this skill, stop and report the conflict; the method is authoritative.
 
 Do not copy the full method into the ticket or this skill's output.
@@ -52,14 +52,15 @@ Do not copy the full method into the ticket or this skill's output.
 
 Before writing, inspect:
 
-- `scrum/backlog.md`;
-- existing Markdown files in `scrum/tickets/`;
+- `a-team/backlog.md`;
+- existing Markdown files in `a-team/tickets/`;
 - recent ticket IDs, filename slugs, lanes, types, language, and naming conventions;
 - backlog priority sections and entry format;
 - documentation or files referenced by the request;
-- `scrum/metrics/events.jsonl`, when present.
+- `a-team/metrics/events.jsonl`, when present.
 
-The board and ticket directory must already exist. If either is absent, stop rather than creating an alternative structure.
+The board and ticket directory must already exist. If either is absent, stop and route the
+workspace to `init-workspace` rather than creating an alternative structure.
 
 Search the backlog and ticket contents for the same requested outcome, defect, or finding. Compare outcomes rather than keywords alone:
 
@@ -89,7 +90,7 @@ Derive the next ID from the existing tickets and backlog:
 
 Create a concise lowercase hyphenated filename slug without changing the ID:
 
-`scrum/tickets/<ticket-id>-<slug>.md`
+`a-team/tickets/<ticket-id>-<slug>.md`
 
 ## Create the ticket
 
@@ -103,7 +104,11 @@ Do not add acceptance criteria or verification merely to make the capture appear
 
 ## Update the backlog
 
-Add one compact entry per created ticket to the appropriate section of `scrum/backlog.md`, matching the existing format. Unless the user explicitly requests another priority, use the normal backlog rather than the active sprint or highest-priority section.
+Add one compact entry per created ticket to the appropriate section of `a-team/backlog.md`,
+matching `schemas/backlog.md` and the existing format. Unless the user explicitly requests
+another priority, use the neutral `Backlog` section created by `init-workspace`, or the
+repository's established normal-backlog equivalent, rather than the active sprint or
+highest-priority section.
 
 Include only:
 
@@ -115,11 +120,11 @@ Include only:
 - a relative link to the ticket;
 - a one-line outcome or faithful capture summary.
 
-Do not copy the detailed ticket body into the board and do not edit `scrum/sprint.md`.
+Do not copy the detailed ticket body into the board and do not edit `a-team/sprint.md`.
 
 ## Log creation when supported
 
-If `scrum/metrics/events.jsonl` exists, append exactly one `ticket_created` event per created ticket conforming to `.claude/skills/a-team/schemas/events.md`.
+If `a-team/metrics/events.jsonl` exists, append exactly one `ticket_created` event per created ticket conforming to `.claude/skills/a-team/schemas/events.md`.
 
 Use each ticket's capture timestamp in its event. Preserve existing lines exactly. Parse every appended line as JSON before considering the write successful.
 
@@ -133,7 +138,7 @@ Check the resulting diff and confirm:
 - every created ticket file exists and its backlog link resolves;
 - every created status is `backlog` and story points are unset;
 - every created ticket keeps `ready_at`, `started_at`, `review_at`, `done_at`, `sprint`, and `branch` empty;
-- `scrum/sprint.md` and sprint records were not changed;
+- `a-team/sprint.md` and sprint records were not changed;
 - no unsupported facts, historical evidence, or timestamps were invented;
 - no duplicate ticket was created;
 - any gstack-surfaced input had capture authority and was not treated as pre-authorized implementation;

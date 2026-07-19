@@ -25,6 +25,13 @@ report "done" with no evidence. A-Team is the control plane that keeps them hone
 - **Token accounting.** Provider-reported usage attributed by ticket, sprint, and purpose.
 - **Human gates.** Sprint commitment, scope changes, acceptance of open findings, and method
   changes require explicit approval. No workflow auto-decides them.
+- **Clean Git baseline.** Every sprint records the clean commit it starts from, and its
+  PM-only commitment is committed before feature work begins, so ticket diffs remain
+  attributable and pre-existing work is never counted twice.
+
+You do not need to know Scrum vocabulary. Describe what you want in ordinary language;
+A-Team routes it to the right operation, asks focused questions, and translates terms when
+they become useful. See [`GLOSSARY.md`](GLOSSARY.md) for the plain-language meanings.
 
 ## Who it is for
 
@@ -52,15 +59,16 @@ git clone --single-branch --depth 1 https://github.com/arpadtamasi/a-team.git ~/
 ```
 
 Then invoke operations with `/a-team <operation>` in Claude Code (for example
-`/a-team plan-sprint`), or just ask in your own words ("vegyük fel a backlogra", "indítsd a
-sprintet", "mi az állás"). The method operates on a `scrum/` directory at your repository
-root; the skills create and maintain it.
+`/a-team init-workspace`), or just ask in your own words ("inicializáld az A-Teamet",
+"vegyük fel a backlogra", "mi az állás"). `init-workspace` creates the minimal canonical
+`a-team/` structure once; the remaining skills maintain it.
 
 Copy [`AGENTS.md`](AGENTS.md) to your repository root and adapt it — the method relies on the
 Boy Scout (found-work) rule and the code guidelines it defines.
 
 ## Operations
 
+- `init-workspace` — create the minimal canonical Scrum infrastructure once
 - `capture-work` — turn an idea, request, or finding into a backlog ticket
 - `refine-ticket` — make one outcome clear, bounded, estimable, verifiable (→ `ready`)
 - `plan-sprint` — set the sprint goal and commitment
@@ -76,6 +84,7 @@ Boy Scout (found-work) rule and the code guidelines it defines.
 - `report-status` — read-only snapshot of current work
 - `report-metrics` — recalculate delivery and token metrics
 - `howto` — read-only routing: which operation applies, and how to request it
+- `report-issue` — deduplicate and file A-Team package feedback on GitHub
 
 ## How it is organized
 
@@ -86,6 +95,7 @@ Boy Scout (found-work) rule and the code guidelines it defines.
 | [`skills/`](skills/) | The operations, one directory each |
 | [`PROCESSES.md`](PROCESSES.md) | Human-readable workflow map |
 | [`GSTACK.md`](GSTACK.md) | Boundary with external expert workflows |
+| [`GLOSSARY.md`](GLOSSARY.md) | Scrum and A-Team terms in plain language |
 | [`AGENTS.md`](AGENTS.md) | Repository working rules the method relies on |
 
 ## License

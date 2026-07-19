@@ -87,7 +87,7 @@ Identify first-pass acceptance from lifecycle history: it applies only when the 
 
 Use a unique review-session ID when the repository's ticket/session schema supports it. Record the review round, candidate identity, inspected evidence, findings, coverage, and disposition in the method-defined or existing review location. Do not invent a parallel review store.
 
-Use current local ISO 8601 timestamps with timezone for events that actually occur. Inspect `scrum/metrics/events.jsonl` before appending. Preserve it append-only and prevent duplicates by ticket, candidate/review round, session, and event type.
+Use current local ISO 8601 timestamps with timezone for events that actually occur. Inspect `a-team/metrics/events.jsonl` before appending. Preserve it append-only and prevent duplicates by ticket, candidate/review round, session, and event type.
 
 The live method defines no generic `ticket_reviewed` lifecycle event; do not invent one. Append `rework_started` only when rework truly begins. Append `token_usage` only for provider-exposed counts, with purpose `review` for review work and `rework` only for actual rework. Preserve provider categories and use `null` for unknown schema fields; never estimate tokens. Parse appended JSON lines. If the log is absent, report that recording was unavailable rather than creating substitute infrastructure.
 

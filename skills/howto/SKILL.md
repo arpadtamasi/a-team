@@ -1,12 +1,27 @@
 ---
 name: howto
-description: Explain how to use this repository's Scrum-like workflow and identify the correct owning process, prerequisites, approval gate, and next request without changing state. Use this skill whenever the user asks how to proceed procedurally, which Scrum skill or gstack workflow applies, how a ticket moves through the lifecycle, or how to handle scope changes, carry-over, findings, shipping, closure, or retrospectives—even when they ask casually, such as “how do I go on with this?” Do not use it to perform a transition, choose the next ticket from live backlog state, produce a status report, or recalculate metrics.
+description: Explain in plain language how to use this repository's workflow and identify the correct owning process, prerequisites, approval gate, and next request without changing state. Use whenever the user asks how to proceed, says they do not know Scrum terminology, asks what backlog/refinement/sprint/points/ready/done means, wants to talk through tasks, or asks which Scrum skill or gstack workflow applies—even casually, such as “how do I go on with this?” or “beszéljük át a feladatokat.” Do not use it to perform a transition, choose the next ticket from live backlog state, produce a status report, or recalculate metrics.
 compatibility: Requires read access to the repository's canonical Scrum method, process guide, integration guide, and relevant skill definitions.
 ---
 
 # Scrum How-to
 
 Give a short, repository-grounded operating answer. This skill is a navigator, not another lifecycle owner.
+
+## Plain-language contract
+
+Do not require the user to know Scrum vocabulary, state names, artifact names, or skill
+names. Start with the practical outcome in the user's language, then name the canonical
+A-Team term once in parentheses when useful.
+
+Read the live package's `GLOSSARY.md` (root in the A-Team source repository;
+`.claude/skills/a-team/GLOSSARY.md` after installation). Use its meanings consistently, but
+do not dump the whole glossary when one or two terms answer the question.
+
+When the user wants to discuss tasks, explain that the immediate activity is to make one
+item clear enough to act on (`refine-ticket`). Ask one everyday-language question at a time
+instead of presenting a Scrum questionnaire. The owning refinement skill, not `howto`, makes
+any artifact changes.
 
 ## Read-only boundary
 
@@ -41,6 +56,7 @@ Ask a question only when the target or intended operation cannot be identified s
 
 | User intent | Owning Scrum process | Optional gstack support |
 | --- | --- | --- |
+| Initialize A-Team in a repository with no Scrum infrastructure | `init-workspace` | none; initialization creates no work |
 | Record a request, defect, risk, or concrete finding | `capture-work` | gstack output may be the discovery source, but remains a candidate until capture |
 | Clarify, estimate, split, or make work ready | `refine-ticket` | `/office-hours`, `/plan-ceo-review`, `/autoplan`, `/plan-eng-review` |
 | Choose the sprint commitment | `plan-sprint` | none substitutes for sprint planning |
@@ -56,6 +72,7 @@ Ask a question only when the target or intended operation cannot be identified s
 | Show current work state | `report-status` | relevant gstack results may be reported as external evidence |
 | Calculate delivery or token metrics | `report-metrics` | gstack telemetry never replaces Scrum events |
 | Repair proven historical event errors | `reconcile-history` | no heuristic reconstruction |
+| Report a problem or request about the A-Team package upstream | `report-issue` | GitHub issue intake does not create Scrum state |
 
 Implementation itself is performed by the authorized coding or research workflow inside an `in_progress` ticket; it is not a separate Scrum transition.
 
@@ -87,20 +104,20 @@ Do not infer the next step from status alone when ticket, backlog, sprint, depen
 
 ## Response format
 
-Keep the answer proportional to the question. Prefer:
+Keep the answer proportional to the question. Prefer plain language before internal names:
 
 ```markdown
-Recommended process: `<skill>`
+What happens next: <practical outcome in everyday language>
 
-Why: <one or two sentences>
+A-Team calls this: `<skill>`
 
-Before it can run:
+What we need first:
 - <only the real prerequisites or approval gate>
 
-Ask next:
-> <a concrete request the user can give the owning skill>
+You can say:
+> <a concrete ordinary-language request>
 
-Watch out for: <one material refusal condition or “none”>
+Important limit: <one material refusal condition or “none”>
 ```
 
 For a multi-step route, show the shortest legal sequence and mark the current position. Link the owning skill and the relevant section of `PROCESSES.md`; do not reproduce the full method or skill procedure.
@@ -115,5 +132,6 @@ Before replying, confirm:
 - optional gstack support is clearly non-owning;
 - prerequisites come from live repository artifacts and the owning skill;
 - every required human approval remains visible;
+- the user was not required to supply or understand Scrum terminology;
 - no status, lifecycle event, estimate, sprint, branch, metric, or artifact changed;
 - the answer does not invent a missing process or duplicate `report-status`.

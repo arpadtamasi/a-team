@@ -41,14 +41,14 @@ Require the target ticket and the method-defined Scrum artifacts used by this op
 Before changing anything, inspect:
 
 - the complete ticket and its compact backlog entry;
-- `scrum/sprint.md` and the ticket's active sprint assignment;
+- `a-team/sprint.md` and the ticket's active sprint assignment;
 - the actual working tree, current/default branches, branch ownership, commits, and ticket-relevant diff;
 - changed files and candidate output or research artifact;
 - every verification command and manual, measurement, or documentation check named in the ticket;
 - recorded outputs, logs, screenshots, measurements, and known failures;
 - required research and decision logs;
 - related blockers and dependencies;
-- the ticket's work sessions and `scrum/metrics/events.jsonl`, when present.
+- the ticket's work sessions and `a-team/metrics/events.jsonl`, when present.
 
 Repository artifacts and executed outputs are facts. User statements not corroborated by inspectable evidence remain identified assumptions. Never invent a command result, timestamp, branch, session, token count, or evidence.
 
@@ -86,7 +86,7 @@ Use one current local ISO 8601 timestamp with timezone for the real transition. 
 5. Record the candidate, verification evidence, known limitations, and handoff session in the method-defined ticket location or existing repository convention. Do not invent a new evidence system.
 6. Update only the target's compact backlog state when the board mirrors ticket status.
 
-If `scrum/metrics/events.jsonl` exists, scan it before appending. Append exactly one `ticket_submitted_for_review` event conforming to `.claude/skills/a-team/schemas/events.md` for this submission.
+If `a-team/metrics/events.jsonl` exists, scan it before appending. Append exactly one `ticket_submitted_for_review` event conforming to `.claude/skills/a-team/schemas/events.md` for this submission.
 
 Use the live method's compatible schema. Identify a duplicate by ticket, review round/candidate, and existing transition event—not timestamp alone. Never rewrite existing lines; correct bad history only with a method-defined correction event. Parse every appended line before success.
 

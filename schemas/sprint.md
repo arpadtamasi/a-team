@@ -8,12 +8,14 @@ This file owns the exact reusable sprint record. `plan-sprint` owns commitment a
 
 ## Active sprint
 
-`scrum/sprint.md` exists only while one sprint is active:
+`a-team/sprint.md` exists only while one sprint is active:
 
 ```markdown
 # Sprint — <sprint-id>
 
 Status: `active`
+
+Git baseline: `<full lowercase hexadecimal commit object ID for this repository>`
 
 ## Sprint goal
 
@@ -48,11 +50,15 @@ Committed at: `<ISO 8601 with timezone>`
 
 Committed and stretch sets are disjoint. Points are copied unchanged from ready tickets. Planning does not assign ticket sprint fields, start work, or create branch claims.
 
-An absent `scrum/sprint.md` means no sprint is active only when the event history contains no unmatched `sprint_started` event. `plan-sprint` creates the file after an approved commitment. `close-sprint` removes it only after the matching archive and `sprint_closed` event validate successfully.
+An absent `a-team/sprint.md` means no sprint is active only when the event history contains no unmatched `sprint_started` event. `plan-sprint` creates the file after an approved commitment. `close-sprint` removes it only after the matching archive and `sprint_closed` event validate successfully.
+
+`Git baseline` is the clean committed `HEAD` observed immediately before sprint commitment.
+It is immutable. The PM-only commit that persists this sprint file and its matching event is
+a descendant of the baseline and must exist before `start-ticket` may begin work.
 
 ## Closed sprint archive
 
-`scrum/sprints/<sprint-id>.md` is the self-contained historical snapshot. It preserves the committed goal, ticket sets, points, order, carry-over, risks, and approval as facts, changes the status to `closed`, rewrites ticket links relative to the archive as `../tickets/...`, and uses this exact structure:
+`a-team/sprints/<sprint-id>.md` is the self-contained historical snapshot. It preserves the committed goal, ticket sets, points, order, carry-over, risks, and approval as facts, changes the status to `closed`, rewrites ticket links relative to the archive as `../tickets/...`, and uses this exact structure:
 
 ```markdown
 # Sprint — <sprint-id>
@@ -61,6 +67,7 @@ Status: `closed`
 
 Committed at: `<ISO 8601 with timezone>`
 Closed at: `<ISO 8601 with timezone>`
+Git baseline: `<original full lowercase hexadecimal commit object ID>`
 
 ## Sprint goal
 
@@ -141,4 +148,4 @@ A sprint can be `partial` even when one or more tickets are `done`. Every commit
 
 Metric values state unavailable data, effective-event corrections, provider compatibility, exclusions, and coverage rather than silently using zero.
 
-After the archive and matching event validate, `scrum/sprint.md` is deleted. If both closure artifacts exist and the file is absent, closure is an idempotent success. If only part of that representation exists, stop for `reconcile-history` rather than guessing.
+After the archive and matching event validate, `a-team/sprint.md` is deleted. If both closure artifacts exist and the file is absent, closure is an idempotent success. If only part of that representation exists, stop for `reconcile-history` rather than guessing.

@@ -6,7 +6,7 @@ compatibility: Requires repository filesystem access and valid Scrum event, tick
 
 # Report Metrics
 
-Generate reproducible metrics from raw truth. This operation may replace only the derived `scrum/metrics/summary.json`; it never changes tickets, sprints, backlog, `sprint.md`, or raw events.
+Generate reproducible metrics from raw truth. This operation may replace only the derived `a-team/metrics/summary.json`; it never changes tickets, sprints, backlog, `sprint.md`, or raw events.
 
 ## Inputs
 
@@ -18,7 +18,7 @@ Use the user-specified period, otherwise report the full valid history and ident
 2. Read `.claude/skills/a-team/schemas/metrics.md`, `.claude/skills/a-team/schemas/events.md`, `.claude/skills/a-team/schemas/ticket.md`, `.claude/skills/a-team/schemas/sprint.md`, and `.claude/skills/a-team/schemas/tokens.md` for exact shared contracts.
 3. The live method's definitions override this skill.
 
-Require existing `scrum/metrics/events.jsonl`, `scrum/tickets/`, and `scrum/sprints/`. Do not create missing raw history or alternative infrastructure. The operation may create `summary.json` only inside an existing, authorized metrics directory because it owns that derived artifact.
+Require existing `a-team/metrics/events.jsonl`, `a-team/tickets/`, and `a-team/sprints/`. Do not create missing raw history or alternative infrastructure. The operation may create `summary.json` only inside an existing, authorized metrics directory because it owns that derived artifact.
 
 ## Load and validate source data
 
@@ -70,7 +70,7 @@ Confirm:
 - token values are exposed values and provider categories are preserved;
 - repeated execution on unchanged input yields the same semantic summary;
 - tickets, backlog, `sprint.md`, archives, and raw events did not change;
-- only `scrum/metrics/summary.json` changed, if any file changed.
+- only `a-team/metrics/summary.json` changed, if any file changed.
 
 ## Output
 

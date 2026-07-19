@@ -90,7 +90,7 @@ Use one current local ISO 8601 timestamp with timezone for the real closure.
 5. Clear active branch ownership only when repository convention treats the ticket field as a claim and the branch is merged, retired, or explicitly released. Never claim a branch was deleted or merged without evidence; preserve the branch as historical context if the schema requires it.
 6. Preserve active sprint membership; sprint closure owns sprint results and velocity.
 
-If `scrum/metrics/events.jsonl` exists, scan it first and append exactly one `ticket_done` event conforming to `.claude/skills/a-team/schemas/events.md`.
+If `a-team/metrics/events.jsonl` exists, scan it first and append exactly one `ticket_done` event conforming to `.claude/skills/a-team/schemas/events.md`.
 
 Prevent duplicates using ticket ID and the completed transition, not timestamp alone. Never edit prior lines. Parse the appended JSON. Record closure-session `token_usage` only when the provider exposes it, with the actual purpose (usually `review` or `documentation`), preserved categories, and unknown schema fields as `null`; never estimate. If required logging is unavailable, refuse or report the prerequisite according to the live method—do not create a substitute.
 

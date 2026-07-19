@@ -11,7 +11,9 @@ When the next operation is unclear, [`howto`](skills/howto/SKILL.md) explains th
 ## Core lifecycle
 
 ```text
-idea, request, defect, or finding
+uninitialized repository
+→ init-workspace
+→ idea, request, defect, or finding
 → capture-work
 → optional product discovery (office-hours / CEO review)
 → refine-ticket
@@ -35,11 +37,12 @@ Product discovery can occur before or during refinement. Technical planning can 
 
 | Process | Trigger and purpose | Owner / allowed input | Result | Human gate, optional support, common refusal |
 | --- | --- | --- | --- | --- |
+| Initialize workspace | Create the minimum canonical Scrum control plane before the first ticket | [`init-workspace`](skills/init-workspace/SKILL.md); repository with no Scrum artifacts | Empty `backlog.md`, tracked ticket directory, empty event log | Creates no work or sprint. Refuses partial infrastructure, legacy-backlog migration, or reinitialization over data. |
 | Capture work | A new request or concrete finding needs durable identity | [`capture-work`](skills/capture-work/SKILL.md); no ticket yet | New unestimated `backlog` ticket and event | Capture must be intended or required by the Boy Scout rule; gstack findings are candidates until grounded and captured. Refuses duplicates or missing canonical infrastructure. |
 | Refine ticket | Make one outcome clear, bounded, estimable, and verifiable | [`refine-ticket`](skills/refine-ticket/SKILL.md); normally `backlog`, explicit reassessment of not-yet-started `ready` | `ready` plus estimate/event, or documented readiness gaps | Product decisions and material ready-scope changes require approval. May consume office hours, CEO, autoplan, or engineering input. Refuses unresolved decisions or work sized `8`/`13`. |
 | Decompose epic | A captured outcome is too broad or contains independent value | `refine-ticket`, then `capture-work` for explicitly authorized children; parent `backlog` | Vertical child candidates; only qualifying children become `ready` | Child creation is explicit. Refuses technical-layer splits with no independent outcome. |
-| Plan sprint | Decide the sprint goal and commitment | [`plan-sprint`](skills/plan-sprint/SKILL.md); `ready` tickets only | Approved active `sprint.md` and `sprint_started` | Exact proposal needs human approval. gstack planning is not a substitute. Refuses a second active sprint or incoherent goal. |
-| Start ticket | Claim committed work and start cycle time | [`start-ticket`](skills/start-ticket/SKILL.md); committed `ready` | `in_progress`, session, branch claim when real, `ticket_started` | Branch creation needs separate authority when applicable. Refuses stretch-only, uncommitted, blocked, or conflicting ownership. |
+| Plan sprint | Decide the sprint goal and commitment | [`plan-sprint`](skills/plan-sprint/SKILL.md); `ready` tickets only; clean committed Git baseline | Approved active `sprint.md` and `sprint_started`, both naming the baseline SHA | Exact proposal needs human approval. Refuses a dirty tree, second active sprint, or incoherent goal. Commit the PM-only sprint diff before work starts. |
+| Start ticket | Claim committed work and start cycle time | [`start-ticket`](skills/start-ticket/SKILL.md); committed `ready`; clean Git tree with committed sprint state | `in_progress`, session, branch claim when real, `ticket_started` | Refuses when the baseline is not an ancestor of `HEAD` or the exact sprint file/event is not committed. Branch creation needs separate authority. |
 | Implement ticket | Produce the contracted candidate | Coding agent or human; `in_progress` | Code, research, decision, or other ticket artifact plus verification | Scope is the approved ticket. `/investigate` may support root-cause work. Discovered unrelated work is captured, not silently implemented. |
 | Submit review | Hand off a real candidate with implementation evidence | [`submit-review`](skills/submit-review/SKILL.md); `in_progress` | `review`, first `review_at`, handoff event | Requires candidate and ticket-required checks. Refuses missing evidence or unresolved blocker. |
 | Review ticket | Judge the candidate against contract and DoD | [`review-ticket`](skills/review-ticket/SKILL.md); `review` | Findings and closure eligibility, or authorized rework | gstack `/review`, `/qa`, and security evidence may support it. Rework needs explicit direction or actual repair. Refuses invented or stale evidence. |
@@ -57,6 +60,7 @@ Product discovery can occur before or during refinement. Technical planning can 
 | Status report | Show current sprint, work, blockers, ownership, and next ready | [`report-status`](skills/report-status/SKILL.md); any state, read-only | snapshot only | May reference relevant gstack artifacts/workflow results but never mutates them. Refuses to fill gaps from memory. |
 | Metrics report | Recalculate delivery and token measures | [`report-metrics`](skills/report-metrics/SKILL.md); valid events/tickets/archives | deterministic `summary.json` and report | gstack telemetry is not input unless represented by valid Scrum events. Refuses ambiguous source data rather than guessing. |
 | Reconcile history | Correct proven event-history errors append-only | [`reconcile-history`](skills/reconcile-history/SKILL.md); erroneous historical record | `event_corrected` and approved materialized repairs | Explicit approval and inspectable evidence required. Never invents history or optimizes metrics. |
+| Report A-Team issue | Send package feedback to the public upstream repository without duplication | [`report-issue`](skills/report-issue/SKILL.md); a concrete A-Team problem or request | Existing matching issue link, or one new issue in `arpadtamasi/a-team` | Searches open and closed issues first. Does not create Scrum state, modify existing issues, or report to another repository. |
 
 ## Workflow variants
 
@@ -112,7 +116,10 @@ Preserve the current contract, record the proposed delta, and obtain explicit ap
 | `review` | `done` | `close-ticket` | Review accepted and Definition of Done passes |
 | `backlog`, `ready`, `in_progress`, `blocked`, or `review` | `parked` or `rejected` | `disposition-ticket` | Explicit non-delivery decision and provenance |
 
-Sprint commitment, sprint closure, retrospectives, reports, and historical reconciliation are operations rather than ticket-state transitions. `done`, `parked`, and `rejected` are terminal for the current contract.
+Workspace initialization, sprint commitment, sprint closure, retrospectives, reports,
+historical reconciliation, and public package issue intake are operations rather than
+ticket-state transitions. A GitHub issue is external intake, not a Scrum ticket. `done`,
+`parked`, and `rejected` are terminal for the current contract.
 
 ## gstack integration
 
@@ -146,15 +153,28 @@ Human approval is required for:
 
 An unavailable gstack question mechanism never becomes permission to auto-decide a Scrum gate.
 
+## Git baseline gate
+
+Before sprint commitment, `git status --porcelain=v1 --untracked-files=all` must be empty and
+`HEAD^{commit}` must resolve to the repository's full commit object ID. `plan-sprint` records that ID in both the
+active sprint and `sprint_started` event. Existing uncommitted implementation is classified
+and resolved before planning; it is never hidden in the baseline and later counted as sprint
+delivery.
+
+After planning, commit the PM-only sprint file and appended event before starting a ticket.
+`start-ticket` verifies a clean tree, verifies that the baseline is an ancestor of current
+`HEAD`, and reads the exact sprint state from committed `HEAD`. Neither operation silently
+stashes, discards, stages, or commits unrelated work.
+
 ## Evidence and artifacts
 
 | Evidence | Durable location |
 | --- | --- |
-| ticket contract and result | `scrum/tickets/` |
-| current priority | `scrum/backlog.md` only |
-| active / closed sprint | `scrum/sprint.md` / `scrum/sprints/` |
-| lifecycle and token events | `scrum/metrics/events.jsonl` |
-| official retro | `scrum/retros/` |
+| ticket contract and result | `a-team/tickets/` |
+| current priority | `a-team/backlog.md` only |
+| active / closed sprint | `a-team/sprint.md` / `a-team/sprints/` |
+| lifecycle and token events | `a-team/metrics/events.jsonl` |
+| official retro | `a-team/retros/` |
 | durable product decision | the owning spec under `docs/` (spec-first) or ticket-linked repository record |
 | gstack plan/review/QA/ship evidence | repository artifact or concise ticket/review/result record; never only a private `~/.gstack/projects/` path when load-bearing |
 

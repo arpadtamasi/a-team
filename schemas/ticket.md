@@ -4,7 +4,7 @@ This file owns the exact reusable ticket shape. Operational skills own when and 
 
 ## File and frontmatter
 
-Tickets live at `scrum/tickets/<ticket-id>-<slug>.md` and use this frontmatter:
+Tickets live at `a-team/tickets/<ticket-id>-<slug>.md` and use this frontmatter:
 
 ```yaml
 ---

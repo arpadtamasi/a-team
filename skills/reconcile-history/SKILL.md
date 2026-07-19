@@ -41,7 +41,7 @@ Use `replace` when a full evidence-backed event can stand in for the target. Use
 3. If path authority, correction semantics, or affected state is materially ambiguous, stop before mutation and report the conflict.
 4. Follow the live method and schemas over this skill.
 
-Require the existing `scrum/metrics/events.jsonl`. Do not create a substitute log, correction file, or missing project-management infrastructure.
+Require the existing `a-team/metrics/events.jsonl`. Do not create a substitute log, correction file, or missing project-management infrastructure.
 
 ## Inspect and prove the discrepancy
 
@@ -82,9 +82,9 @@ Use one current local ISO 8601 timestamp with timezone for the correction event.
 3. Append exactly one `event_corrected` object conforming to `.claude/skills/a-team/schemas/events.md`, including the approved `materialized_repairs` array or an empty array.
 4. For `replace`, include the complete valid replacement event with an evidence-backed original event timestamp. For `void`, set `replacement` to `null`.
 5. If approved and necessary, align only the affected ticket and compact backlog fields to the already-proven current state. This is repair of a materialized fact, not a new transition; do not append another lifecycle event.
-6. Leave `scrum/sprint.md`, sprint archives, raw prior lines, implementation, research records, branches, and git history unchanged.
+6. Leave `a-team/sprint.md`, sprint archives, raw prior lines, implementation, research records, branches, and git history unchanged.
 
-Do not directly refresh `scrum/metrics/summary.json`; `report-metrics` owns deterministic regeneration from the effective event view.
+Do not directly refresh `a-team/metrics/summary.json`; `report-metrics` owns deterministic regeneration from the effective event view.
 
 Record reconciliation-session `token_usage` only when directly exposed by the provider, following `.claude/skills/a-team/schemas/tokens.md` with purpose `planning`. Never estimate counts.
 

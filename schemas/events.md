@@ -1,6 +1,6 @@
 # Event contract
 
-`scrum/metrics/events.jsonl` is append-only raw truth. Each line is one JSON object with:
+`a-team/metrics/events.jsonl` is append-only raw truth. Each line is one JSON object with:
 
 - `timestamp`: ISO 8601 with timezone;
 - `event`: one supported event name;
@@ -24,7 +24,7 @@ Existing lines are never edited, reordered, or deleted. Derived summaries never 
 | `ticket_done` | `ticket_id`, `sprint`, unchanged `story_points`; `session_id` is recorded when exposed |
 | `ticket_parked` | `ticket_id`, `status: "parked"`, `prior_status`, `reason`, `decision_provenance` |
 | `ticket_rejected` | `ticket_id`, `status: "rejected"`, `prior_status`, `reason`, `decision_provenance` |
-| `sprint_started` | `sprint`, `goal`, ordered `committed_ticket_ids`, `committed_points`, ordered `stretch_ticket_ids` |
+| `sprint_started` | `sprint`, `goal`, `baseline_commit` as the repository's full lowercase hexadecimal commit object ID, ordered `committed_ticket_ids`, `committed_points`, ordered `stretch_ticket_ids` |
 | `sprint_closed` | `sprint`, `result`, `committed_points`, `completed_committed_points`, `throughput` |
 | `token_usage` | fields defined in `tokens.md` |
 | `event_corrected` | fields defined under **Correction event** |

@@ -3,18 +3,19 @@ id: TEMP-20260719-01
 title: Make source-workspace package path resolution consistent
 lane: null
 type: bug
-status: ready
+status: in_progress
 story_points: 3
 created_at: 2026-07-19T16:52:23+02:00
 ready_at: 2026-07-19T19:22:21+02:00
-started_at:
+started_at: 2026-07-19T20:43:23+02:00
 review_at:
 done_at:
-sprint:
+sprint: 2026-07-19
 branch:
 blocked_periods: []
 metrics:
-  work_sessions: []
+  work_sessions:
+    - TEMP-20260719-01-20260719T204323+0200
 ---
 
 ## Outcome

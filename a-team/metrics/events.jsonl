@@ -12,3 +12,4 @@
 {"timestamp":"2026-07-19T20:40:23+02:00","event":"ticket_created","ticket_id":"AT-3","status":"backlog","type":"feature","source":"capture-work"}
 {"timestamp":"2026-07-19T20:43:23+02:00","event":"ticket_started","ticket_id":"TEMP-20260719-01","sprint":"2026-07-19","session_id":"TEMP-20260719-01-20260719T204323+0200","source":"start-ticket"}
 {"timestamp":"2026-07-19T20:49:51+02:00","event":"ticket_created","ticket_id":"AT-4","status":"backlog","type":"bug","source":"capture-work"}
+{"timestamp":"2026-07-19T20:51:08+02:00","event":"ticket_submitted_for_review","ticket_id":"TEMP-20260719-01","sprint":"2026-07-19","session_id":"TEMP-20260719-01-20260719T204323+0200","source":"submit-review"}

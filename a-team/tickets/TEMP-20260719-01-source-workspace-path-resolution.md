@@ -3,12 +3,12 @@ id: TEMP-20260719-01
 title: Make source-workspace package path resolution consistent
 lane: null
 type: bug
-status: in_progress
+status: review
 story_points: 3
 created_at: 2026-07-19T16:52:23+02:00
 ready_at: 2026-07-19T19:22:21+02:00
 started_at: 2026-07-19T20:43:23+02:00
-review_at:
+review_at: 2026-07-19T20:51:08+02:00
 done_at:
 sprint: 2026-07-19
 branch:
@@ -65,6 +65,18 @@ This repository develops and dogfoods the same package. A copied local installat
 ### Documentation
 
 - Check every changed local Markdown link from both its source path and adapter-visible path.
+
+### Review handoff
+
+- Candidate commit: `62cdf60` (`fix: dogfood root A-Team package through adapter`).
+- `git diff --check`: passed for the candidate.
+- Adapter enumeration: 7 expected symlink entries, each resolving inside this repository to its exact root source.
+- Byte comparison: all 28 runtime Markdown files matched between root and adapter-visible paths by SHA-256.
+- Frontmatter parsing: all 36 root and adapter-visible router/operation `SKILL.md` views contained non-empty `name` and `description` values.
+- Markdown-link check: all local links across 56 root and adapter-visible runtime views resolved.
+- Manual route: `.claude/skills/a-team/skills/howto/SKILL.md` resolved to the current root `skills/howto/SKILL.md`.
+- Self-audit finding: the pre-existing missing `ticket-cycle` route is captured outside this sprint as [AT-4](AT-4-missing-ticket-cycle-route.md).
+- Known limitation: symbolic-link support is required, as already stated out of scope; no provider token totals were exposed.
 
 ## Dependencies
 

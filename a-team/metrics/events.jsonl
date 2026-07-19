@@ -7,3 +7,4 @@
 {"timestamp":"2026-07-19T19:31:02+02:00","event":"ticket_created","ticket_id":"AT-1","status":"backlog","type":"feature","source":"capture-work"}
 {"timestamp":"2026-07-19T20:07:34+02:00","event":"ticket_ready","ticket_id":"AT-1","story_points":3,"status":"ready","source":"refine-ticket"}
 {"timestamp":"2026-07-19T20:18:52+02:00","event":"ticket_ready","ticket_id":"TEMP-20260719-02","story_points":5,"status":"ready","source":"refine-ticket"}
+{"timestamp":"2026-07-19T20:32:10+02:00","event":"sprint_started","sprint":"2026-07-19","goal":"Az A-Team saját forrásrepója használja a root csomagot, és PO/PM által jóváhagyott, végleges ticket-prefixszel tudjon workspace-t inicializálni.","baseline_commit":"d674976c9e4103ee027f3d362562d0a3e5616d8c","committed_ticket_ids":["TEMP-20260719-01","AT-1"],"committed_points":6,"stretch_ticket_ids":[],"source":"plan-sprint"}

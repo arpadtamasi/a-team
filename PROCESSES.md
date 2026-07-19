@@ -4,7 +4,7 @@
 
 Scrum is this repository's control plane; gstack is an optional expert workflow layer. A sprint is one goal-scoped commitment, and a ticket is one independently verifiable outcome. Repository artifacts, not chat or private local files, are authoritative.
 
-Shared definitions and ownership are in [`METHOD.md`](METHOD.md), exact shapes in [`schemas/`](schemas/), operational procedures in [`skills/`](skills/), and the external-workflow boundary in [`GSTACK.md`](GSTACK.md). Repository-wide working rules remain in [`AGENTS.md`](../../../AGENTS.md).
+Shared definitions and ownership are in [`METHOD.md`](METHOD.md), exact shapes in [`schemas/`](schemas/), operational procedures in [`skills/`](skills/), and the external-workflow boundary in [`GSTACK.md`](GSTACK.md). Repository-wide working rules remain in root `AGENTS.md`.
 
 When the next operation is unclear, [`howto`](skills/howto/SKILL.md) explains the shortest legal route without changing state.
 

@@ -29,6 +29,13 @@ installation into a consuming repository, the same package lives under
 
 Do not silently resolve a conflict between artifacts: name it and report it.
 
+In this source repository, `.claude/skills/a-team/` is a tracked discovery adapter whose
+entries resolve to the repository-root package. It contains no copied implementation. Even
+when an agent enters through that adapter, root `SKILL.md`, `METHOD.md`, `PROCESSES.md`,
+`GSTACK.md`, `GLOSSARY.md`, `schemas/`, and `skills/` remain the only editable product
+source. A consuming repository instead uses the actual installed package under
+`.claude/skills/a-team/`. Project-management state stays under root `a-team/` in both cases.
+
 ## Git baseline rule
 
 Start every sprint from a clean, committed Git baseline. Before sprint commitment, include

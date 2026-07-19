@@ -20,9 +20,14 @@ Require one ticket identified unambiguously. Accept a candidate branch, diff, ar
 
 ## Resolve the live method
 
+Determine the package layout first. In the A-Team source repository, use root `METHOD.md`,
+`schemas/...`, `skills/...`, `GSTACK.md`, `PROCESSES.md`, and `GLOSSARY.md` when relevant.
+After installation, use their `.claude/skills/a-team/...` equivalents. Never prefer an
+installed copy in the source repository.
+
 1. Read `AGENTS.md`.
-2. Prefer `.claude/skills/a-team/METHOD.md`.
-3. Read `.claude/skills/a-team/schemas/ticket.md`, `.claude/skills/a-team/schemas/events.md`, and `.claude/skills/a-team/schemas/tokens.md` for exact shared contracts.
+2. Read the selected package's `METHOD.md`.
+3. Read the selected package's `schemas/ticket.md`, `schemas/events.md`, and `schemas/tokens.md` for exact shared contracts.
 4. Follow the applicable method over this skill.
 
 Do not invent missing Scrum infrastructure. A read-only review may report what can be inspected, but no lifecycle/session mutation is allowed when required canonical artifacts or an unambiguous method are absent.

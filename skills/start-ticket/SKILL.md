@@ -14,8 +14,13 @@ Require one unambiguous ticket ID, exact ticket link, filename, or uniquely matc
 
 ## Resolve the live contract
 
-1. Read `AGENTS.md` and prefer `.claude/skills/a-team/METHOD.md`.
-2. Read `.claude/skills/a-team/schemas/ticket.md`, `.claude/skills/a-team/schemas/sprint.md`, `.claude/skills/a-team/schemas/events.md`, and `.claude/skills/a-team/schemas/tokens.md` for exact shared contracts.
+Determine the package layout first. In the A-Team source repository, use root `METHOD.md`,
+`schemas/...`, `skills/...`, `GSTACK.md`, `PROCESSES.md`, and `GLOSSARY.md` when relevant.
+After installation, use their `.claude/skills/a-team/...` equivalents. Never prefer an
+installed copy in the source repository.
+
+1. Read `AGENTS.md` and the selected package's `METHOD.md`.
+2. Read the selected package's `schemas/ticket.md`, `schemas/sprint.md`, `schemas/events.md`, and `schemas/tokens.md` for exact shared contracts.
 3. Follow the selected method when it conflicts with this skill.
 
 The active-sprint file, backlog, ticket directory, and target ticket must exist. The event log must exist when the method requires start logging. Do not create missing project-management infrastructure or write into an undeclared tree.

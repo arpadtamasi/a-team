@@ -23,8 +23,13 @@ gstack review, QA, investigation, or ship artifacts may support the demonstratio
 
 ## Resolve the repository contract
 
-1. Read `AGENTS.md` and prefer `.claude/skills/a-team/METHOD.md`.
-2. Read `.claude/skills/a-team/schemas/sprint.md`, `.claude/skills/a-team/schemas/metrics.md`, `.claude/skills/a-team/schemas/events.md`, and `.claude/skills/a-team/schemas/tokens.md` for exact shared contracts.
+Determine the package layout first. In the A-Team source repository, use root `METHOD.md`,
+`schemas/...`, `skills/...`, `GSTACK.md`, `PROCESSES.md`, and `GLOSSARY.md` when relevant.
+After installation, use their `.claude/skills/a-team/...` equivalents. Never prefer an
+installed copy in the source repository.
+
+1. Read `AGENTS.md` and the selected package's `METHOD.md`.
+2. Read the selected package's `schemas/sprint.md`, `schemas/metrics.md`, `schemas/events.md`, and `schemas/tokens.md` for exact shared contracts.
 3. Follow the live method over this skill if their operational rules conflict.
 
 Do not invent missing infrastructure. `a-team/tickets/` and `a-team/metrics/events.jsonl` must already exist. An active closure requires `a-team/sprint.md`; when it is absent, only the idempotent closed-state checks below apply. This operation may create the canonical `a-team/sprints/` directory for the first archive because the live schema defines its exact contents; never create an alternate history location.

@@ -36,8 +36,13 @@ Use `replace` when a full evidence-backed event can stand in for the target. Use
 
 ## Resolve the repository contract
 
-1. Read `AGENTS.md` and prefer `.claude/skills/a-team/METHOD.md`.
-2. Read `.claude/skills/a-team/schemas/events.md`, plus `.claude/skills/a-team/schemas/ticket.md`, `.claude/skills/a-team/schemas/sprint.md`, `.claude/skills/a-team/schemas/metrics.md`, and `.claude/skills/a-team/schemas/tokens.md` when affected.
+Determine the package layout first. In the A-Team source repository, use root `METHOD.md`,
+`schemas/...`, `skills/...`, `GSTACK.md`, `PROCESSES.md`, and `GLOSSARY.md` when relevant.
+After installation, use their `.claude/skills/a-team/...` equivalents. Never prefer an
+installed copy in the source repository.
+
+1. Read `AGENTS.md` and the selected package's `METHOD.md`.
+2. Read the selected package's `schemas/events.md`, plus `schemas/ticket.md`, `schemas/sprint.md`, `schemas/metrics.md`, and `schemas/tokens.md` when affected.
 3. If path authority, correction semantics, or affected state is materially ambiguous, stop before mutation and report the conflict.
 4. Follow the live method and schemas over this skill.
 

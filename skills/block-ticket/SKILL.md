@@ -19,8 +19,13 @@ Resolve the ticket by ID, exact path, filename, or uniquely matching title. Ask 
 
 ## Resolve the live contract
 
-1. Read `AGENTS.md` and prefer `.claude/skills/a-team/METHOD.md`.
-2. Read `.claude/skills/a-team/schemas/ticket.md`, `.claude/skills/a-team/schemas/events.md`, and `.claude/skills/a-team/schemas/tokens.md` for exact shared contracts.
+Determine the package layout first. In the A-Team source repository, use root `METHOD.md`,
+`schemas/...`, `skills/...`, `GSTACK.md`, `PROCESSES.md`, and `GLOSSARY.md` when relevant.
+After installation, use their `.claude/skills/a-team/...` equivalents. Never prefer an
+installed copy in the source repository.
+
+1. Read `AGENTS.md` and the selected package's `METHOD.md`.
+2. Read the selected package's `schemas/ticket.md`, `schemas/events.md`, and `schemas/tokens.md` for exact shared contracts.
 3. The selected method is authoritative.
 
 The target ticket, its compact backlog entry, and the event log required by the method must already exist. Do not create a ticket, backlog, sprint, metrics directory, or alternate event file as part of blocking.

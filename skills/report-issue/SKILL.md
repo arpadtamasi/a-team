@@ -29,6 +29,13 @@ Create at most one issue per invocation. Do not:
 An explicit request to report or file the issue authorizes one new issue when no duplicate
 exists. A request only to search or check for duplicates remains read-only.
 
+## Resolve the live package
+
+When repository inspection is needed for evidence, use the repository-root package in the
+A-Team source repository and the installed `.claude/skills/a-team/` package in a consuming
+repository. Never prefer an installed copy inside the source repository. This external
+reporting operation does not edit either package or project-management state.
+
 ## Resolve the report
 
 Extract the smallest independently actionable outcome from the user's report. Establish:

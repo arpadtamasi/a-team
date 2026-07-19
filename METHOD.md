@@ -17,9 +17,15 @@ An operational skill may add safeguards and procedural detail, but it must not r
 ## Sources of truth
 
 In this source repository, the method package is the root `METHOD.md`, `schemas/`, `skills/`,
-`PROCESSES.md`, and `GSTACK.md`. In a consuming repository it lives under
+`PROCESSES.md`, `GSTACK.md`, and `GLOSSARY.md`. In a consuming repository it lives under
 `.claude/skills/a-team/`. In both layouts, the project data it operates on lives under
 `a-team/` at the repository root.
+
+The source repository exposes its root package through a tracked
+`.claude/skills/a-team/` discovery adapter. Adapter entries resolve to the root files and
+directories and contain no copied method implementation. The root package remains the only
+editable source even when an agent discovers A-Team through the adapter; consuming
+repositories use their installed package directly.
 
 | Artifact | Responsibility |
 | --- | --- |

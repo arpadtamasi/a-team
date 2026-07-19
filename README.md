@@ -66,6 +66,11 @@ Then invoke operations with `/a-team <operation>` in Claude Code (for example
 Copy [`AGENTS.md`](AGENTS.md) to your repository root and adapt it — the method relies on the
 Boy Scout (found-work) rule and the code guidelines it defines.
 
+When developing A-Team itself, do not install a copied package into this repository. The
+tracked `.claude/skills/a-team/` adapter exposes the repository-root candidate to Claude
+Code while keeping the root files as the single editable source. Project state remains in
+root `a-team/`, exactly as it does in consuming repositories.
+
 ## Operations
 
 - `init-workspace` — create the minimal canonical Scrum infrastructure once

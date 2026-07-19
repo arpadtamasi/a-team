@@ -44,9 +44,14 @@ Do not:
 
 ## Resolve the live method
 
+Determine the package layout first. In the A-Team source repository, use root `METHOD.md`,
+`schemas/...`, `skills/...`, `GSTACK.md`, `PROCESSES.md`, and `GLOSSARY.md` when relevant.
+After installation, use their `.claude/skills/a-team/...` equivalents. Never prefer an
+installed copy in the source repository.
+
 1. Read `AGENTS.md`.
-2. Prefer `.claude/skills/a-team/METHOD.md` when it exists.
-3. Read `.claude/skills/a-team/schemas/ticket.md` and `.claude/skills/a-team/schemas/events.md` for exact shared contracts.
+2. Read the selected package's `METHOD.md`.
+3. Read the selected package's `schemas/ticket.md` and `schemas/events.md` for exact shared contracts.
 4. Follow the selected method when it conflicts with this skill.
 
 Target only the `a-team/` artifact structure. Do not create missing Scrum infrastructure to make refinement possible.

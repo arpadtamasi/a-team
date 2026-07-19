@@ -31,10 +31,15 @@ If the user explicitly asks both how to do something and to do it now, first exp
 
 ## Resolve the live process
 
-1. Read `AGENTS.md` and `.claude/skills/a-team/PROCESSES.md`.
-2. Read `.claude/skills/a-team/METHOD.md` for shared concepts and lifecycle ownership.
-3. Read `.claude/skills/a-team/GSTACK.md` when optional gstack discovery, planning, investigation, review, QA, ship, retro, telemetry, or artifacts are involved.
-4. Read the complete owning `.claude/skills/a-team/skills/<name>/SKILL.md` before describing its exact prerequisites or refusal conditions.
+Determine the package layout first. In the A-Team source repository, use root `METHOD.md`,
+`schemas/...`, `skills/...`, `GSTACK.md`, `PROCESSES.md`, and `GLOSSARY.md` when relevant.
+After installation, use their `.claude/skills/a-team/...` equivalents. Never prefer an
+installed copy in the source repository.
+
+1. Read `AGENTS.md` and the selected package's `PROCESSES.md`.
+2. Read the selected package's `METHOD.md` for shared concepts and lifecycle ownership.
+3. Read the selected package's `GSTACK.md` when optional gstack discovery, planning, investigation, review, QA, ship, retro, telemetry, or artifacts are involved.
+4. Read the complete owning `skills/<name>/SKILL.md` from the selected package before describing its exact prerequisites or refusal conditions.
 5. Read schemas only when the question needs an exact state, field, event, metric, or artifact rule.
 
 Repository artifacts override chat history. Report a material conflict instead of choosing silently.

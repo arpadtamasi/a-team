@@ -41,9 +41,14 @@ A gstack plan task, TODO, review finding, QA defect, ship follow-up, or retro su
 
 ## Resolve the repository contract
 
+Determine the package layout first. In the A-Team source repository, use root `METHOD.md`,
+`schemas/...`, `skills/...`, `GSTACK.md`, `PROCESSES.md`, and `GLOSSARY.md` when relevant.
+After installation, use their `.claude/skills/a-team/...` equivalents. Never prefer an
+installed copy in the source repository.
+
 1. Read `AGENTS.md`.
-2. Read `.claude/skills/a-team/METHOD.md` as the canonical definition of the workflow and ticket model.
-3. Read `.claude/skills/a-team/schemas/backlog.md`, `.claude/skills/a-team/schemas/ticket.md`, and `.claude/skills/a-team/schemas/events.md` for the exact shared backlog, ticket, and event contracts.
+2. Read the selected package's `METHOD.md` as the canonical definition of the workflow and ticket model.
+3. Read the selected package's `schemas/backlog.md`, `schemas/ticket.md`, and `schemas/events.md` for the exact shared backlog, ticket, and event contracts.
 4. If the applicable method conflicts with this skill, stop and report the conflict; the method is authoritative.
 
 Do not copy the full method into the ticket or this skill's output.

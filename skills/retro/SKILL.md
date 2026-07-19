@@ -23,8 +23,13 @@ Without approval, produce a proposal and do not write a retro or alter process f
 
 ## Resolve the repository contract
 
-1. Read `AGENTS.md` and prefer `.claude/skills/a-team/METHOD.md`.
-2. Read `.claude/skills/a-team/schemas/sprint.md`, `.claude/skills/a-team/schemas/metrics.md`, and `.claude/skills/a-team/schemas/tokens.md` for exact shared contracts.
+Determine the package layout first. In the A-Team source repository, use root `METHOD.md`,
+`schemas/...`, `skills/...`, `GSTACK.md`, `PROCESSES.md`, and `GLOSSARY.md` when relevant.
+After installation, use their `.claude/skills/a-team/...` equivalents. Never prefer an
+installed copy in the source repository.
+
+1. Read `AGENTS.md` and the selected package's `METHOD.md`.
+2. Read the selected package's `schemas/sprint.md`, `schemas/metrics.md`, and `schemas/tokens.md` for exact shared contracts.
 3. The live method wins over this skill.
 
 Do not invent missing sprint, ticket, metrics, or history artifacts. An approved retro may create its own dated file under an existing `a-team/retros/` directory when the method and conventions define it. Otherwise report the missing prerequisite.

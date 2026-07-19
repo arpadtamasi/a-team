@@ -2,7 +2,7 @@
 
 This repository uses two cooperating layers:
 
-- the Scrum system (method under `.claude/skills/a-team/`, data under `a-team/`) is the canonical control plane for backlog priority, ticket contracts, sprint commitment, lifecycle state, readiness, acceptance, closure, delivery metrics, and token accounting.
+- the Scrum system (root package in the A-Team source repository, installed package under `.claude/skills/a-team/` in consumers, and project data under root `a-team/` in both) is the canonical control plane for backlog priority, ticket contracts, sprint commitment, lifecycle state, readiness, acceptance, closure, delivery metrics, and token accounting.
 - installed gstack workflows are optional experts for discovery, product and technical planning, investigation, review, QA, and technical shipping.
 
 gstack output is evidence for Scrum. It is never Scrum state.
@@ -11,7 +11,7 @@ Some installed workflows are mutating: `/qa` may fix and commit defects, `/ship`
 
 ## Ownership boundary
 
-Only [`backlog.md`](../../../a-team/backlog.md), [`sprint.md`](../../../a-team/sprint.md), ticket files, sprint archives, and Scrum events determine priority, commitment, status, story points, cycle time, velocity, Definition of Ready, Definition of Done, closure, and carry-over. State changes use the owner named in [`METHOD.md`](METHOD.md#lifecycle-ownership).
+Only root `a-team/backlog.md`, root `a-team/sprint.md`, ticket files, sprint archives, and Scrum events determine priority, commitment, status, story points, cycle time, velocity, Definition of Ready, Definition of Done, closure, and carry-over. State changes use the owner named in [`METHOD.md`](METHOD.md#lifecycle-ownership).
 
 The installed gstack completion protocol currently reports `DONE`, `DONE_WITH_CONCERNS`, `BLOCKED`, or `NEEDS_CONTEXT`. Other workflow-specific reports also use local values such as review findings or plan-item `DONE`/`NOT DONE`. All are local results:
 
@@ -96,7 +96,7 @@ Do not copy irrelevant transcripts. A private home-directory path cannot be the 
 
 ## Surfaced work and the one backlog
 
-[`backlog.md`](../../../a-team/backlog.md) is the only canonical work backlog. gstack TODOs, plan tasks, review findings, QA defects, ship follow-ups, and retro suggestions are candidates until captured:
+Root `a-team/backlog.md` is the only canonical work backlog. gstack TODOs, plan tasks, review findings, QA defects, ship follow-ups, and retro suggestions are candidates until captured:
 
 ```text
 gstack finding → surfaced work candidate → explicit capture decision
@@ -107,7 +107,7 @@ Before capture, a candidate has no Scrum status, priority, points, sprint eligib
 
 > Surfaced work candidates — not scheduled. Capture through the `capture-work` skill before execution.
 
-The Boy Scout rule in [`AGENTS.md`](../../../AGENTS.md) still requires capture when a workflow demonstrates a concrete repository-grounded actionable problem; the gstack label alone is not evidence. Search for and link an outcome-equivalent ticket before creating another.
+The Boy Scout rule in root `AGENTS.md` still requires capture when a workflow demonstrates a concrete repository-grounded actionable problem; the gstack label alone is not evidence. Search for and link an outcome-equivalent ticket before creating another.
 
 Audit your repository for any pre-existing backlog-like surfaces before adopting this method: legacy `TODOS.md`-style Now/Next/Later boards, spec documents with open "next step" notes, or planning and go-to-market docs. Migrate their open items into Scrum tickets through `capture-work`, then treat those surfaces as read-only context. Do not maintain a second writable backlog alongside `a-team/backlog.md`.
 

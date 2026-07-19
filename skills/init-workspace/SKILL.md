@@ -31,9 +31,11 @@ Record no timestamp or token usage.
 ## Resolve the live package
 
 1. Read `AGENTS.md`.
-2. Locate the live A-Team package. In the A-Team source repository, read root `METHOD.md`,
-   `schemas/backlog.md`, `schemas/ticket.md`, and `schemas/events.md`. In an installed
-   consuming repository, read the corresponding files under `.claude/skills/a-team/`.
+2. Locate the live A-Team package. In the A-Team source repository, use root `METHOD.md`,
+   `schemas/...`, `skills/...`, `GSTACK.md`, `PROCESSES.md`, and `GLOSSARY.md` when relevant;
+   for initialization, read `schemas/backlog.md`, `schemas/ticket.md`, and `schemas/events.md`.
+   In an installed consuming repository, use the corresponding files under
+   `.claude/skills/a-team/`. Never prefer an installed copy in the source repository.
 3. Stop and report any disagreement between the selected method, schemas, and this skill.
 
 Never mix source-package and installed-package versions in one initialization.

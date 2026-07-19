@@ -29,9 +29,14 @@ If the target is ambiguous, or the user has not authorized the transition, repor
 
 ## Resolve the live method
 
+Determine the package layout first. In the A-Team source repository, use root `METHOD.md`,
+`schemas/...`, `skills/...`, `GSTACK.md`, `PROCESSES.md`, and `GLOSSARY.md` when relevant.
+After installation, use their `.claude/skills/a-team/...` equivalents. Never prefer an
+installed copy in the source repository.
+
 1. Read `AGENTS.md`.
-2. Prefer `.claude/skills/a-team/METHOD.md`.
-3. Read `.claude/skills/a-team/schemas/ticket.md`, `.claude/skills/a-team/schemas/events.md`, and `.claude/skills/a-team/schemas/tokens.md` for exact shared contracts.
+2. Read the selected package's `METHOD.md`.
+3. Read the selected package's `schemas/ticket.md`, `schemas/events.md`, and `schemas/tokens.md` for exact shared contracts.
 4. The method wins over this skill if their operational rules conflict.
 
 Require the target ticket and the method-defined Scrum artifacts used by this operation. Do not create a missing backlog, ticket directory, sprint, or metrics structure.

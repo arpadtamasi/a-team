@@ -26,17 +26,37 @@ a feladathoz kell. **A dolgod: eljutni egy végrehajtható projekttervig.** Nem 
 
 Ennyiszer állsz meg. Mondd meg előre, és mindig mondd, hányadiknál tartunk.
 
-1. **A cél, egy mondatban.** Te fogalmazod meg abból, amit mondtam, én hagyom jóvá.
+1. **A cél, egy mondatban** — plusz meddig akarom elindítani (egy este / egy hét / egy hónap).
+   Te fogalmazod meg abból, amit mondtam, én hagyom jóvá.
 2. **A határ.** Mi az, ami *nem* ez. Legalább három konkrét dolog, amit nem építünk.
 3. **A siker.** Honnan tudjuk, hogy kész. Megfigyelhető állítás, nem érzés.
 4. **Az első szint.** 3-6 ág a cél alatt. **Ez a scope, ezért az enyém.** Itt fogom
    észrevenni azt is, ami hiányzik — ezért legyen kevés és átfogható.
-5. **A második szint.** Te javaslod ágakként, én húzok.
+5. **A második szint — EGY ágon.** Te javaslod, én húzok. A többi ág kibontatlan marad.
 6. **A döntéslista.** Melyik döntés az enyém, melyik a tiéd. **Te javaslod, én hagyom jóvá.**
    Ezt a határt sosem húzhatod meg egyedül.
 7. **A kész terv.** Átnézem, jóváhagyom vagy visszaküldöm.
 
 A harmadik szinttől lefelé egyedül dolgozol. Ott már végrehajtás.
+
+## Meddig bontasz — ez a szabály tartja hét megállónál
+
+**Csak addig bontasz, ameddig el is indítom.**
+
+Nem építesz teljes fát. Az első szint után **egy ágat** viszel le levélig; a többi ág
+kibontatlan cél marad, `leaf: false` és `why_not_leaf: "külön futamban bontjuk"`.
+Amikor odaérünk, újra lefuttatjuk ezt az egészet arra az ágra.
+
+Egy nagy projekt **sok futam**, nem egy óriási. Ha egy futam 40 node fölé nő, elrontottad:
+vagy túl sok ágat bontottál, vagy a cél volt túl nagy.
+
+**Ingyen ellenőrzés a 4-es stopnál:** ha az első szint olyan ágakat ad, amiket egy ülésben
+nem lehet lebontani, akkor **a cél volt túl nagy** — nem milestone, hanem termék.
+Mondd ki, és menjünk vissza az 1-esre kisebb célért. Ne bontsd tovább csak azért,
+mert megkérdeztem.
+
+Mennyi az „ameddig elindítom"? Kérdezd meg az 1-es stopnál: egy este, egy hét, vagy egy
+hónap munkája. A `runway.py` végén ehhez méred magad.
 
 ## Kemény szabályok
 

@@ -31,8 +31,8 @@ shared translation; preserve the owning skill's approval gates.
    live package's `METHOD.md`. The operations are the directories under its `skills/`:
    `init-workspace`, `capture-work`, `refine-ticket`, `plan-sprint`, `start-ticket`, `block-ticket`,
    `submit-review`, `review-ticket`, `close-ticket`, `disposition-ticket`,
-   `reconcile-history`, `close-sprint`, `retro`, `report-status`, `report-metrics`, `howto`,
-   `report-issue`.
+   `reconcile-history`, `close-sprint`, `retro`, `report-status`, `report-metrics`, `board`,
+   `prime`, `howto`, `report-issue`.
 2. If the argument names an operation, use it. If the request is in natural language, pick
    the owner per the ownership table. If the right operation is unclear, run
    live package's `skills/howto/SKILL.md` (read-only routing guidance) instead of guessing.

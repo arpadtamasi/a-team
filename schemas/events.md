@@ -6,7 +6,10 @@
 - `event`: one supported event name;
 - the event payload required below;
 - optional `source` naming the operation when it is recorded;
+- optional `note` carrying a short factual disclosure about the record itself (never a value the schema already defines);
 - no invented values.
+
+A ticket lifecycle event names exactly one commitment container: `sprint` for sprint-managed work, `milestone` for milestone-managed work (`milestone.md`). Never both, never neither once the ticket is committed.
 
 Existing lines are never edited, reordered, or deleted. Derived summaries never override raw events.
 
@@ -16,16 +19,18 @@ Existing lines are never edited, reordered, or deleted. Derived summaries never 
 |---|---|
 | `ticket_created` | `ticket_id`, `status: "backlog"`, `type` |
 | `ticket_ready` | `ticket_id`, `story_points`; `status: "ready"` may be recorded |
-| `ticket_started` | `ticket_id`, `sprint`, `session_id`; exposed `agent` and `model` values may be recorded |
-| `ticket_submitted_for_review` | `ticket_id`, `sprint`; `session_id` is recorded when exposed |
-| `rework_started` | `ticket_id`, `sprint`; identify the review round or candidate when the repository records it |
+| `ticket_started` | `ticket_id`, container (`sprint` or `milestone`, exactly one, non-empty), `session_id`; exposed `agent` and `model` values may be recorded |
+| `ticket_submitted_for_review` | `ticket_id`, container (`sprint` or `milestone`, exactly one, non-empty); `session_id` is recorded when exposed |
+| `rework_started` | `ticket_id`, container (`sprint` or `milestone`, exactly one, non-empty); identify the review round or candidate when the repository records it |
 | `ticket_blocked` | `ticket_id`, `reason`, `prior_status` |
 | `ticket_unblocked` | `ticket_id`, `restored_status`, `resolution_evidence` |
-| `ticket_done` | `ticket_id`, `sprint`, unchanged `story_points`; `session_id` is recorded when exposed |
+| `ticket_done` | `ticket_id`, container (`sprint` or `milestone`, exactly one, non-empty), unchanged `story_points`; `session_id` is recorded when exposed |
 | `ticket_parked` | `ticket_id`, `status: "parked"`, `prior_status`, `reason`, `decision_provenance` |
 | `ticket_rejected` | `ticket_id`, `status: "rejected"`, `prior_status`, `reason`, `decision_provenance` |
 | `sprint_started` | `sprint`, `goal`, `baseline_commit` as the repository's full lowercase hexadecimal commit object ID, ordered `committed_ticket_ids`, `committed_points`, ordered `stretch_ticket_ids` |
 | `sprint_closed` | `sprint`, `result`, `committed_points`, `completed_committed_points`, `throughput` |
+| `milestone_started` | `milestone`, `goal`, `baseline_commit`, ordered `committed_ticket_ids` — see `milestone.md` |
+| `milestone_closed` | `milestone`, `result`, `completed_committed_points`, `throughput` — see `milestone.md` |
 | `token_usage` | fields defined in `tokens.md` |
 | `event_corrected` | fields defined under **Correction event** |
 

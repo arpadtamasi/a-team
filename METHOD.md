@@ -35,6 +35,7 @@ repositories use their installed package directly.
 | `a-team/metrics/events.jsonl` | Append-only lifecycle and token event history |
 | `a-team/metrics/summary.json` | Replaceable metric report derived from canonical records |
 | `a-team/sprints/*.md` | Closed sprint archives |
+| `a-team/milestones/*.md` | Milestone commitment containers and their live state |
 | `a-team/retros/*.md` | Retrospective observations and experiments |
 | `schemas/*.md` | Exact shared shapes, enums, and formulas |
 | `skills/*/SKILL.md` | Operational procedures |
@@ -92,6 +93,21 @@ Closed sprint results use the canonical values in `schemas/sprint.md`:
 
 Stretch completion is reported separately from committed velocity.
 
+## Milestones (successor of the sprint container)
+
+A milestone is an outcome-bound commitment container defined in `schemas/milestone.md`.
+It keeps every sprint invariant above (one explicit goal, human-approved commitment,
+visible scope changes, evidence-bound closure) with two deliberate differences: it is
+**never time-boxed** (it closes when its goal is demonstrably reached or is explicitly
+abandoned), and **several milestones may be active concurrently**, each with exactly one
+goal. A ticket belongs to at most one milestone.
+
+A workspace runs on sprints or milestones; existing sprint history is never rewritten,
+and new commitments should target milestones. Under concurrent milestones, velocity is
+reported per unit time, not per container. Migration of the owning skills
+(`plan-sprint`/`close-sprint` → milestone-aware operations) is tracked as ordinary
+backlog work; until it lands, sprint operations remain the executable path.
+
 ## Work hierarchy
 
 - **Initiative or epic**: a multi-sprint outcome too broad or uncertain for direct execution. It is not committed to a sprint and receives no completed velocity directly.
@@ -134,6 +150,8 @@ State changes must be made through the owning operation, update the durable tick
 | append-only historical correction and approved materialized-state reconciliation | `reconcile-history` |
 | close and archive the active sprint | `close-sprint` |
 | produce a retrospective | `retro` |
+| read-only live PM view of the workspace | `board` |
+| read-only compact session context for agents | `prime` |
 | read-only process guidance and routing | `howto` |
 | read-only status reporting | `report-status` |
 | lifecycle-read-only metric reporting and derived-summary refresh | `report-metrics` |

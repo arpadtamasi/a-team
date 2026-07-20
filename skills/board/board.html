@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A-Team board</title>
+<style>
+:root {
+  --bg:#0e1116; --panel:#161b22; --card:#1c2330; --line:#2a3242; --fg:#e6e9ef;
+  --dim:#8b94a7; --dimmer:#5b647a; --acc:#4cc2a8; --warn:#e0b04c; --bad:#e06c6c;
+}
+* { box-sizing:border-box; margin:0; }
+body { background:var(--bg); color:var(--fg); font:14px/1.45 -apple-system,'Segoe UI',sans-serif; }
+header { display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:2; flex-wrap:wrap; }
+header h1 { font-size:15px; font-weight:700; }
+header h1 b { color:var(--acc); }
+header .meta { color:var(--dimmer); font-size:12px; margin-left:auto; }
+select, input[type=search] { background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:7px; padding:6px 9px; font-size:13px; }
+input[type=search] { width:220px; }
+.ms-strip { display:flex; gap:8px; padding:8px 16px 0; flex-wrap:wrap; }
+.ms { border:1px solid var(--line); border-radius:8px; padding:5px 10px; font-size:12px; color:var(--dim); background:var(--panel); cursor:pointer; }
+.ms.active { border-color:var(--acc); color:var(--fg); }
+.ms .goal { color:var(--dimmer); }
+#board { display:flex; gap:12px; padding:14px 16px 24px; overflow-x:auto; align-items:flex-start; }
+.col { min-width:270px; width:270px; background:var(--panel); border:1px solid var(--line); border-radius:10px; flex-shrink:0; }
+.col h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; padding:9px 12px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; }
+.col h2 .n { background:var(--card); border-radius:9px; padding:1px 8px; font-size:11px; color:var(--dim); }
+.col h2 .age { margin-left:auto; font-size:11px; color:var(--dimmer); font-weight:400; text-transform:none; }
+.cards { padding:8px; display:flex; flex-direction:column; gap:8px; max-height:76vh; overflow-y:auto; }
+.card { background:var(--card); border:1px solid var(--line); border-left:3px solid var(--lane,#3a4356); border-radius:8px; padding:8px 10px; }
+.card .id { font-size:11px; color:var(--dimmer); display:flex; gap:6px; }
+.card .id .age { margin-left:auto; }
+.card .age.hot { color:var(--warn); }
+.card .age.stale { color:var(--bad); }
+.card .t { font-weight:600; font-size:13px; margin:3px 0 6px; }
+.badges { display:flex; gap:5px; flex-wrap:wrap; }
+.b { font-size:10.5px; border:1px solid var(--line); border-radius:6px; padding:1px 6px; color:var(--dim); }
+.b.sp { color:var(--acc); border-color:var(--acc); }
+.empty { color:var(--dimmer); font-size:12px; text-align:center; padding:18px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1><b id="ws">a-team</b> · board</h1>
+  <input type="search" id="q" placeholder="keresés: cím, id…">
+  <select id="fLane"><option value="">minden lane</option></select>
+  <select id="fType"><option value="">minden típus</option></select>
+  <span class="meta" id="meta"></span>
+</header>
+<div class="ms-strip" id="msStrip"></div>
+<div id="board"></div>
+<script>
+const COLS = [
+  ['backlog','Backlog'],['ready','Ready'],['in_progress','In progress'],
+  ['review','Review'],['blocked','Blocked'],['done','Done'],
+  ['parked','Parked'],['rejected','Rejected'],
+];
+const state = { data:null, q:'', lane:'', type:'', ms:'' };
+const $ = id => document.getElementById(id);
+
+function hue(s){ let h=0; for (const c of s) h=(h*31+c.charCodeAt(0))%360; return h; }
+function ageMs(iso){ return iso ? Date.now()-new Date(iso).getTime() : null; }
+function fmtAge(ms){
+  if (ms==null) return '';
+  const d=ms/864e5;
+  if (d>=1) return Math.round(d)+'d itt';
+  const h=ms/36e5;
+  return h>=1 ? Math.round(h)+'h itt' : Math.max(1,Math.round(ms/6e4))+'m itt';
+}
+function ageClass(ms,status){
+  if (ms==null||['done','rejected','parked'].includes(status)) return '';
+  const d=ms/864e5;
+  if (status==='review'||status==='ready') return d>2?'stale':d>0.5?'hot':'';
+  return d>14?'stale':d>7?'hot':'';
+}
+function median(a){ if(!a.length) return null; const s=[...a].sort((x,y)=>x-y); return s[Math.floor(s.length/2)]; }
+
+function render(){
+  const d=state.data; if(!d) return;
+  $('ws').textContent=d.workspace;
+  const q=state.q.toLowerCase();
+  const tk=d.tickets.filter(t=>
+    (!q||t.id.toLowerCase().includes(q)||t.title.toLowerCase().includes(q))&&
+    (!state.lane||t.lane===state.lane)&&(!state.type||t.type===state.type)&&
+    (!state.ms||t.milestone===state.ms||t.sprint===state.ms));
+  const board=$('board'); board.innerHTML='';
+  for (const [key,label] of COLS){
+    const cards=tk.filter(t=>t.status===key);
+    if (!cards.length&&['blocked','parked','rejected'].includes(key)) continue;
+    const ages=cards.map(t=>ageMs(t.status_since)).filter(x=>x!=null);
+    const col=document.createElement('div'); col.className='col';
+    col.innerHTML=`<h2>${label} <span class="n">${cards.length}</span>`+
+      (ages.length&&!['done','rejected','parked'].includes(key)?`<span class="age">medián ${fmtAge(median(ages))}</span>`:'')+`</h2>`;
+    const wrap=document.createElement('div'); wrap.className='cards';
+    if (!cards.length) wrap.innerHTML='<div class="empty">üres</div>';
+    for (const t of cards){
+      const a=ageMs(t.status_since);
+      const el=document.createElement('div'); el.className='card';
+      el.style.setProperty('--lane',t.lane?`hsl(${hue(t.lane)} 45% 45%)`:'#3a4356');
+      el.innerHTML=`<div class="id">${t.id}<span class="age ${ageClass(a,t.status)}">${fmtAge(a)}</span></div>`+
+        `<div class="t"></div><div class="badges">`+
+        (t.sp?`<span class="b sp">${t.sp} SP</span>`:'')+
+        (t.type?`<span class="b">${t.type}</span>`:'')+
+        (t.lane?`<span class="b">${t.lane}</span>`:'')+
+        ((t.milestone||t.sprint)?`<span class="b">${t.milestone||t.sprint}</span>`:'')+
+        `</div>`;
+      el.querySelector('.t').textContent=t.title;
+      wrap.appendChild(el);
+    }
+    col.appendChild(wrap); board.appendChild(col);
+  }
+  const strip=$('msStrip'); strip.innerHTML='';
+  const containers=[...d.milestones.filter(m=>m.status==='active'),...d.sprints];
+  for (const m of containers){
+    const el=document.createElement('div');
+    el.className='ms'+(state.ms===m.id?' active':'');
+    el.innerHTML=`<b>${m.id}</b> <span class="goal"></span>`;
+    el.querySelector('.goal').textContent=m.goal?'· '+m.goal.slice(0,70):'';
+    el.onclick=()=>{ state.ms=state.ms===m.id?'':m.id; render(); };
+    strip.appendChild(el);
+  }
+  $('meta').textContent=`${tk.length}/${d.tickets.length} ticket · frissítve ${new Date(d.generated_at).toLocaleTimeString()}`;
+  for (const [id,key] of [['fLane','lane'],['fType','type']]){
+    const sel=$(id); const cur=sel.value;
+    const vals=[...new Set(d.tickets.map(t=>t[key]).filter(Boolean))].sort();
+    if (sel.options.length!==vals.length+1){
+      sel.innerHTML=`<option value="">${sel.options[0].text}</option>`+vals.map(v=>`<option>${v}</option>`).join('');
+      sel.value=cur;
+    }
+  }
+}
+async function poll(){
+  try {
+    const r=await fetch('/api/state',{cache:'no-store'});
+    state.data=await r.json(); render();
+  } catch {}
+}
+$('q').addEventListener('input',e=>{state.q=e.target.value;render();});
+$('fLane').addEventListener('input',e=>{state.lane=e.target.value;render();});
+$('fType').addEventListener('input',e=>{state.type=e.target.value;render();});
+poll(); setInterval(poll,2000);
+</script>
+</body>
+</html>

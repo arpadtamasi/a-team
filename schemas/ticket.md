@@ -20,6 +20,7 @@ started_at: <ISO 8601 with timezone or empty>
 review_at: <ISO 8601 with timezone or empty>
 done_at: <ISO 8601 with timezone or empty>
 sprint: <sprint ID or empty>
+milestone: <milestone ID or empty — see milestone.md; never both sprint and milestone non-empty>
 branch: <real claimed branch or empty>
 blocked_periods: []
 metrics:

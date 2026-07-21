@@ -23,3 +23,7 @@
 {"timestamp":"2026-07-20T12:34:54+02:00","event":"rework_started","ticket_id":"AT-8","milestone":"M-1","source":"review-ticket"}
 {"timestamp":"2026-07-20T12:39:41+02:00","event":"ticket_submitted_for_review","ticket_id":"AT-9","milestone":"M-1","source":"submit-review"}
 {"timestamp":"2026-07-20T12:39:41+02:00","event":"ticket_submitted_for_review","ticket_id":"AT-8","milestone":"M-1","source":"submit-review","note":"resubmitted after rework round 1"}
+{"timestamp": "2026-07-20T16:56:07+02:00", "event": "ticket_created", "ticket_id": "AT-10", "status": "backlog", "type": "bug", "source": "capture-work"}
+{"timestamp": "2026-07-20T16:56:07+02:00", "event": "ticket_created", "ticket_id": "AT-11", "status": "backlog", "type": "decision", "source": "capture-work"}
+{"timestamp": "2026-07-20T23:05:00+02:00", "event": "ticket_created", "ticket_id": "AT-12", "status": "backlog", "type": "bug", "source": "capture-work"}
+{"timestamp": "2026-07-20T23:20:00+02:00", "event": "ticket_created", "ticket_id": "AT-13", "status": "backlog", "type": "bug", "source": "capture-work"}

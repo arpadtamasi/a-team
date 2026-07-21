@@ -8,7 +8,7 @@ export interface ClaimData {
 
 export function validateClaim(data: ClaimData): string[] {
   const errors: string[] = [];
-  if (!/^T-\d{3,}$/.test(String(data.ticket ?? ""))) errors.push("ticket must match T-001");
+  if (!/^(?:T-\d{3,}|O-\d+(?:\.\d+)?)$/.test(String(data.ticket ?? ""))) errors.push("ticket must match T-001 or an imported O-1 identifier");
   if (!String(data.agent ?? "").trim()) errors.push("agent is required");
   if (!String(data.branch ?? "").trim()) errors.push("branch is required");
   if (!String(data.worktree ?? "").trim()) errors.push("worktree is required");

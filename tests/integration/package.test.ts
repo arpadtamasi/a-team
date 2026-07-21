@@ -13,6 +13,19 @@ const run = (cwd: string, args: string[]) => {
 const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8" });
 
 describe("dependency-aware package", () => {
+  test("creates a backlog package and keeps ticket membership in sync", () => {
+    const root = mkdtempSync(join(tmpdir(), "a-team-package-membership-"));
+    git(root, "init", "-b", "main");
+    writeFileSync(join(root, "README.md"), "fixture\n");
+    run(root, ["init"]);
+    expect(run(root, ["package", "new", "--title", "Launch batch", "--kind", "milestone", "--goal", "Ship the first slice"])).toMatchObject({ ok: true, data: { id: "P-001" } });
+    run(root, ["ticket", "new", "--title", "Prepare release", "--type", "feature"]);
+    expect(run(root, ["package", "add", "P-001", "T-001"])).toMatchObject({ ok: true, data: { tickets: ["T-001"] } });
+    expect(readFileSync(join(root, ".a-team/backlog/T-001-prepare-release.md"), "utf8")).toContain("package: P-001");
+    expect(run(root, ["package", "remove", "P-001", "T-001"])).toMatchObject({ ok: true, data: { tickets: [] } });
+    expect(readFileSync(join(root, ".a-team/backlog/T-001-prepare-release.md"), "utf8")).toContain("package: null");
+  });
+
   test("plans all dependency layers and starts only currently executable tickets", () => {
     const root = mkdtempSync(join(tmpdir(), "a-team-package-"));
     git(root, "init", "-b", "main"); git(root, "config", "user.name", "A-Team Test"); git(root, "config", "user.email", "test@example.com");

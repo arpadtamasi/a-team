@@ -52,6 +52,7 @@ All mutations go through the `a-team` CLI. Skills, automation, and a future loca
 
 ## Skills
 
+- `explore-workspace` — answer cross-workspace questions about themes, related work, overlaps, decisions, and backlog structure without changing PM state.
 - `setup-a-team` — initialize a project workspace.
 - `define-ticket` — investigate and formalize work.
 - `validate-finding` — verify and disposition discovered work.

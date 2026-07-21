@@ -16,8 +16,8 @@ export function branchName(type: string, id: string, title: string): string {
   return `${BRANCH_PREFIXES[type] ?? "feat"}/${id}-${slugify(title)}`;
 }
 
-export function newTicket(options: { title: string; type: string; profiles: string[] }) {
-  const root = findRepositoryRoot();
+export function newTicket(options: { title: string; type: string; profiles: string[] }, repositoryRoot?: string) {
+  const root = repositoryRoot ?? findRepositoryRoot();
   const id = nextId(root, "ticket");
   const slug = slugify(options.title);
   const filename = `${id}-${slug}.md`;
@@ -51,8 +51,8 @@ export function validateTicket(id: string) {
   return { ok: report.valid, command: "ticket validate", data: { id, state: ticket.state }, errors: report.errors };
 }
 
-export function readyTicket(id: string, approved: boolean) {
-  const root = findRepositoryRoot();
+export function readyTicket(id: string, approved: boolean, repositoryRoot?: string) {
+  const root = repositoryRoot ?? findRepositoryRoot();
   const ticket = findTicket(root, id);
   if (ticket.state !== "backlog") throw new Error(`Ticket ${id} must be in backlog before ready.`);
   if (!approved) throw new Error("Human ready approval is required. Re-run with --approve after reviewing intent and trade-offs.");

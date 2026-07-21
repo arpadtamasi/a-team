@@ -1,10 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { findRepositoryRoot, regenerateIndex } from "../filesystem/workspace.js";
-import { findTicket } from "../filesystem/entities.js";
+import { findTicket, nextId } from "../filesystem/entities.js";
 import { parseMarkdown, renderMarkdown, sections } from "../core/markdown.js";
 import { assertClean, git } from "../git/git.js";
-import { startTicket } from "./ticket.js";
+import { slugify, startTicket } from "./ticket.js";
 
 interface PackageData {
   id: string;
@@ -14,7 +14,7 @@ interface PackageData {
   [key: string]: unknown;
 }
 
-function findPackage(root: string, id: string) {
+export function findPackage(root: string, id: string) {
   for (const state of ["backlog", "ready", "active", "done"]) {
     const directory = join(root, ".a-team/packages", state);
     if (!existsSync(directory)) continue;
@@ -49,8 +49,58 @@ export function planPackageWaves(ids: string[], dependencies: Map<string, string
   return waves;
 }
 
-export function validatePackage(id: string) {
-  const root = findRepositoryRoot();
+export function newPackage(options: { title: string; kind: string; goal?: string }, repositoryRoot?: string) {
+  const root = repositoryRoot ?? findRepositoryRoot();
+  const allowedKinds = ["sprint", "milestone", "batch", "mission"];
+  if (!allowedKinds.includes(options.kind)) throw new Error(`Unknown package kind '${options.kind}'.`);
+  const title = options.title.trim();
+  if (!title) throw new Error("Package title is required.");
+  const id = nextId(root, "package");
+  const filename = `${id}-${slugify(title)}.md`;
+  const directory = join(root, ".a-team/packages/backlog");
+  mkdirSync(directory, { recursive: true });
+  const now = new Date().toISOString().slice(0, 10);
+  const data = {
+    id, kind: options.kind, title, status: "backlog", tickets: [],
+    execution: { mode: "dependency-aware", parallelism: 2, stop_on_failure: true },
+    authority: { may_start_tickets: false, may_merge: false, may_close_tickets: false, may_close_package: false },
+    created_at: now, updated_at: now,
+  };
+  const content = `# ${id} — ${title}\n\n## Goal\n\n${options.goal?.trim() || "Describe the shared outcome."}\n\n## Completion\n\nAll member tickets satisfy their acceptance contracts.\n\n## Execution notes\n\nMembership and ordering are coordinated by a human.\n`;
+  const path = join(directory, filename);
+  writeFileSync(path, renderMarkdown(data, content));
+  regenerateIndex(root);
+  return { ok: true, command: "package new", data: { id, path } };
+}
+
+export function updatePackageTickets(id: string, ticketId: string, action: "add" | "remove", repositoryRoot?: string) {
+  const root = repositoryRoot ?? findRepositoryRoot();
+  const pkg = findPackage(root, id);
+  if (pkg.state !== "backlog") throw new Error(`Package ${id} membership can only change while it is in backlog.`);
+  const ticket = findTicket(root, ticketId);
+  const ticketEntity = parseMarkdown(readFileSync(ticket.path, "utf8"));
+  const currentPackage = typeof ticketEntity.data.package === "string" ? ticketEntity.data.package : null;
+  if (action === "add" && currentPackage && currentPackage !== id) throw new Error(`Ticket ${ticketId} already belongs to ${currentPackage}. Remove it there first.`);
+  const entity = parseMarkdown(readFileSync(pkg.path, "utf8"));
+  const tickets = Array.isArray(entity.data.tickets) ? entity.data.tickets.map(String) : [];
+  if (action === "add" && !tickets.includes(ticketId)) tickets.push(ticketId);
+  if (action === "remove") {
+    const index = tickets.indexOf(ticketId);
+    if (index < 0) throw new Error(`Ticket ${ticketId} is not in package ${id}.`);
+    tickets.splice(index, 1);
+  }
+  entity.data.tickets = tickets;
+  entity.data.updated_at = new Date().toISOString().slice(0, 10);
+  ticketEntity.data.package = action === "add" ? id : null;
+  ticketEntity.data.updated_at = new Date().toISOString().slice(0, 10);
+  writeFileSync(pkg.path, renderMarkdown(entity.data, entity.content));
+  writeFileSync(ticket.path, renderMarkdown(ticketEntity.data, ticketEntity.content));
+  regenerateIndex(root);
+  return { ok: true, command: `package ${action}`, data: { id, ticketId, tickets } };
+}
+
+export function validatePackage(id: string, repositoryRoot?: string) {
+  const root = repositoryRoot ?? findRepositoryRoot();
   const pkg = findPackage(root, id);
   const entity = parseMarkdown(readFileSync(pkg.path, "utf8"));
   const data = entity.data as PackageData;

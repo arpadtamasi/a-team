@@ -4,24 +4,42 @@ import matter from "gray-matter";
 import { stringify } from "yaml";
 
 const sourceRoot = resolve(process.argv[2] ?? "/Users/rp/Dev/ezchops/oneanda");
-const demoRoot = resolve(process.argv[3] ?? "examples/oneanda-migration");
-const workspace = join(demoRoot, ".a-team");
+const outputRoot = resolve(process.argv[3] ?? "examples/oneanda-migration");
+const workspace = basename(outputRoot) === ".a-team" ? outputRoot : join(outputRoot, ".a-team");
+const replace = process.argv.includes("--replace");
 const ticketSource = join(sourceRoot, "scrum/tickets");
 const backlogSource = join(sourceRoot, "scrum/backlog.md");
+const sprintSource = join(sourceRoot, "scrum/sprint.md");
 
-if (!existsSync(ticketSource) || !existsSync(backlogSource)) {
+if (!existsSync(ticketSource) || !existsSync(backlogSource) || !existsSync(sprintSource)) {
   throw new Error(`Legacy Scrum workspace not found under ${sourceRoot}`);
 }
 
 const headings = (content) => {
-  const matches = [...content.matchAll(/^##\s+(.+?)\s*\n([\s\S]*?)(?=^##\s+|\s*$)/gm)];
-  return new Map(matches.map((match) => [match[1].trim().toLowerCase(), match[2].trim()]));
+  const matches = [...content.matchAll(/^##\s+(.+?)\s*$/gm)];
+  return new Map(matches.map((match, index) => {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = matches[index + 1]?.index ?? content.length;
+    return [match[1].trim().toLowerCase(), content.slice(start, end).trim()];
+  }));
 };
 
 const cleanText = (value, fallback) => value?.trim() || fallback;
+const STRUCTURAL_SECTIONS = new Set(["outcome", "scope", "scope notes", "out of scope", "acceptance", "acceptance criteria", "verification", "dependencies", "open questions", "refinement notes"]);
+const sourceSections = (legacy, pattern) => [...legacy.sections.entries()]
+  .filter(([heading, body]) => body && pattern.test(heading))
+  .map(([heading, body]) => `**${heading}**\n\n${body}`)
+  .join("\n\n");
+const observedEvidence = (legacy) => sourceSections(legacy, /actual|behavio|tünet|symptom|evidence|mért|measured|root cause|gyökérok|deploy|problem|issue|why|context|result/i)
+  || [...legacy.sections.entries()].filter(([heading, body]) => body && !STRUCTURAL_SECTIONS.has(heading)).slice(0, 2).map(([heading, body]) => `**${heading}**\n\n${body}`).join("\n\n")
+  || "See Legacy source contract below; the source did not provide a separately labelled observation section.";
+const impactEvidence = (legacy) => sourceSections(legacy, /impact|consequence|mellékhatás|kockázat|risk|blokkol|blocker|why/i)
+  || "See Actual behaviour and Legacy source contract below for the source-recorded consequences.";
+const preservedLegacyContract = (legacy) => legacy.content.trim().replace(/^##\s+/gm, "### ");
 const slugify = (value) => value.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 72);
 const legacyNumber = (id) => Number(id.replace(/^O-/, ""));
-const today = "2026-07-21";
+const now = new Date();
+const today = now.toISOString().slice(0, 10);
 
 const backlogMeta = new Map();
 let section = "Later";
@@ -33,6 +51,13 @@ for (const line of readFileSync(backlogSource, "utf8").split(/\r?\n/)) {
   const priority = /\((P[0-3])(?:,|\))/.exec(line)?.[1] ?? null;
   backlogMeta.set(ticketMatch[1], { section, priority, compact: line });
 }
+
+const sprintContent = readFileSync(sprintSource, "utf8");
+const sprintSections = headings(sprintContent);
+const sprintName = /#\s+Sprint\s+—\s+([^\n]+)/.exec(sprintContent)?.[1]?.trim() ?? "Current sprint";
+const sprintStatus = /^Status:\s*`([^`]+)`/m.exec(sprintContent)?.[1] ?? "backlog";
+const sprintLegacyIds = [...new Set([...(sprintSections.get("committed") ?? "").matchAll(/O-\d+/g)].map((match) => match[0]))];
+if (!sprintLegacyIds.length) throw new Error(`Current sprint ${sprintName} has no committed legacy tickets.`);
 
 const legacyTickets = readdirSync(ticketSource)
   .filter((name) => /^O-\d+.*\.md$/.test(name))
@@ -59,20 +84,40 @@ const splitDefinitions = {
   ],
 };
 
+// Only explicitly shaped, requested outcomes become tickets. Evidence-backed observations,
+// review follow-ups, speculative risks and unresolved technical debt remain findings until a
+// human dispositions them. Terminal Scrum history is recorded in migration.json, not replayed
+// onto the operational A-Team board.
+const ticketLegacyIds = new Set([
+  "O-3", "O-4", "O-5", "O-7", "O-8", "O-9", "O-11", "O-12", "O-13", "O-16",
+  "O-22", "O-23", "O-24", "O-25", "O-30", "O-40", "O-42", "O-43", "O-44", "O-45",
+  "O-51", "O-56", "O-76", "O-97", "O-102", "O-107", "O-120", "O-121", "O-122",
+  "O-123", "O-124",
+]);
+const findingLegacyIds = new Set([
+  "O-14", "O-15", "O-17", "O-18", "O-19", "O-21", "O-26", "O-27", "O-28", "O-29",
+  "O-31", "O-32", "O-33", "O-34", "O-35", "O-36", "O-37", "O-38", "O-39", "O-41",
+  "O-46", "O-57", "O-61", "O-69", "O-70", "O-71", "O-72", "O-74", "O-75", "O-77",
+  "O-78", "O-79", "O-81", "O-82", "O-83", "O-84", "O-87", "O-88", "O-89", "O-90",
+  "O-91", "O-95", "O-101", "O-105", "O-108", "O-113", "O-114", "O-115", "O-116",
+  "O-117", "O-118", "O-119",
+]);
+const terminalLegacy = legacyTickets.filter((legacy) => ["done", "rejected"].includes(String(legacy.data.status)) || ["O-1", "O-2"].includes(String(legacy.data.id)));
+const terminalLegacyIds = new Set(terminalLegacy.map((legacy) => String(legacy.data.id)));
+for (const legacyId of sprintLegacyIds) {
+  if (terminalLegacyIds.has(legacyId)) continue;
+  ticketLegacyIds.add(legacyId);
+  findingLegacyIds.delete(legacyId);
+}
+const unclassified = legacyTickets.filter((legacy) => !terminalLegacy.includes(legacy) && !ticketLegacyIds.has(String(legacy.data.id)) && !findingLegacyIds.has(String(legacy.data.id)));
+if (unclassified.length) throw new Error(`Unclassified open legacy records: ${unclassified.map((legacy) => legacy.data.id).join(", ")}. Review them before migration.`);
+const findingLegacy = legacyTickets.filter((legacy) => findingLegacyIds.has(String(legacy.data.id)));
+const ticketLegacy = legacyTickets.filter((legacy) => ticketLegacyIds.has(String(legacy.data.id)));
+
 const expanded = [];
 const splitAudit = [];
-for (const legacy of legacyTickets) {
+for (const legacy of ticketLegacy) {
   const legacyId = String(legacy.data.id);
-  if (legacyId === "O-1") {
-    splitAudit.push({
-      legacy_id: legacyId,
-      disposition: "package",
-      reason: "The source refinement already created and completed O-53 and O-54 for the release-blocking outcomes; later catalog, Android, privacy, and product follow-ups do not block this completed package.",
-      target_legacy: ["O-53", "O-54"],
-      targets: [],
-    });
-    continue;
-  }
   const splits = splitDefinitions[legacyId];
   if (!splits) {
     expanded.push({ legacy, title: String(legacy.data.title), outcome: legacy.sections.get("outcome"), splitIndex: null });
@@ -86,14 +131,10 @@ for (const legacy of legacyTickets) {
   splitAudit.push({ legacy_id: legacyId, disposition: "split", reason: "The source contract explicitly combines independently demonstrable outcomes with different verification paths.", targets });
 }
 
-if (legacyTickets.length !== 112) {
-  throw new Error(`The reviewed source snapshot contained 112 tickets, but the workspace now contains ${legacyTickets.length}; inspect the new source state before regenerating.`);
-}
-
 const idMap = new Map();
-expanded.forEach((item, index) => {
-  item.id = `T-${String(index + 1).padStart(3, "0")}`;
+expanded.forEach((item) => {
   const legacyId = String(item.legacy.data.id);
+  item.id = item.splitIndex === null ? legacyId : `${legacyId}.${item.splitIndex}`;
   idMap.set(legacyId, [...(idMap.get(legacyId) ?? []), item.id]);
 });
 for (const audit of splitAudit) {
@@ -103,14 +144,14 @@ for (const audit of splitAudit) {
   delete audit.target_legacy;
 }
 
-const packageDefinitions = [
-  { id: "P-001", kind: "milestone", status: "done", title: "TestFlight release readiness", goal: "Make the beta honest, private, observable, and submittable.", legacy: ["O-53", "O-54"] },
-  { id: "P-002", kind: "mission", status: "backlog", title: "Coach composer and learning loop", goal: "Turn measured practice history into an explainable next session.", legacy: ["O-9", "O-100", "O-101", "O-106", "O-107", "O-108", "O-109"] },
-  { id: "P-003", kind: "batch", status: "backlog", title: "Flutter surface decomposition", goal: "Make the three large player surfaces independently testable without a redesign.", legacy: ["O-38"] },
-  { id: "P-004", kind: "milestone", status: "backlog", title: "Recommendation acceptance loop", goal: "Generate, explain, accept, and safely persist coach recommendations.", legacy: ["O-2", "O-31", "O-32", "O-33", "O-34", "O-35", "O-96", "O-104", "O-111"] },
-  { id: "P-005", kind: "mission", status: "backlog", title: "Scoring trust", goal: "Make every displayed score measurable, interpretable, and safe under missing audio.", legacy: ["O-10", "O-69", "O-70", "O-73", "O-74", "O-75", "O-78", "O-82", "O-83", "O-84", "O-90", "O-91"] },
-  { id: "P-006", kind: "batch", status: "backlog", title: "English product consistency", goal: "Keep interface, coach output, voice, and generated practice content in the selected language.", legacy: ["O-94", "O-96", "O-97", "O-99", "O-103", "O-104", "O-105", "O-110", "O-111", "O-112"] },
-];
+const packageDefinitions = [{
+  id: "P-001",
+  kind: "sprint",
+  status: ["backlog", "ready", "active", "done"].includes(sprintStatus) ? sprintStatus : "backlog",
+  title: `Sprint ${sprintName}`,
+  goal: cleanText(sprintSections.get("sprint goal"), "Deliver the current sprint's explicitly committed outcome."),
+  legacy: sprintLegacyIds,
+}];
 
 const ticketPackages = new Map();
 for (const pkg of packageDefinitions) {
@@ -128,27 +169,29 @@ const profileFor = (legacy) => {
 };
 
 const profileSections = (profile, item) => {
-  const why = cleanText(item.legacy.sections.get("why"), item.outcome);
+  const context = cleanText(item.legacy.sections.get("why") ?? item.legacy.sections.get("known context") ?? item.legacy.sections.get("context"), "See Legacy source contract below.");
+  const observed = observedEvidence(item.legacy);
+  const impact = impactEvidence(item.legacy);
   const outcome = cleanText(item.outcome, String(item.legacy.data.title));
   const blocks = {
     bug: [
-      ["Actual behaviour", why], ["Expected behaviour", outcome], ["Reproduction steps", "Use the concrete evidence and reproduction described in the migrated legacy contract."],
+      ["Actual behaviour", observed], ["Expected behaviour", outcome], ["Reproduction steps", "Use the measurements, reproduction path, and source references preserved under Legacy source contract below."],
       ["Environment", `one&a · ${item.legacy.data.lane || "cross-cutting"} lane`], ["Frequency", "Preserve the observed frequency from the source evidence; measure again before implementation."],
-      ["Impact", why], ["Regression-test expectation", "Add a deterministic regression at the closest public seam."],
+      ["Impact", impact], ["Regression-test expectation", "Add a deterministic regression at the closest public seam."],
     ],
     discovery: [
-      ["Decision to be supported", outcome], ["Research question", why], ["Hypotheses", "The source contract contains the current evidence and competing explanations."],
+      ["Decision to be supported", outcome], ["Research question", context], ["Hypotheses", "The source contract contains the current evidence and competing explanations."],
       ["Method", "Inspect repository evidence, run the smallest representative measurement, and record uncertainty."], ["Time or depth limit", "Stop when the stated decision can be made with explicit confidence."],
       ["Expected output", "A decision-ready evidence note and the smallest follow-up ticket set."], ["Decision criterion", "The product owner can choose without inventing missing evidence."],
     ],
     workflow: [
-      ["Actors", "Player, coach, operator, and the responsible delivery agent where applicable."], ["Initial state", why], ["States", "Use only the states already present in the product and this ticket contract."],
+      ["Actors", "Player, coach, operator, and the responsible delivery agent where applicable."], ["Initial state", context], ["States", "Use only the states already present in the product and this ticket contract."],
       ["Transitions", outcome], ["Triggers", "The user or operational action described by the source contract."], ["Permissions", "Preserve existing authorization and privacy boundaries."],
       ["Error paths", "Failures remain visible and retryable without silent partial completion."], ["Cancellation path", "Cancellation leaves canonical repository and product state valid."],
       ["Retry and duplicate-action behaviour", "Retries are idempotent or explicitly rejected."], ["Audit and notification expectations", "Record material state changes; notify only the actor who can respond."],
     ],
     ui: [
-      ["User goal", outcome], ["Entry point", `The existing ${item.legacy.data.lane || "product"} surface named in the source contract.`], ["Default state", why],
+      ["User goal", outcome], ["Entry point", `The existing ${item.legacy.data.lane || "product"} surface named in the source contract.`], ["Default state", context],
       ["Loading state", "Keep the current context visible while work is pending."], ["Empty state", "Explain why no content exists and provide the next valid action."], ["Error state", "Show an actionable error without discarding user input."],
       ["Success state", outcome], ["Disabled state", "Unavailable actions remain visibly disabled with an accessible explanation."], ["Responsive behaviour", "Preserve hierarchy from phone through desktop web."],
       ["Keyboard and focus behaviour", "All actions are keyboard reachable and focus follows state changes predictably."], ["Accessibility expectations", "Labels, contrast, focus, and semantics meet the platform baseline."],
@@ -158,12 +201,12 @@ const profileSections = (profile, item) => {
   return (blocks[profile] ?? []).map(([title, body]) => `## ${title}\n\n${body}`).join("\n\n");
 };
 
-const statusOverrides = new Map([
-  ["O-2", { state: "done", resolution: "completed", reason: "Confirmed complete by the product owner during A-Team migration review on 2026-07-21; the legacy Scrum status is stale." }],
-]);
+const statusOverrides = new Map();
 
 const mapStatus = (legacyStatus, legacyId) => {
   if (statusOverrides.has(legacyId)) return statusOverrides.get(legacyId);
+  if (legacyStatus === "in_progress") return { state: "active", resolution: null };
+  if (legacyStatus === "ready" && sprintLegacyIds.includes(legacyId)) return { state: "ready", resolution: null };
   if (legacyStatus === "done") return { state: "done", resolution: "completed" };
   if (legacyStatus === "rejected") return { state: "done", resolution: "obsolete" };
   return { state: "backlog", resolution: null };
@@ -171,8 +214,10 @@ const mapStatus = (legacyStatus, legacyId) => {
 
 const priorityMap = { P0: "critical", P1: "high", P2: "medium", P3: "low" };
 const migrationRecords = [];
+const findingRecords = [];
 
-rmSync(demoRoot, { recursive: true, force: true });
+if (existsSync(workspace) && !replace) throw new Error(`Refusing to replace existing workspace ${workspace}; inspect it first or pass --replace.`);
+rmSync(workspace, { recursive: true, force: true });
 for (const directory of ["backlog", "ready", "active", "review", "done", "findings/new", "findings/resolved", "packages/backlog", "packages/ready", "packages/active", "packages/done", "profiles", "claims", "decisions"]) {
   mkdirSync(join(workspace, directory), { recursive: true });
 }
@@ -194,7 +239,7 @@ for (const item of expanded) {
   const nonGoals = cleanText(legacy.sections.get("out of scope"), "No additional non-goals were stated in the legacy contract.");
   const reviewEvidence = status.state === "done" ? `\n\n## Review evidence\n\n${status.reason ?? cleanText(legacy.sections.get("result"), `Legacy ${legacy.data.status} state preserved during migration preview.`)}` : "";
   const bodyProfiles = profiles.map((profile) => profileSections(profile, item)).filter(Boolean).join("\n\n");
-  const content = `# ${item.id} — ${item.title}\n\n## Outcome\n\n${cleanText(item.outcome, item.title)}\n\n## Scope\n\n${scope}\n\n## Non-goals\n\n${nonGoals}\n\n## Acceptance\n\n${acceptance}\n\n## Verification\n\n${verification}\n\n## Constraints\n\nMigrated from ${legacyId}; lane: ${legacy.data.lane || "cross-cutting"}; legacy status: ${legacy.data.status}.\n\n## Open decisions\n\n${openQuestions}\n\n${bodyProfiles ? `${bodyProfiles}\n\n` : ""}${reviewEvidence}\n\n## Execution notes\n\nMigration preview only. Source: scrum/tickets/${legacy.filename}. No product implementation or human ready approval is implied.\n`;
+  const content = `# ${item.id} — ${item.title}\n\n## Outcome\n\n${cleanText(item.outcome, item.title)}\n\n## Scope\n\n${scope}\n\n## Non-goals\n\n${nonGoals}\n\n## Acceptance\n\n${acceptance}\n\n## Verification\n\n${verification}\n\n## Constraints\n\nMigrated from ${legacyId}; lane: ${legacy.data.lane || "cross-cutting"}; legacy status: ${legacy.data.status}.\n\n## Open decisions\n\n${openQuestions}\n\n${bodyProfiles ? `${bodyProfiles}\n\n` : ""}${reviewEvidence}\n\n## Legacy source contract\n\nThe complete legacy body is preserved below. Its headings are demoted only to keep the A-Team contract structure unambiguous.\n\n${preservedLegacyContract(legacy)}\n\n## Execution notes\n\nMigration preview only. Source: scrum/tickets/${legacy.filename}. No product implementation or human ready approval is implied.\n`;
   const createdAt = String(legacy.data.created_at ?? today).slice(0, 10);
   const data = {
     id: item.id,
@@ -214,6 +259,7 @@ for (const item of expanded) {
     updated_at: today,
     ...(status.resolution ? { resolution: status.resolution } : {}),
     ...(legacy.data.status === "parked" ? { blocked: true, blocked_reason: "Legacy work was parked; human reactivation is required." } : {}),
+    ...(status.state === "active" ? { branch: String(legacy.data.branch), assigned_agent: "legacy-scrum" } : {}),
   };
   const filename = `${item.id}-${slugify(item.title)}.md`;
   writeFileSync(join(workspace, status.state, filename), matter.stringify(content, data));
@@ -235,6 +281,57 @@ for (const item of expanded) {
   });
 }
 
+const findingTypeFor = (legacy) => {
+  const type = String(legacy.data.type ?? "other");
+  if (type === "bug") return "bug";
+  if (type === "research") return "risk";
+  if (type === "decision") return "inconsistency";
+  if (type === "other") return "technical-debt";
+  if (type === "operations") return "risk";
+  return "improvement";
+};
+const severityFor = (legacy) => ({ P0: "critical", P1: "high", P2: "medium", P3: "low" })[legacy.backlog.priority] ?? (String(legacy.data.status) === "parked" ? "low" : "medium");
+const backlogEvidence = (legacy) => {
+  const compact = legacy.backlog.compact || "";
+  const summary = compact.replace(/^\s*-\s+\[[^\]]+\]\([^)]+\)\s+—\s+[^;]+;\s*/, "").trim();
+  return summary && summary !== compact ? summary : `See scrum/tickets/${legacy.filename}.`;
+};
+
+findingLegacy.forEach((legacy) => {
+  const legacyId = String(legacy.data.id);
+  const id = legacyId;
+  const title = String(legacy.data.title);
+  const observation = cleanText(legacy.sections.get("why") ?? legacy.sections.get("known context") ?? legacy.sections.get("context"), title);
+  const evidence = cleanText(legacy.sections.get("result"), observedEvidence(legacy) || backlogEvidence(legacy));
+  const impact = cleanText(legacy.sections.get("outcome"), "The observation may affect correctness, product trust, maintainability, or delivery safety; a human disposition is still required.");
+  const suggested = String(legacy.data.status) === "parked"
+    ? "Keep parked unless the recorded reactivation condition becomes true; then investigate before creating work."
+    : "Review the evidence and explicitly create or attach a ticket only if the outcome is worth scheduling.";
+  const data = {
+    id, title, status: "new", origin: "agent", finding_type: findingTypeFor(legacy),
+    confidence: evidence.includes("See scrum/tickets/") ? "medium" : "high",
+    severity: severityFor(legacy), discovered_during: null,
+    created_at: String(legacy.data.created_at ?? today).slice(0, 10),
+  };
+  const content = `# ${id} — ${title}\n\n## Observation\n\n${observation}\n\n## Evidence\n\n${evidence}\n\nLegacy source: ${legacyId} · scrum/tickets/${legacy.filename}.\n\n## Impact hypothesis\n\n${impact}\n\n## Confidence\n\n${data.confidence === "high" ? "High: the legacy record contains concrete observation or result evidence." : "Medium: the observation is recorded, but should be rechecked before scheduling work."}\n\n## Suggested disposition\n\n${suggested}\n\n## Legacy source contract\n\nThe complete legacy body is preserved below. Its headings are demoted only to keep the A-Team finding structure unambiguous.\n\n${preservedLegacyContract(legacy)}\n`;
+  const filename = `${id}-${slugify(title)}.md`;
+  writeFileSync(join(workspace, "findings/new", filename), matter.stringify(content, data));
+  findingRecords.push({ id, legacy_id: legacyId, title, legacy_status: legacy.data.status, finding_type: data.finding_type, severity: data.severity, source_file: `scrum/tickets/${legacy.filename}` });
+});
+
+const activeRecord = migrationRecords.find((record) => record.status === "active");
+if (activeRecord) {
+  const legacy = ticketLegacy.find((candidate) => String(candidate.data.id) === activeRecord.legacy_id);
+  writeFileSync(join(workspace, "claims", `${activeRecord.id}.yaml`), stringify({
+    ticket: activeRecord.id,
+    agent: "legacy-scrum",
+    branch: String(legacy?.data.branch),
+    worktree: ".",
+    started_at: String(legacy?.data.started_at),
+    session_id: `migration-${activeRecord.legacy_id}`,
+  }));
+}
+
 for (const pkg of packageDefinitions) {
   const data = {
     id: pkg.id, kind: pkg.kind, title: pkg.title, status: pkg.status, tickets: pkg.tickets,
@@ -250,28 +347,31 @@ const statusCounts = migrationRecords.reduce((counts, ticket) => ({ ...counts, [
 const metadata = {
   project: "one&a",
   source_workspace: sourceRoot,
-  source_snapshot: "main @ 2026-07-21",
-  generated_at: `${today}T12:00:00+02:00`,
+  source_snapshot: `${String(now.toISOString())} · branch recorded separately in source artifacts`,
+  generated_at: now.toISOString(),
   legacy_ticket_count: legacyTickets.length,
   migrated_ticket_count: migrationRecords.length,
+  finding_count: findingRecords.length,
+  excluded_terminal_count: terminalLegacy.length,
   package_count: packageDefinitions.length,
   status_counts: statusCounts,
   ready_candidate_count: migrationRecords.filter((ticket) => ticket.ready_candidate).length,
   split_audit: splitAudit,
   tickets: migrationRecords,
+  findings: findingRecords,
+  excluded_terminal: terminalLegacy.map((legacy) => ({ legacy_id: legacy.data.id, legacy_status: legacy.data.status, source_file: `scrum/tickets/${legacy.filename}` })),
   packages: packageDefinitions.map(({ legacy, ...pkg }) => pkg),
 };
 writeFileSync(join(workspace, "migration.json"), `${JSON.stringify(metadata, null, 2)}\n`);
 writeFileSync(join(workspace, "config.yaml"), stringify({
   version: 1,
-  project: { name: "one&a migration preview" },
+  project: { name: "one&a" },
   workflow: { require_human_ready_approval: true, require_human_done_approval: true, allow_agent_findings: true, allow_agent_ready_tickets: false },
   git: { base_branch: "main", protected_branches: ["main", "master", "develop"], worktrees: "auto", worktree_root: ".worktrees", branch_pattern: "{prefix}/{id}-{slug}" },
   packages: { default_parallelism: 2, stop_on_failure: true },
   validation: { strict: true, reject_unknown_profiles: true, require_verification_for_ready: true, require_review_evidence_for_done: true },
 }));
-writeFileSync(join(workspace, "README.md"), "# one&a A-Team migration preview\n\nGenerated from the legacy Scrum files without modifying the source workspace.\n");
-writeFileSync(join(workspace, "index.md"), `# A-Team Status\n\n> Generated migration preview. Do not edit manually.\n\n- ${metadata.migrated_ticket_count} atomic tickets from ${metadata.legacy_ticket_count} legacy sources\n- ${metadata.package_count} proposed packages\n- ${metadata.ready_candidate_count} backlog tickets have enough evidence to discuss readiness\n`);
-writeFileSync(join(demoRoot, "README.md"), `# one&a migration UI fixture\n\nGenerated from \`${sourceRoot}/scrum\`. Source files remain untouched.\n\nRun:\n\n\`\`\`bash\nnpm run build\nnode dist/cli/index.js ui --workspace ${workspace} --port 4311\n\`\`\`\n`);
+writeFileSync(join(workspace, "README.md"), "# one&a A-Team workspace\n\nMigrated from the legacy Scrum files. Open work was deliberately separated into human-approved tickets and evidence awaiting disposition as findings. The legacy `scrum/` directory remains the historical source snapshot until cutover is explicitly accepted.\n");
+writeFileSync(join(workspace, "index.md"), `# A-Team Status\n\n> Generated migration workspace. Do not edit this index manually.\n\n- ${metadata.migrated_ticket_count} executable or explicitly requested tickets\n- ${metadata.finding_count} findings awaiting human disposition\n- ${metadata.excluded_terminal_count} terminal legacy records preserved only in migration.json\n- ${metadata.package_count} outcome packages\n- ${metadata.ready_candidate_count} backlog tickets have enough evidence to discuss readiness\n`);
 
-console.log(JSON.stringify({ ok: true, source: legacyTickets.length, migrated: migrationRecords.length, packages: packageDefinitions.length, output: workspace }, null, 2));
+console.log(JSON.stringify({ ok: true, source: legacyTickets.length, tickets: migrationRecords.length, findings: findingRecords.length, excludedTerminal: terminalLegacy.length, packages: packageDefinitions.length, output: workspace }, null, 2));

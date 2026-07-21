@@ -19,7 +19,7 @@ export function validateTicketFile(path: string, expectedState?: string): Valida
   try { entity = parseMarkdown(readFileSync(path, "utf8")); }
   catch (error) { return { valid: false, errors: [{ code: "INVALID_FRONTMATTER", message: String(error), path }] }; }
   const id = String(entity.data.id ?? "");
-  if (!/^T-\d{3,}$/.test(id)) errors.push({ code: "INVALID_ID", message: "Ticket id must match T-001.", path });
+  if (!/^(?:T-\d{3,}|O-\d+(?:\.\d+)?)$/.test(id)) errors.push({ code: "INVALID_ID", message: "Ticket id must match T-001 or preserve an imported O-1 identifier.", path });
   if (!basename(path).startsWith(`${id}-`)) errors.push({ code: "FILENAME_ID_MISMATCH", message: "Filename must start with the ticket id.", path });
   const directoryState = basename(dirname(path));
   const state = String(entity.data.status ?? "");

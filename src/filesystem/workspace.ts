@@ -117,19 +117,19 @@ export function renderEmptyIndex(): string {
 export function regenerateIndex(root: string): void {
   const workspace = join(root, ".a-team");
   if (!existsSync(workspace)) return;
-  const entries = (directory: string, prefix: string) => {
+  const entries = (directory: string) => {
     const path = join(workspace, directory);
     if (!existsSync(path)) return [];
-    return readdirSync(path).filter((name) => name.startsWith(prefix) && name.endsWith(".md")).sort().map((name) => `- ${name.replace(/\.md$/, "")}`);
+    return readdirSync(path).filter((name) => name.endsWith(".md")).sort().map((name) => `- ${name.replace(/\.md$/, "")}`);
   };
   const section = (title: string, lines: string[]) => `## ${title}\n\n${lines.length ? lines.join("\n") : "None."}`;
   writeFileSync(join(workspace, "index.md"), `# A-Team Status\n\n> Generated file. Do not edit manually.\n\n${[
-    section("Ready packages", entries("packages/ready", "P-")),
-    section("Active packages", entries("packages/active", "P-")),
-    section("Ready tickets", entries("ready", "T-")),
-    section("Active tickets", entries("active", "T-")),
-    section("Review", entries("review", "T-")),
+    section("Ready packages", entries("packages/ready")),
+    section("Active packages", entries("packages/active")),
+    section("Ready tickets", entries("ready")),
+    section("Active tickets", entries("active")),
+    section("Review", entries("review")),
     section("Blocked", []),
-    section("New findings", entries("findings/new", "F-")),
+    section("New findings", entries("findings/new")),
   ].join("\n\n")}\n`);
 }

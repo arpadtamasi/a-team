@@ -19,8 +19,8 @@ function findFinding(root: string, id: string) {
   throw new Error(`Finding ${id} was not found.`);
 }
 
-export function newFinding(options: { title: string; type: string; evidence: string; discoveredDuring?: string }) {
-  const root = findRepositoryRoot();
+export function newFinding(options: { title: string; type: string; evidence: string; discoveredDuring?: string }, repositoryRoot?: string) {
+  const root = repositoryRoot ?? findRepositoryRoot();
   const id = nextId(root, "finding");
   const filename = `${id}-${slugify(options.title)}.md`;
   const directory = join(root, ".a-team/findings/new");
@@ -33,8 +33,8 @@ export function newFinding(options: { title: string; type: string; evidence: str
   return { ok: true, command: "finding new", data: { id, path } };
 }
 
-export function validateFinding(id: string) {
-  const root = findRepositoryRoot();
+export function validateFinding(id: string, repositoryRoot?: string) {
+  const root = repositoryRoot ?? findRepositoryRoot();
   const finding = findFinding(root, id);
   const entity = parseMarkdown(readFileSync(finding.path, "utf8"));
   const body = sections(entity.content);
@@ -53,7 +53,7 @@ export function validateFinding(id: string) {
   for (const state of ["backlog", "ready", "active", "review", "done"]) {
     const directory = join(root, ".a-team", state);
     if (!existsSync(directory)) continue;
-    for (const filename of readdirSync(directory).filter((name) => name.startsWith("T-") && name.endsWith(".md"))) {
+    for (const filename of readdirSync(directory).filter((name) => name.endsWith(".md"))) {
       const candidate = parseMarkdown(readFileSync(join(directory, filename), "utf8"));
       if (String(candidate.data.title ?? "").trim().toLowerCase() === title) duplicates.push(String(candidate.data.id));
     }
@@ -61,19 +61,19 @@ export function validateFinding(id: string) {
   return { ok: errors.length === 0, command: "finding validate", data: { id, state: finding.state, duplicates }, errors };
 }
 
-export function resolveFinding(id: string, disposition: string, approved: boolean) {
+export function resolveFinding(id: string, disposition: string, approved: boolean, repositoryRoot?: string) {
   const allowed = ["create-ticket", "attach-existing", "investigate", "accept-risk", "reject", "merge-duplicate"];
   if (!allowed.includes(disposition)) throw new Error(`Unknown disposition '${disposition}'.`);
   if (!approved) throw new Error("Human approval is required to resolve a finding.");
-  const root = findRepositoryRoot();
+  const root = repositoryRoot ?? findRepositoryRoot();
   const finding = findFinding(root, id);
   if (finding.state !== "new") throw new Error(`Finding ${id} is already resolved.`);
-  const validation = validateFinding(id);
+  const validation = validateFinding(id, root);
   if (!validation.ok) throw new Error((validation.errors ?? []).map((error) => error.message).join("\n"));
   const entity = parseMarkdown(readFileSync(finding.path, "utf8"));
   let ticketId: string | undefined;
   if (disposition === "create-ticket") {
-    const created = newTicket({ title: String(entity.data.title), type: "feature", profiles: [] });
+    const created = newTicket({ title: String(entity.data.title), type: "feature", profiles: [] }, root);
     ticketId = created.data.id;
     const ticket = findTicket(root, ticketId);
     const ticketEntity = parseMarkdown(readFileSync(ticket.path, "utf8"));

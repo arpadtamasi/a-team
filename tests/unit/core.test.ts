@@ -32,8 +32,9 @@ describe("core deterministic rules", () => {
 
   test("validates the complete claim contract", () => {
     expect(validateClaim({ ticket: "T-014", agent: "codex", branch: "feat/T-014-export", worktree: ".worktrees/T-014", started_at: "2026-07-21T10:15:00+02:00" })).toEqual([]);
+    expect(validateClaim({ ticket: "O-107", agent: "codex", branch: "feat/O-107-audit", worktree: ".worktrees/O-107", started_at: "2026-07-21T10:15:00+02:00" })).toEqual([]);
     expect(validateClaim({ ticket: "bad" })).toEqual([
-      "ticket must match T-001", "agent is required", "branch is required", "worktree is required", "started_at must be an ISO timestamp",
+      "ticket must match T-001 or an imported O-1 identifier", "agent is required", "branch is required", "worktree is required", "started_at must be an ISO timestamp",
     ]);
   });
 });

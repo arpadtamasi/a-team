@@ -3,6 +3,10 @@ import { join } from "node:path";
 
 export const TICKET_STATES = ["backlog", "ready", "active", "review", "done"] as const;
 
+export function idFromFilename(filename: string): string | null {
+  return /^(?:[TFP]-\d{3,}|O-\d+(?:\.\d+)?)(?=-)/.exec(filename)?.[0] ?? null;
+}
+
 export function findTicket(root: string, id: string): { path: string; state: string; filename: string } {
   for (const state of TICKET_STATES) {
     const directory = join(root, ".a-team", state);
@@ -18,15 +22,14 @@ export function listIds(root: string, entity: "ticket" | "finding" | "package"):
   const directories = entity === "ticket"
     ? TICKET_STATES.map(String)
     : entity === "finding" ? ["findings/new", "findings/resolved"] : ["packages/backlog", "packages/ready", "packages/active", "packages/done"];
-  const prefix = entity === "ticket" ? "T-" : entity === "finding" ? "F-" : "P-";
   return directories.flatMap((directory) => {
     const path = join(workspace, directory);
-    return existsSync(path) ? readdirSync(path).filter((name) => name.startsWith(prefix)).map((name) => name.split("-").slice(0, 2).join("-")) : [];
+    return existsSync(path) ? readdirSync(path).map(idFromFilename).filter((id): id is string => id !== null) : [];
   });
 }
 
 export function nextId(root: string, entity: "ticket" | "finding" | "package"): string {
   const prefix = entity === "ticket" ? "T" : entity === "finding" ? "F" : "P";
-  const max = listIds(root, entity).reduce((current, id) => Math.max(current, Number(id.split("-")[1])), 0);
+  const max = listIds(root, entity).filter((id) => id.startsWith(`${prefix}-`)).reduce((current, id) => Math.max(current, Number(id.split("-")[1])), 0);
   return `${prefix}-${String(max + 1).padStart(3, "0")}`;
 }

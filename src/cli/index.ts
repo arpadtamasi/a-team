@@ -4,7 +4,7 @@ import { initCommand } from "../commands/init.js";
 import { closeTicket, newTicket, readyTicket, reopenTicket, reviewTicket, startTicket, validateTicket } from "../commands/ticket.js";
 import { statusCommand } from "../commands/status.js";
 import { newFinding, resolveFinding, validateFinding } from "../commands/finding.js";
-import { packageStatus, startPackage, validatePackage } from "../commands/package.js";
+import { newPackage, packageStatus, startPackage, updatePackageTickets, validatePackage } from "../commands/package.js";
 import { validateWorkspace } from "../commands/validate.js";
 import { listClaims, releaseClaim } from "../commands/claim.js";
 import { uiCommand } from "../commands/ui.js";
@@ -103,6 +103,21 @@ finding
   .action((id: string, options: { disposition: string; approve?: boolean; json?: boolean }) => print(resolveFinding(id, options.disposition, Boolean(options.approve)), Boolean(options.json)));
 
 const packageCommand = program.command("package").description("Validate and execute coordinated packages");
+packageCommand
+  .command("new")
+  .requiredOption("--title <title>")
+  .option("--kind <kind>", "Package kind", "batch")
+  .option("--goal <goal>")
+  .option("--json")
+  .action((options: { title: string; kind: string; goal?: string; json?: boolean }) => print(newPackage(options), Boolean(options.json)));
+packageCommand
+  .command("add <package-id> <ticket-id>")
+  .option("--json")
+  .action((packageId: string, ticketId: string, options: { json?: boolean }) => print(updatePackageTickets(packageId, ticketId, "add"), Boolean(options.json)));
+packageCommand
+  .command("remove <package-id> <ticket-id>")
+  .option("--json")
+  .action((packageId: string, ticketId: string, options: { json?: boolean }) => print(updatePackageTickets(packageId, ticketId, "remove"), Boolean(options.json)));
 packageCommand
   .command("validate <id>")
   .option("--json")

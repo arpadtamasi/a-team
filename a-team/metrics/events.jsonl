@@ -27,3 +27,4 @@
 {"timestamp": "2026-07-20T16:56:07+02:00", "event": "ticket_created", "ticket_id": "AT-11", "status": "backlog", "type": "decision", "source": "capture-work"}
 {"timestamp": "2026-07-20T23:05:00+02:00", "event": "ticket_created", "ticket_id": "AT-12", "status": "backlog", "type": "bug", "source": "capture-work"}
 {"timestamp": "2026-07-20T23:20:00+02:00", "event": "ticket_created", "ticket_id": "AT-13", "status": "backlog", "type": "bug", "source": "capture-work"}
+{"timestamp":"2026-07-21T10:51:49+02:00","event":"ticket_created","ticket_id":"AT-14","status":"backlog","type":"bug","source":"capture-work"}

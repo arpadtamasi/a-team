@@ -1,0 +1,245 @@
+{
+  "root": "NQ-1",
+  "generated_at": "2026-07-20T23:10:00+02:00",
+  "source": {
+    "repo": "/Users/rp/Dev/progos/a-team",
+    "milestone_file": "docs/experiments/intake/PROMPT.md",
+    "commit": "3892c0d"
+  },
+  "nodes": [
+    {
+      "id": "NQ-1",
+      "parent": null,
+      "title": "Rögzítve van, milyen kérdéssort kell feltenni egy igényre",
+      "outcome": "Egy leírt kérdéssor végigvihető egy igényen úgy, hogy a végén minden nyitott kérdés vagy megválaszolva, vagy gazdával felírva áll.",
+      "criteria": [
+        {
+          "id": "c1",
+          "statement": "A kérdéssor végigvihető egy valódi, kibontatlan igényen, és a végén minden nyitott kérdésnek van gazdája.",
+          "check": {
+            "type": "process",
+            "how": "Végigvisszük a kérdéssort az a-team/tickets/AT-7-prime-context.md igényen, majd a kimenetet egymás mellé tesszük az AT-7 `## Open questions` szakaszával.",
+            "expect": "az ott álló minden kérdés vagy megválaszolva, vagy gazdával (agent/ember) felírva; nulla felíratlan kérdés"
+          }
+        },
+        {
+          "id": "c2",
+          "statement": "A kérdéssor tud nemet mondani: alulspecifikált igényen megnevezi, mi hiányzik, és nem enged tovább.",
+          "check": {
+            "type": "process",
+            "how": "Végigvisszük a kérdéssort az a-team/tickets/AT-6-board-v2.md félkész igényen.",
+            "expect": "a sor megáll, és megnevezi, melyik kérdésre nincs válasz — nem ad zöld ítéletet"
+          }
+        }
+      ],
+      "leaf": false,
+      "owner": "agent",
+      "why_not_leaf": "c1 és c2 csak akkor figyelhető meg, ha a kérdéssor tartalma, a kérdésenkénti gazda és a megállási szabály már létezik.",
+      "notes": "A 3892c0d utáni este tanulsága szülte: a hat kötelező ticket-szakasz a refine-ticket öt kérdésének fosszíliája, ezért a szakasz-meglét ellenőrzése nem méri, hogy egy igény végrehajtható-e. Futamméret: egy este (1-es stopnál jóváhagyva). Határok a 2-es stopnál: nem építünk checker-szkriptet; nem építünk olyat, ami a kártya ÉRTÉKÉRŐL ítélkezik (a munka TERMÉSZETÉBŐL következtetni szabad — PO/PM élesítése); nem módosítjuk a schemas/ticket.md-t; nem írjuk át a refine-ticket skillt; nem oldjuk meg a típusfüggő bizonyítékot (AT-11)."
+    },
+
+    {
+      "id": "NQ-1.1",
+      "parent": "NQ-1",
+      "title": "A kérdéssor tartalma",
+      "outcome": "Le van írva, mely kérdéseket kell feltenni és milyen sorrendben, mindegyik vagy a két meglévő készletből származtatva, vagy megnevezett repó-esettel indokolva.",
+      "criteria": [
+        {
+          "id": "c1",
+          "statement": "A sorban egyetlen kitalált kérdés sincs: mindegyik vagy örökölt, vagy megnevezett esettel indokolt.",
+          "check": {
+            "type": "measurement",
+            "how": "Végigolvasva a leírt sort, kérdésenként megjelölve a származása: 'hét stop N.', 'refine-ticket N.', vagy egy repó-eset azonosítója (ticket-ID vagy commit).",
+            "expect": "nulla olyan kérdés, amely mellett egyik sem áll"
+          }
+        }
+      ],
+      "leaf": false,
+      "owner": "agent",
+      "why_not_leaf": "A bemenet definíciója, a két készlet összefésülése, a hiánypótlás, a sorrend és a leírás helye öt külön megfigyelhető állítás.",
+      "notes": "Az 5-ös stopnál a PO/PM ezt az ágat húzta bontásra. A többi három ág kibontatlan cél marad."
+    },
+    {
+      "id": "NQ-1.1.1",
+      "parent": "NQ-1.1",
+      "title": "Mi számít igénynek",
+      "outcome": "Le van írva, mi a kérdéssor bemenete — nyers mondat, capture-stage ticket, vagy mindkettő —, és a definíció ellen a repó minden ticketje besorolható.",
+      "criteria": [
+        {
+          "id": "c1",
+          "statement": "A definíció ellen a repó minden ticketje egyértelműen besorolható igényként vagy nem igényként.",
+          "check": {
+            "type": "measurement",
+            "how": "Az a-team/tickets/*.md összes fájlját besoroljuk a leírt definíció ellen, egy sor per ticket.",
+            "expect": "a sorok száma egyezik a ticketfájlok számával, és nulla 'nem tudom' besorolás"
+          }
+        }
+      ],
+      "leaf": true,
+      "owner": "agent",
+      "est_minutes": 10,
+      "notes": "ember: 5 perc (a definíció átfutása). A 6-os stopnál agent-gazda: a schemas/ticket.md-ben létezik capture-szakasz `## Open questions`-szel, tehát a definíció kiolvasható a repóból."
+    },
+    {
+      "id": "NQ-1.1.2",
+      "parent": "NQ-1.1",
+      "title": "A két meglévő készlet egymásra fektetve",
+      "outcome": "Egy táblázat mutatja, a hét stop hét tétele és a refine-ticket öt kérdése hogyan fedi egymást, és melyiknek nincs párja.",
+      "criteria": [
+        {
+          "id": "c1",
+          "statement": "Mindkét készlet minden tétele pontosan egyszer szerepel, párral vagy 'nincs párja' jelöléssel.",
+          "check": {
+            "type": "measurement",
+            "how": "A táblázat sorainak összevetése a docs/experiments/intake/PROMPT.md hét stopjával és a skills/refine-ticket/SKILL.md öt kérdésével.",
+            "expect": "12 tétel lefedve, nulla lefedetlen és nulla duplán szereplő tétel"
+          }
+        }
+      ],
+      "leaf": true,
+      "owner": "agent",
+      "est_minutes": 20,
+      "depends_on": ["NQ-1.1.1"],
+      "notes": "ember: 5 perc (a táblázat átfutása). A csendes kihagyás itt is a fő kockázat: egy tétel, ami egyik oldalról sem néz vissza, észrevétlenül kiesik."
+    },
+    {
+      "id": "NQ-1.1.3",
+      "parent": "NQ-1.1",
+      "title": "A hiányzó kérdések megnevezve",
+      "outcome": "Amit egyik készlet sem kérdez, az megnevezve áll, és mindegyik mellett ott a repó-eset, ahol a hiánya kárt okozott.",
+      "criteria": [
+        {
+          "id": "c1",
+          "statement": "Minden új kérdés mellett áll egy megnevezett repó-eset.",
+          "check": {
+            "type": "measurement",
+            "how": "Az új kérdések listáját végigolvasva mindegyik mellett egy ticket-ID vagy commit-hash áll, amely a hiány kárát mutatja.",
+            "expect": "nulla indoklás nélküli új kérdés"
+          }
+        }
+      ],
+      "leaf": true,
+      "owner": "agent",
+      "est_minutes": 25,
+      "depends_on": ["NQ-1.1.2"],
+      "notes": "ember: 10 perc. A check szándékosan szigorú: enélkül az agent kitalálna kérdéseket, amiket senki nem hiányolt. Egy már ismert jelölt: 'melyik nyitott kérdés kié' — a hét stop 6-osa kérdezi, a refine-ticket öt kérdése nem, és a ticket refined alakjában nincs neki hely."
+    },
+    {
+      "id": "NQ-1.1.4",
+      "parent": "NQ-1.1",
+      "title": "A sorrend rögzítve",
+      "outcome": "A kérdések sorrendben állnak, és egyik kérdés sem támaszkodik későbbi válaszra.",
+      "criteria": [
+        {
+          "id": "c1",
+          "statement": "A soron végigolvasva nincs előreutalás: minden kérdés csak korábbi válaszokra épít.",
+          "check": {
+            "type": "process",
+            "how": "A leírt sort elejétől végigolvasva kérdésenként megnézzük, mely korábbi válaszra hivatkozik.",
+            "expect": "nulla olyan kérdés, amely egy későbbi kérdés válaszát feltételezi"
+          }
+        }
+      ],
+      "leaf": true,
+      "owner": "agent",
+      "est_minutes": 15,
+      "depends_on": ["NQ-1.1.3"],
+      "notes": "ember: 5 perc. A hét stop sorrendje nem véletlen (cél → határ → siker); ez a levél teszi ugyanezt megfigyelhetővé az új soron."
+    },
+    {
+      "id": "NQ-1.1.5",
+      "parent": "NQ-1.1",
+      "title": "A leírás helye és alakja",
+      "outcome": "A kérdéssor egy megnevezett fájlban áll a docs/experiments/ alatt, és önmagában használható egy friss sessionben, az intake PROMPT.md mintájára.",
+      "criteria": [
+        {
+          "id": "c1",
+          "statement": "A fájl a megnevezett úton létezik.",
+          "check": {
+            "type": "command",
+            "how": "test -f docs/experiments/need-questions/PROMPT.md; echo $?",
+            "expect": "0"
+          }
+        },
+        {
+          "id": "c2",
+          "statement": "A leírás önmagában elég: friss sessionbe bemásolva elindul, külső magyarázat nélkül.",
+          "check": {
+            "type": "process",
+            "how": "A fájl teljes tartalmát bemásoljuk egy friss Claude Code sessionbe a repóban, és megnézzük az első választ.",
+            "expect": "a session az első kérdésével indul, és nem kér magyarázatot arról, hogy mit kellene csinálnia"
+          }
+        }
+      ],
+      "leaf": true,
+      "owner": "agent",
+      "est_minutes": 20,
+      "depends_on": ["NQ-1.1.4"],
+      "notes": "ember: 10 perc (a bemásolás és az első válasz megnézése). A 6-os stopnál a PO/PM döntött: kísérlet a docs/experiments/ alatt, nem skill a csomagban. Indok: skillnél a SKILL.md router operation-listáját és a METHOD.md ownership-tábláját is bővíteni kellene — az bekötés, nem leírás."
+    },
+
+    {
+      "id": "NQ-1.2",
+      "parent": "NQ-1",
+      "title": "Kérdésenként a gazda",
+      "outcome": "Minden kérdésről tudni, hogy az agent válaszolja meg magától — repóból vagy a munka természetéből következtetve —, vagy az embertől kell megkérdezni.",
+      "criteria": [
+        {
+          "id": "c1",
+          "statement": "A kérdéssoron végigmenve egyetlen kérdés sem marad gazda nélkül, és az agent nem kérdez vissza olyat, ami a repóból kiolvasható.",
+          "check": {
+            "type": "undecidable",
+            "how": "A gazda hozzárendelésének szabálya még nincs meg; addig nem figyelhető meg, hogy egy kérdés jó gazdát kapott-e.",
+            "expect": "külön futamban bontjuk"
+          }
+        }
+      ],
+      "leaf": false,
+      "owner": "agent",
+      "why_not_leaf": "külön futamban bontjuk",
+      "notes": "A 6-os stopnál a PO/PM ezt húzta a következő futamnak. Ez a ma esti felfedezés magva: a hét stop 6-osa (`owner`) a fákban megvan, a ticketekben nincs. A 2-es stop élesített határa ide tartozik: az agent következtethet a munka természetéből (UI-t érint → screenshot kell), de a kártya értékéről nem ítélkezhet."
+    },
+    {
+      "id": "NQ-1.3",
+      "parent": "NQ-1",
+      "title": "A megállási szabály",
+      "outcome": "Ki van mondva, mikor mondja a kérdéssor, hogy 'ez így nem elég', és hogyan nevezi meg a hiányt.",
+      "criteria": [
+        {
+          "id": "c1",
+          "statement": "Egy alulspecifikált igényen a sor megáll, és megnevezi, melyik kérdésre nincs válasz.",
+          "check": {
+            "type": "undecidable",
+            "how": "A megállás feltétele még nincs kimondva; addig nem figyelhető meg, hogy jó helyen állt-e meg.",
+            "expect": "külön futamban bontjuk"
+          }
+        }
+      ],
+      "leaf": false,
+      "owner": "agent",
+      "why_not_leaf": "külön futamban bontjuk",
+      "notes": "Ez tartja életben a gyökér c2-jét. Enélkül a sor mindenre bólintana, és megint egy zöld check maradna cél nélkül — pontosan az a hiba, ami a ticket-readiness futamot zsákutcába vitte."
+    },
+    {
+      "id": "NQ-1.4",
+      "parent": "NQ-1",
+      "title": "Próba két valódi igényen",
+      "outcome": "A kérdéssor végig van vive az AT-7-en és az AT-6-on, és a két futás kimenete egymás mellett áll.",
+      "criteria": [
+        {
+          "id": "c1",
+          "statement": "Az AT-7 végigmegy a soron, az AT-6 megáll rajta.",
+          "check": {
+            "type": "undecidable",
+            "how": "A sor tartalma, a gazdák és a megállási szabály nélkül nincs mit végigvinni.",
+            "expect": "külön futamban bontjuk"
+          }
+        }
+      ],
+      "leaf": false,
+      "owner": "agent",
+      "why_not_leaf": "külön futamban bontjuk",
+      "notes": "Ez a gyökér c1 és c2 megfigyelése. Sorrendben az utolsó ág: mind a hármat teszteli."
+    }
+  ]
+}

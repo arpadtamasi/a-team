@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/arpadtamasi/a-team/schemas/finding.schema.json",
+  "title": "A-Team finding frontmatter",
+  "type": "object",
+  "required": ["id", "title", "status", "origin", "finding_type", "confidence", "severity", "created_at"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^F-[0-9]{3,}$" },
+    "title": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["new", "resolved"] },
+    "origin": { "enum": ["human", "agent"] },
+    "finding_type": { "enum": ["bug", "technical-debt", "risk", "improvement", "inconsistency", "duplication", "security", "performance", "other"] },
+    "confidence": { "enum": ["low", "medium", "high"] },
+    "severity": { "enum": ["low", "medium", "high", "critical"] },
+    "discovered_during": { "oneOf": [{ "type": "null" }, { "type": "string", "pattern": "^(T|P)-[0-9]{3,}$" }] },
+    "disposition": { "enum": ["create-ticket", "attach-to-existing-ticket", "investigate", "accept-risk", "reject", "merge-duplicate"] },
+    "related_ticket": { "type": "string", "pattern": "^T-[0-9]{3,}$" },
+    "duplicate_of": { "type": "string", "pattern": "^F-[0-9]{3,}$" },
+    "created_at": { "$ref": "#/$defs/date" },
+    "resolved_at": { "$ref": "#/$defs/date" }
+  },
+  "allOf": [{
+    "if": { "properties": { "status": { "const": "resolved" } }, "required": ["status"] },
+    "then": { "required": ["disposition", "resolved_at"] }
+  }],
+  "$defs": { "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" } },
+  "additionalProperties": false
+}

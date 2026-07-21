@@ -1,0 +1,30 @@
+version: 1
+
+project:
+  name: example-project
+
+workflow:
+  require_human_ready_approval: true
+  require_human_done_approval: true
+  allow_agent_findings: true
+  allow_agent_ready_tickets: false
+
+git:
+  base_branch: main
+  protected_branches:
+    - main
+    - master
+    - develop
+  worktrees: auto
+  worktree_root: .worktrees
+  branch_pattern: "{prefix}/{id}-{slug}"
+
+packages:
+  default_parallelism: 2
+  stop_on_failure: true
+
+validation:
+  strict: true
+  reject_unknown_profiles: true
+  require_verification_for_ready: true
+  require_review_evidence_for_done: true

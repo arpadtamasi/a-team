@@ -1,0 +1,41 @@
+import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { describe, expect, test } from "vitest";
+
+const cli = resolve("dist/cli/index.js");
+const run = (cwd: string, args: string[]) => {
+  const result = spawnSync("node", [cli, ...args, "--json"], { cwd, encoding: "utf8" });
+  if (result.status !== 0) throw new Error(`${result.stdout}\n${result.stderr}`);
+  return JSON.parse(result.stdout) as Record<string, unknown>;
+};
+const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8" });
+
+describe("dependency-aware package", () => {
+  test("plans all dependency layers and starts only currently executable tickets", () => {
+    const root = mkdtempSync(join(tmpdir(), "a-team-package-"));
+    git(root, "init", "-b", "main"); git(root, "config", "user.name", "A-Team Test"); git(root, "config", "user.email", "test@example.com");
+    writeFileSync(join(root, "README.md"), "fixture\n"); git(root, "add", "."); git(root, "commit", "-m", "initial");
+    run(root, ["init"]);
+    for (const title of ["Build parser", "Expose command"]) {
+      const created = run(root, ["ticket", "new", "--title", title, "--type", "feature"]);
+      const id = (created.data as { id: string }).id;
+      const slug = title.toLowerCase().replace(" ", "-");
+      const path = join(root, `.a-team/backlog/${id}-${slug}.md`);
+      writeFileSync(path, readFileSync(path, "utf8").replace("Describe the observable outcome.", `${title} works.`).replace("- Define an observable condition.", `- ${title} is observable.`).replace("- Explain how acceptance will be checked.", "- Run integration tests."));
+      run(root, ["ticket", "ready", id, "--approve"]);
+    }
+    const second = join(root, ".a-team/ready/T-002-expose-command.md");
+    writeFileSync(second, readFileSync(second, "utf8").replace("depends_on: []", "depends_on:\n  - T-001"));
+    const packageDir = join(root, ".a-team/packages/ready");
+    writeFileSync(join(packageDir, "P-001-parser-slice.md"), `---\nid: P-001\nkind: sprint\ntitle: Parser slice\nstatus: ready\ntickets: [T-001, T-002]\nexecution:\n  mode: dependency-aware\n  parallelism: 2\n  stop_on_failure: true\nauthority:\n  create_findings: true\n  create_subtickets: false\n  reorder_independent_tickets: true\n  change_scope: false\ncreated_at: 2026-07-21\nupdated_at: 2026-07-21\n---\n# P-001 — Parser slice\n\n## Goal\n\nDeliver a parser slice.\n\n## Completion\n\nBoth tickets are done.\n\n## Execution notes\n\nNone.\n`);
+    git(root, "add", "."); git(root, "commit", "-m", "define package"); git(root, "checkout", "-b", "coord/P-001");
+
+    expect(run(root, ["package", "validate", "P-001"])).toMatchObject({ ok: true, data: { waves: [["T-001"], ["T-002"]] } });
+    expect(run(root, ["package", "start", "P-001", "--agent", "codex"])).toMatchObject({ ok: true, data: { started: ["T-001"], waiting: ["T-002"] } });
+    expect(existsSync(join(root, ".worktrees/T-001/.a-team/claims/T-001.yaml"))).toBe(true);
+    expect(existsSync(join(root, ".worktrees/T-002"))).toBe(false);
+    expect(run(root, ["package", "status", "P-001"])).toMatchObject({ ok: true, data: { status: "active" } });
+  });
+});

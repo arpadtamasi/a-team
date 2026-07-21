@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/arpadtamasi/a-team/schemas/config.schema.json",
+  "title": "A-Team workspace configuration",
+  "type": "object",
+  "required": ["version", "project", "workflow", "git", "packages", "validation"],
+  "properties": {
+    "version": { "const": 1 },
+    "project": {
+      "type": "object",
+      "required": ["name"],
+      "properties": { "name": { "type": "string", "minLength": 1 } },
+      "additionalProperties": false
+    },
+    "workflow": {
+      "type": "object",
+      "required": ["require_human_ready_approval", "require_human_done_approval", "allow_agent_findings", "allow_agent_ready_tickets"],
+      "properties": {
+        "require_human_ready_approval": { "type": "boolean" },
+        "require_human_done_approval": { "type": "boolean" },
+        "allow_agent_findings": { "type": "boolean" },
+        "allow_agent_ready_tickets": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "git": {
+      "type": "object",
+      "required": ["base_branch", "protected_branches", "worktrees", "worktree_root", "branch_pattern"],
+      "properties": {
+        "base_branch": { "type": "string", "minLength": 1 },
+        "protected_branches": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "worktrees": { "enum": ["auto", "always", "never"] },
+        "worktree_root": { "type": "string", "minLength": 1 },
+        "branch_pattern": { "type": "string", "pattern": "\\{prefix\\}.*\\{id\\}.*\\{slug\\}" },
+        "branch_prefixes": { "type": "object", "additionalProperties": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" } }
+      },
+      "additionalProperties": false
+    },
+    "packages": {
+      "type": "object",
+      "required": ["default_parallelism", "stop_on_failure"],
+      "properties": { "default_parallelism": { "type": "integer", "minimum": 1 }, "stop_on_failure": { "type": "boolean" } },
+      "additionalProperties": false
+    },
+    "validation": {
+      "type": "object",
+      "required": ["strict", "reject_unknown_profiles", "require_verification_for_ready", "require_review_evidence_for_done"],
+      "properties": {
+        "strict": { "type": "boolean" },
+        "reject_unknown_profiles": { "type": "boolean" },
+        "require_verification_for_ready": { "type": "boolean" },
+        "require_review_evidence_for_done": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

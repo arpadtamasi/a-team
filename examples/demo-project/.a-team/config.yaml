@@ -1,0 +1,6 @@
+version: 1
+protected_branches:
+  - main
+branch_prefix: a-team/
+worktree_root: .worktrees
+require_clean_worktree: true

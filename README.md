@@ -1,110 +1,98 @@
 # A-Team
 
-**An AI-native Scrum control plane for Claude Code.**
+A-Team is a repository-native operating system for human–AI development teams.
 
-A-Team turns your coding agents into a disciplined dev team. It is a lightweight,
-one-goal-per-sprint Scrum method implemented entirely as Claude Code skills: backlog,
-tickets, sprints, and delivery run through explicit operations with append-only history,
-real metrics, and human approval gates. The point is to make agent work explicit, small,
-reviewable, measurable, and recoverable, without turning project management into a second
-product.
+It provides executable tickets, type-specific requirements, coordinated work packages, and strict Git isolation for coding agents—all stored as plain files in your repository.
 
-## Why
-
-AI agents ship code fast. Left ungoverned, they also invent scope, hide regressions, and
-report "done" with no evidence. A-Team is the control plane that keeps them honest:
-
-- **Explicit lifecycle.** Every ticket moves `backlog → ready → in_progress → review → done`
-  through one owning operation. A state value alone is never proof its transition happened.
-- **Definition of Ready / Done.** A ticket enters a sprint only when its outcome, scope,
-  acceptance criteria, and verification are pinned down; it closes only with real evidence.
-- **Append-only history.** Lifecycle and token events are an audit log, not editable state.
-  Metrics are derived, never hand-set.
-- **Flow and delivery metrics.** Lead/cycle/review/blocked time, throughput, committed
-  velocity, first-pass acceptance, carry-over — computed from the record, not vibes.
-- **Token accounting.** Provider-reported usage attributed by ticket, sprint, and purpose.
-- **Human gates.** Sprint commitment, scope changes, acceptance of open findings, and method
-  changes require explicit approval. No workflow auto-decides them.
-- **Clean Git baseline.** Every sprint records the clean commit it starts from, and its
-  PM-only commitment is committed before feature work begins, so ticket diffs remain
-  attributable and pre-existing work is never counted twice.
-
-You do not need to know Scrum vocabulary. Describe what you want in ordinary language;
-A-Team routes it to the right operation, asks focused questions, and translates terms when
-they become useful. See [`GLOSSARY.md`](GLOSSARY.md) for the plain-language meanings.
-
-## Who it is for
-
-Developers and teams running Claude Code (or other AI coding agents) who want real
-project-management rigor over agent work instead of a growing pile of TODOs. If you are
-shipping with agents and cannot answer "what did we commit to, what is actually done, and how
-do we know" — this is for you.
-
-## How it fits with gstack
-
-A-Team is the **dev team**. [gstack](https://github.com/garrytan/gstack) is the **product
-team**: it designs the product — CEO/strategy, engineering, and design reviews, discovery,
-QA, and shipping. A-Team is the agent crew that turns those plans into committed, reviewed,
-delivered tickets under Scrum discipline.
-
-They compose cleanly: gstack workflows produce plans, findings, and evidence; A-Team owns
-priority, commitment, lifecycle state, acceptance, closure, and metrics. A gstack report is
-**evidence** for a Scrum operation, never a Scrum state. The boundary is defined in
-[`GSTACK.md`](GSTACK.md). A-Team works standalone too — gstack is optional.
+> Humans own intent. Agents investigate and execute. Git isolates the work. The repository keeps the shared truth.
 
 ## Install
 
+Install the skill collection from the public repository:
+
 ```bash
-git clone --single-branch --depth 1 https://github.com/arpadtamasi/a-team.git ~/.claude/skills/a-team
+npx skills@latest add arpadtamasi/a-team
 ```
 
-Then invoke operations with `/a-team <operation>` in Claude Code (for example
-`/a-team init-workspace`), or just ask in your own words ("inicializáld az A-Teamet",
-"vegyük fel a backlogra", "mi az állás"). `init-workspace` creates the minimal canonical
-`a-team/` structure once; the remaining skills maintain it.
+Then initialize A-Team in a Git repository:
 
-Copy [`AGENTS.md`](AGENTS.md) to your repository root and adapt it — the method relies on the
-Boy Scout (found-work) rule and the code guidelines it defines.
+```text
+/setup-a-team
+```
 
-When developing A-Team itself, do not install a copied package into this repository. The
-tracked `.claude/skills/a-team/` adapter exposes the repository-root candidate to Claude
-Code while keeping the root files as the single editable source. Project state remains in
-root `a-team/`, exactly as it does in consuming repositories.
+The skill invokes the canonical CLI operation, `a-team init`, which creates the `.a-team/` workspace. Run `a-team status` to inspect it and use `/define-ticket` to turn a request into an executable work contract.
 
-## Operations
+## How it works
 
-- `init-workspace` — create the minimal canonical Scrum infrastructure once
-- `capture-work` — turn an idea, request, or finding into a backlog ticket
-- `refine-ticket` — make one outcome clear, bounded, estimable, verifiable (→ `ready`)
-- `plan-sprint` — set the sprint goal and commitment
-- `start-ticket` — claim committed work, start cycle time
-- `block-ticket` — record or resolve a real impediment
-- `submit-review` — hand off a candidate with verification evidence
-- `review-ticket` — judge the candidate against the contract and Definition of Done
-- `close-ticket` — record accepted delivery (→ `done`)
-- `disposition-ticket` — park or reject work without claiming delivery
-- `reconcile-history` — append-only correction of proven history errors
-- `close-sprint` — demonstrate and archive the sprint
-- `retro` — produce a retrospective and one approved operating change
-- `report-status` — read-only snapshot of current work
-- `report-metrics` — recalculate delivery and token metrics
-- `howto` — read-only routing: which operation applies, and how to request it
-- `report-issue` — deduplicate and file A-Team package feedback on GitHub
+The repository filesystem is the source of truth. Tickets move through a deliberately small lifecycle:
 
-## How it is organized
+```text
+backlog → ready → active → review → done
+```
 
-| File | Responsibility |
-| --- | --- |
-| [`METHOD.md`](METHOD.md) | Shared concepts, invariants, lifecycle ownership |
-| [`schemas/`](schemas/) | Exact reusable data shapes and formulas |
-| [`skills/`](skills/) | The operations, one directory each |
-| [`PROCESSES.md`](PROCESSES.md) | Human-readable workflow map |
-| [`GSTACK.md`](GSTACK.md) | Boundary with external expert workflows |
-| [`GLOSSARY.md`](GLOSSARY.md) | Scrum and A-Team terms in plain language |
-| [`AGENTS.md`](AGENTS.md) | Repository working rules the method relies on |
+- Tickets define an observable outcome, bounded scope, acceptance conditions, and verification.
+- Profiles add work-specific requirements for bugs, UI, performance, workflows, metrics, refactors, and discovery.
+- Packages coordinate sprints, milestones, batches, or missions with sequential, parallel, or dependency-aware execution.
+- Findings capture possible bugs and technical debt without silently expanding active work.
+- Claims connect each active ticket to one agent, one feature branch, and one isolated execution context.
+
+All mutations go through the `a-team` CLI. Skills, automation, and a future local UI share the same command and validation services; none implements a competing workflow.
+
+## Core safety rules
+
+- A backlog item is not executable until it is valid and explicitly ready.
+- A finding is not automatically a ticket.
+- Agents do not invent missing product intent or accepted trade-offs.
+- Every active ticket has at most one claim and one feature branch.
+- Parallel execution uses separate Git worktrees.
+- Execution never edits a protected branch.
+- Review requires acceptance-to-evidence mapping.
+- Closing requires accepted review, integration, and verified acceptance.
+- Unsafe branch or worktree cleanup is refused.
+
+## Skills
+
+- `setup-a-team` — initialize a project workspace.
+- `define-ticket` — investigate and formalize work.
+- `validate-finding` — verify and disposition discovered work.
+- `start-ticket` — safely claim and isolate a ready ticket.
+- `execute-ticket` — implement one bounded ticket.
+- `execute-package` — coordinate a package of tickets.
+- `submit-review` — submit implementation with evidence.
+- `close-ticket` — verify completion and safely release resources.
+
+## CLI overview
+
+```bash
+a-team init
+a-team validate
+a-team status
+
+a-team ticket new --title "Add filtered export" --type feature --profile ui workflow
+a-team ticket validate T-014
+a-team ticket ready T-014 --approve
+a-team ticket start T-014 --agent codex
+a-team ticket review T-014 --evidence "Acceptance tests and visual evidence passed" --pull-request PR-123
+a-team ticket close T-014 --approve
+
+a-team package validate P-012
+a-team package start P-012 --agent codex
+a-team package status P-012
+
+a-team finding new --title "Divergent permission checks" --type inconsistency --evidence "src/a.ts and src/b.ts differ"
+a-team finding validate F-032
+a-team finding resolve F-032 --disposition create-ticket --approve
+
+a-team claim list
+a-team claim release T-014 --force
+```
+
+Every command supports `--json`. Mutations validate before writing and report both the violated rule and corrective action when rejected.
+
+## Scope
+
+A-Team is intentionally local and file-based. V1 has no hosted service, database, authentication, automatic prioritization, automatic merging, scheduler daemon, or Jira/Linear synchronization.
 
 ## License
 
-MIT. See [`LICENSE`](LICENSE).
-
-*Brought to you by [Progos](https://progos.hu).*
+MIT. See [LICENSE](LICENSE).

@@ -6,6 +6,8 @@ It provides executable tickets, type-specific requirements, coordinated work pac
 
 > Humans own intent. Agents investigate and execute. Git isolates the work. The repository keeps the shared truth.
 
+[See why A-Team exists and follow the visual onboarding guide.](https://arpadtamasi.github.io/a-team/)
+
 ## Install and create your first ticket
 
 Prerequisites: Node.js 20 or newer, Git, and a coding-agent host supported by

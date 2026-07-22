@@ -1,0 +1,5 @@
+ticket: T-008
+agent: codex
+branch: feat/T-008-publish-and-verify-the-a-team-cli-distribution
+worktree: .worktrees/T-008
+started_at: 2026-07-22T08:26:12.427Z

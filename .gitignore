@@ -3,4 +3,7 @@ dist/
 .worktrees/
 coverage/
 *.log
+*.tgz
+pack.json
+pack-inventory.json
 .gstack/

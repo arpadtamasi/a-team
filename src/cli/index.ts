@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { initCommand } from "../commands/init.js";
 import { closeTicket, defineTicket, newTicket, readyTicket, reopenTicket, reviewTicket, startTicket, validateTicket } from "../commands/ticket.js";
 import { statusCommand } from "../commands/status.js";
@@ -10,7 +12,9 @@ import { listClaims, releaseClaim } from "../commands/claim.js";
 import { uiCommand } from "../commands/ui.js";
 
 const program = new Command();
-program.name("a-team").description("Repository-native human-AI development workflow").version("0.1.0");
+const packagePath = fileURLToPath(new URL("../../package.json", import.meta.url));
+const packageVersion = String((JSON.parse(readFileSync(packagePath, "utf8")) as { version: unknown }).version);
+program.name("a-team").description("Repository-native human-AI development workflow").version(packageVersion);
 
 function print(result: unknown, json: boolean): void {
   process.stdout.write(json ? `${JSON.stringify(result)}\n` : `${humanize(result)}\n`);

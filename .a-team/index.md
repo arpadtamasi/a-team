@@ -12,7 +12,7 @@ None.
 
 ## Ready tickets
 
-- T-008-publish-and-verify-the-a-team-cli-distribution
+None.
 
 ## Active tickets
 
@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-None.
+- T-008-publish-and-verify-the-a-team-cli-distribution
 
 ## Blocked
 

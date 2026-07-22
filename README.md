@@ -6,21 +6,49 @@ It provides executable tickets, type-specific requirements, coordinated work pac
 
 > Humans own intent. Agents investigate and execute. Git isolates the work. The repository keeps the shared truth.
 
-## Install
+## Install and create your first ticket
 
-Install the skill collection from the public repository:
+Prerequisites: Node.js 20 or newer, Git, and a coding-agent host supported by
+`skills@1.5.20`. The guided slash-command path is verified with Codex; other hosts reported
+by the installer may expose installed skills differently.
+
+Install the public CLI and confirm the exact version:
 
 ```bash
-npx skills@latest add arpadtamasi/a-team
+npm install --global @arpadtamasi/a-team@0.1.2
+a-team --version
 ```
 
-Then initialize A-Team in a Git repository:
+Install the pinned skill collection from the public repository:
+
+```bash
+npx skills@1.5.20 add arpadtamasi/a-team
+```
+
+Then open an existing Git repository in the supported host and run:
 
 ```text
 /setup-a-team
+/define-ticket
 ```
 
-The skill invokes the canonical CLI operation, `a-team init`, which creates the `.a-team/` workspace. Run `a-team status` to inspect it and use `/define-ticket` to turn a request into an executable work contract.
+`/setup-a-team` invokes the canonical `a-team init` operation and creates the local
+`.a-team/` workspace. `/define-ticket` guides you through an executable work contract. Finish
+by checking the generated ticket and workspace:
+
+```bash
+a-team ticket validate T-001
+a-team validate
+a-team status
+```
+
+With Node, Git, and Codex already installed, this path is designed to take no more than five
+minutes; the release canary records the measured result.
+
+If `a-team` is not found, inspect `npm prefix --global`, ensure its `bin` directory is on
+`PATH`, and reopen the terminal. If validation fails, read the reported missing section or
+profile requirement, update the ticket through `/define-ticket`, and rerun both validation
+commands. The CLI never treats a validation failure as a ready ticket.
 
 ## How it works
 
@@ -91,6 +119,19 @@ a-team claim release T-014 --force
 ```
 
 Every command supports `--json`. Mutations validate before writing and report both the violated rule and corrective action when rejected.
+
+## Maintainer releases
+
+`package.json#version` is the only release version source. Merge a reviewed version bump to
+`main`, then create `v<version>` on that exact commit. The `npm release` workflow rejects a
+tag/version mismatch or a commit outside `main`, runs the full tests, inspects the packed
+allowlist, and exercises a clean install before publishing.
+
+Publishing is limited to the `arpadtamasi/a-team` repository, `.github/workflows/npm-release.yml`,
+and the `npm-release` GitHub environment through npm Trusted Publishing. The workflow receives
+only `contents: read` and `id-token: write`; ordinary pushes and pull requests have no npm
+credential. Published versions are immutable. If a version already exists or a post-publish
+canary fails, correct it with a new patch version rather than attempting an overwrite.
 
 ## Scope
 

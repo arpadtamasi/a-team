@@ -1,7 +1,7 @@
 ---
 id: T-009
 title: Publish the A-Team GitHub Pages onboarding site
-status: backlog
+status: ready
 origin: human
 types:
   - feature

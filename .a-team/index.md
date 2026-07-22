@@ -12,7 +12,7 @@ None.
 
 ## Ready tickets
 
-None.
+- T-009-publish-the-a-team-github-pages-onboarding-site
 
 ## Active tickets
 

@@ -6,4 +6,7 @@ coverage/
 *.tgz
 pack.json
 pack-inventory.json
+site-dist/
+test-results/
+playwright-report/
 .gstack/

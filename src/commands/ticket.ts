@@ -98,6 +98,7 @@ export function readyTicket(id: string, approved: boolean, repositoryRoot?: stri
   for (const dependency of dependencies) findTicket(root, dependency);
   entity.data.status = "ready";
   entity.data.updated_at = new Date().toISOString().slice(0, 10);
+  mkdirSync(join(root, ".a-team/ready"), { recursive: true });
   const destination = join(root, ".a-team/ready", ticket.filename);
   writeFileSync(destination, renderMarkdown(entity.data, entity.content));
   try {

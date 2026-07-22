@@ -1,7 +1,7 @@
 ---
 id: T-009
 title: Publish the A-Team GitHub Pages onboarding site
-status: backlog
+status: active
 origin: human
 types:
   - feature
@@ -14,10 +14,11 @@ package: P-002
 depends_on:
   - T-008
 blocks: []
-branch: null
+branch: feat/T-009-publish-the-a-team-github-pages-onboarding-site
 pull_request: null
 created_at: '2026-07-22'
 updated_at: '2026-07-22'
+assigned_agent: codex
 ---
 # T-009 — Publish the A-Team GitHub Pages onboarding site
 

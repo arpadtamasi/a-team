@@ -1,7 +1,7 @@
 ---
 id: T-008
 title: Publish and verify the A-Team CLI distribution
-status: ready
+status: active
 origin: human
 types:
   - feature
@@ -13,10 +13,11 @@ package: P-002
 depends_on: []
 blocks:
   - T-009
-branch: null
+branch: feat/T-008-publish-and-verify-the-a-team-cli-distribution
 pull_request: null
 created_at: '2026-07-22'
 updated_at: '2026-07-22'
+assigned_agent: codex
 ---
 # T-008 — Publish and verify the A-Team CLI distribution
 

@@ -1,10 +1,10 @@
-import { mkdirSync, readdirSync, writeFileSync, readFileSync, existsSync, unlinkSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, readdirSync, writeFileSync, readFileSync, existsSync, unlinkSync, renameSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { parse as parseYaml, stringify } from "yaml";
 import { findRepositoryRoot, regenerateIndex } from "../filesystem/workspace.js";
 import { findTicket, nextId } from "../filesystem/entities.js";
 import { parseMarkdown, renderMarkdown, sections } from "../core/markdown.js";
-import { assertValid, validateTicketFile } from "../core/validation.js";
+import { assertValid, validateTicketDefinitionFile, validateTicketFile } from "../core/validation.js";
 import { BRANCH_PREFIXES } from "../core/profiles.js";
 import { assertClean, assertSafeWorktreePath, git } from "../git/git.js";
 
@@ -29,6 +29,43 @@ export function newTicket(options: { title: string; type: string; profiles: stri
   writeFileSync(path, renderMarkdown(data, content));
   regenerateIndex(root);
   return { ok: true, command: "ticket new", data: { id, path } };
+}
+
+const DEFINITION_FIELDS = new Set(["id", "types", "profiles", "priority", "risk", "depends_on", "blocks"]);
+
+export function defineTicket(id: string, source: string, repositoryRoot?: string) {
+  const root = repositoryRoot ?? findRepositoryRoot();
+  const ticket = findTicket(root, id);
+  if (ticket.state !== "backlog") throw new Error(`Ticket ${id} can only be defined while it is in backlog.`);
+  const sourcePath = resolve(source);
+  if (!existsSync(sourcePath)) throw new Error(`Ticket definition was not found: ${sourcePath}`);
+  const current = parseMarkdown(readFileSync(ticket.path, "utf8"));
+  const draft = parseMarkdown(readFileSync(sourcePath, "utf8"));
+  const unknown = Object.keys(draft.data).filter((field) => !DEFINITION_FIELDS.has(field));
+  if (unknown.length) throw new Error(`Unsupported definition fields: ${unknown.join(", ")}.`);
+  if (draft.data.id !== undefined && String(draft.data.id) !== id) throw new Error(`Definition id '${String(draft.data.id)}' does not match ${id}.`);
+  if (!draft.content.trim()) throw new Error("Ticket definition body is required.");
+
+  for (const field of ["types", "profiles", "priority", "risk", "depends_on", "blocks"] as const) {
+    if (draft.data[field] !== undefined) current.data[field] = draft.data[field];
+  }
+  for (const field of ["depends_on", "blocks"] as const) {
+    const references = Array.isArray(current.data[field]) ? current.data[field].map(String) : [];
+    if (references.includes(id)) throw new Error(`Ticket ${id} cannot reference itself in ${field}.`);
+    for (const reference of references) findTicket(root, reference);
+  }
+  current.data.updated_at = new Date().toISOString().slice(0, 10);
+  const candidate = `${ticket.path}.define-${process.pid}.tmp`;
+  writeFileSync(candidate, renderMarkdown(current.data, draft.content));
+  try {
+    assertValid(validateTicketDefinitionFile(candidate));
+    renameSync(candidate, ticket.path);
+  } catch (error) {
+    if (existsSync(candidate)) unlinkSync(candidate);
+    throw error;
+  }
+  regenerateIndex(root);
+  return { ok: true, command: "ticket define", data: { id, path: ticket.path } };
 }
 
 function profileHeadings(profile: string): string[] {

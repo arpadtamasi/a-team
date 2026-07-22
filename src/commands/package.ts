@@ -49,12 +49,14 @@ export function planPackageWaves(ids: string[], dependencies: Map<string, string
   return waves;
 }
 
-export function newPackage(options: { title: string; kind: string; goal?: string }, repositoryRoot?: string) {
+export function newPackage(options: { title: string; kind: string; goal?: string; parallelism?: number }, repositoryRoot?: string) {
   const root = repositoryRoot ?? findRepositoryRoot();
   const allowedKinds = ["sprint", "milestone", "batch", "mission"];
   if (!allowedKinds.includes(options.kind)) throw new Error(`Unknown package kind '${options.kind}'.`);
   const title = options.title.trim();
   if (!title) throw new Error("Package title is required.");
+  const parallelism = options.parallelism ?? 2;
+  if (!Number.isInteger(parallelism) || parallelism < 1) throw new Error("Package parallelism must be a positive integer.");
   const id = nextId(root, "package");
   const filename = `${id}-${slugify(title)}.md`;
   const directory = join(root, ".a-team/packages/backlog");
@@ -62,8 +64,8 @@ export function newPackage(options: { title: string; kind: string; goal?: string
   const now = new Date().toISOString().slice(0, 10);
   const data = {
     id, kind: options.kind, title, status: "backlog", tickets: [],
-    execution: { mode: "dependency-aware", parallelism: 2, stop_on_failure: true },
-    authority: { may_start_tickets: false, may_merge: false, may_close_tickets: false, may_close_package: false },
+    execution: { mode: "dependency-aware", parallelism, stop_on_failure: true },
+    authority: { create_findings: true, create_subtickets: false, reorder_independent_tickets: false, change_scope: false },
     created_at: now, updated_at: now,
   };
   const content = `# ${id} — ${title}\n\n## Goal\n\n${options.goal?.trim() || "Describe the shared outcome."}\n\n## Completion\n\nAll member tickets satisfy their acceptance contracts.\n\n## Execution notes\n\nMembership and ordering are coordinated by a human.\n`;
@@ -118,6 +120,34 @@ export function validatePackage(id: string, repositoryRoot?: string) {
     errors.push({ code: "DEPENDENCY_ERROR", message: error instanceof Error ? error.message : String(error) });
   }
   return { ok: errors.length === 0, command: "package validate", data: { id, state: pkg.state, waves }, errors };
+}
+
+export function readyPackage(id: string, approved: boolean, repositoryRoot?: string) {
+  const root = repositoryRoot ?? findRepositoryRoot();
+  const pkg = findPackage(root, id);
+  if (pkg.state !== "backlog") throw new Error(`Package ${id} must be in backlog before ready.`);
+  if (!approved) throw new Error("Human ready approval is required. Re-run with --approve after reviewing package scope and ordering.");
+  const validation = validatePackage(id, root);
+  if (!validation.ok) throw new Error(validation.errors.map((error) => error.message).join("\n"));
+  const entity = parseMarkdown(readFileSync(pkg.path, "utf8"));
+  const ticketIds = Array.isArray(entity.data.tickets) ? entity.data.tickets.map(String) : [];
+  const dependencies = ticketDependencies(root, ticketIds);
+  const invalidStates = ticketIds.filter((ticketId) => !["backlog", "ready", "done"].includes(findTicket(root, ticketId).state));
+  if (invalidStates.length) throw new Error(`Package tickets must be backlog, ready, or done before package readiness: ${invalidStates.join(", ")}.`);
+  const unreadyFrontier = ticketIds.filter((ticketId) => {
+    if (findTicket(root, ticketId).state !== "backlog") return false;
+    return (dependencies.get(ticketId) ?? []).every((dependency) => findTicket(root, dependency).state === "done");
+  });
+  if (unreadyFrontier.length) throw new Error(`Every currently executable package ticket must be ready: ${unreadyFrontier.join(", ")}.`);
+  entity.data.status = "ready";
+  entity.data.updated_at = new Date().toISOString().slice(0, 10);
+  const directory = join(root, ".a-team/packages/ready");
+  mkdirSync(directory, { recursive: true });
+  const destination = join(directory, pkg.filename);
+  writeFileSync(destination, renderMarkdown(entity.data, entity.content));
+  unlinkSync(pkg.path);
+  regenerateIndex(root);
+  return { ok: true, command: "package ready", data: { id, path: destination } };
 }
 
 export function startPackage(id: string, agent: string) {

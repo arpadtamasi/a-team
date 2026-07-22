@@ -1,0 +1,57 @@
+name: npm release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: npm-release
+    runs-on: ubuntu-latest
+    environment: npm-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Use trusted-publishing npm version
+        run: npm install --global npm@11.5.1
+      - name: Verify protected tag and main ancestry
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          test "${GITHUB_REF_NAME}" = "v${VERSION}"
+          git fetch origin main --depth=1
+          git merge-base --is-ancestor "${GITHUB_SHA}" origin/main
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Test and build
+        run: |
+          npm run typecheck
+          npm test
+      - name: Pack and inspect exact artifact
+        run: |
+          npm pack --json --ignore-scripts > pack.json
+          node scripts/verify-pack.mjs pack.json > pack-inventory.json
+          node scripts/clean-install-canary.mjs "$(node -p "require('./pack.json')[0].filename")"
+      - name: Publish immutable version through OIDC
+        run: |
+          NAME="$(node -p "require('./package.json').name")"
+          VERSION="$(node -p "require('./package.json').version")"
+          TARBALL="$(node -p "require('./pack.json')[0].filename")"
+          if npm view "${NAME}@${VERSION}" version >/dev/null 2>&1; then
+            echo "${NAME}@${VERSION} already exists; verifying the immutable artifact."
+          else
+            npm publish "${TARBALL}" --access public
+          fi
+          test "$(npm view "${NAME}@${VERSION}" version)" = "${VERSION}"
+          node scripts/clean-install-canary.mjs "${NAME}@${VERSION}"

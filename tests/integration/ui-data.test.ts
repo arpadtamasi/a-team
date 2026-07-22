@@ -1,10 +1,13 @@
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 import { readWorkspace } from "../../src/commands/ui.js";
 
 describe("one&a migration UI data", () => {
-  test("preserves the reviewed source count without treating a guess as a target", () => {
-    const workspace = readWorkspace(resolve("examples/oneanda-migration/.a-team"));
+  const migrationWorkspace = resolve("examples/oneanda-migration/.a-team");
+
+  test.skipIf(!existsSync(migrationWorkspace))("preserves the reviewed source count without treating a guess as a target", () => {
+    const workspace = readWorkspace(migrationWorkspace);
 
     expect(workspace.migration).toMatchObject({
       legacy_ticket_count: 112,

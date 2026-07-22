@@ -6,21 +6,49 @@ It provides executable tickets, type-specific requirements, coordinated work pac
 
 > Humans own intent. Agents investigate and execute. Git isolates the work. The repository keeps the shared truth.
 
-## Install
+## Install and create your first ticket
 
-Install the skill collection from the public repository:
+Prerequisites: Node.js 20 or newer, Git, and a coding-agent host supported by
+`skills@1.5.20`. The guided slash-command path is verified with Codex; other hosts reported
+by the installer may expose installed skills differently.
+
+Install the public CLI and confirm the exact version:
 
 ```bash
-npx skills@latest add arpadtamasi/a-team
+npm install --global @arpadtamasi/a-team@0.1.0
+a-team --version
 ```
 
-Then initialize A-Team in a Git repository:
+Install the pinned skill collection from the public repository:
+
+```bash
+npx skills@1.5.20 add arpadtamasi/a-team
+```
+
+Then open an existing Git repository in the supported host and run:
 
 ```text
 /setup-a-team
+/define-ticket
 ```
 
-The skill invokes the canonical CLI operation, `a-team init`, which creates the `.a-team/` workspace. Run `a-team status` to inspect it and use `/define-ticket` to turn a request into an executable work contract.
+`/setup-a-team` invokes the canonical `a-team init` operation and creates the local
+`.a-team/` workspace. `/define-ticket` guides you through an executable work contract. Finish
+by checking the generated ticket and workspace:
+
+```bash
+a-team ticket validate T-001
+a-team validate
+a-team status
+```
+
+With Node, Git, and Codex already installed, this path is designed to take no more than five
+minutes; the release canary records the measured result.
+
+If `a-team` is not found, inspect `npm prefix --global`, ensure its `bin` directory is on
+`PATH`, and reopen the terminal. If validation fails, read the reported missing section or
+profile requirement, update the ticket through `/define-ticket`, and rerun both validation
+commands. The CLI never treats a validation failure as a ready ticket.
 
 ## How it works
 

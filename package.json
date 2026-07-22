@@ -1,7 +1,19 @@
 {
-  "name": "@a-team/cli",
+  "name": "@arpadtamasi/a-team",
   "version": "0.1.0",
   "description": "Repository-native operating system for human-AI development teams",
+  "homepage": "https://github.com/arpadtamasi/a-team#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arpadtamasi/a-team.git"
+  },
+  "bugs": {
+    "url": "https://github.com/arpadtamasi/a-team/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "type": "module",
   "bin": {
     "a-team": "dist/cli/index.js"
@@ -19,6 +31,7 @@
     "build:cli": "node scripts/clean.mjs && tsc -p tsconfig.json",
     "build:ui": "vite build --config ui/vite.config.ts",
     "dev:ui": "vite --config ui/vite.config.ts",
+    "verify:pack": "npm run build && node scripts/verify-pack.mjs",
     "prepack": "npm run build",
     "pretest": "npm run build",
     "test": "vitest run",

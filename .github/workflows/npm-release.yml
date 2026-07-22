@@ -17,15 +17,16 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+          package-manager-cache: false
       - name: Use trusted-publishing npm version
-        run: npm install --global npm@11.5.1
+        run: npm install --global npm@11.18.0
       - name: Verify protected tag and main ancestry
         run: |
           VERSION="$(node -p "require('./package.json').version")"
@@ -53,5 +54,14 @@ jobs:
           else
             npm publish "${TARBALL}" --access public
           fi
-          test "$(npm view "${NAME}@${VERSION}" version)" = "${VERSION}"
+          REGISTRY_VERSION=""
+          for ATTEMPT in {1..12}; do
+            REGISTRY_VERSION="$(npm view "${NAME}@${VERSION}" version 2>/dev/null || true)"
+            if test "${REGISTRY_VERSION}" = "${VERSION}"; then
+              break
+            fi
+            echo "Registry has not indexed ${NAME}@${VERSION} yet (attempt ${ATTEMPT}/12)."
+            sleep 5
+          done
+          test "${REGISTRY_VERSION}" = "${VERSION}"
           node scripts/clean-install-canary.mjs "${NAME}@${VERSION}"

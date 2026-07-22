@@ -15,7 +15,7 @@ by the installer may expose installed skills differently.
 Install the public CLI and confirm the exact version:
 
 ```bash
-npm install --global @arpadtamasi/a-team@0.1.1
+npm install --global @arpadtamasi/a-team@0.1.2
 a-team --version
 ```
 

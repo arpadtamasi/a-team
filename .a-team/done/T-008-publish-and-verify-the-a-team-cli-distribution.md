@@ -1,7 +1,7 @@
 ---
 id: T-008
 title: Publish and verify the A-Team CLI distribution
-status: review
+status: done
 origin: human
 types:
   - feature
@@ -18,6 +18,7 @@ pull_request: 'PR-11, PR-12'
 created_at: '2026-07-22'
 updated_at: '2026-07-22'
 assigned_agent: codex
+resolution: completed
 ---
 # T-008 — Publish and verify the A-Team CLI distribution
 

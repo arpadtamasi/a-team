@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-- T-008-publish-and-verify-the-a-team-cli-distribution
+None.
 
 ## Blocked
 

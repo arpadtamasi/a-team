@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, test } from "vitest";
@@ -18,7 +18,10 @@ describe("dependency-aware package", () => {
     git(root, "init", "-b", "main");
     writeFileSync(join(root, "README.md"), "fixture\n");
     run(root, ["init"]);
-    expect(run(root, ["package", "new", "--title", "Launch batch", "--kind", "milestone", "--goal", "Ship the first slice"])).toMatchObject({ ok: true, data: { id: "P-001" } });
+    expect(run(root, ["package", "new", "--title", "Launch batch", "--kind", "milestone", "--goal", "Ship the first slice", "--parallelism", "1"])).toMatchObject({ ok: true, data: { id: "P-001" } });
+    const packageFile = readFileSync(join(root, ".a-team/packages/backlog/P-001-launch-batch.md"), "utf8");
+    expect(packageFile).toContain("parallelism: 1");
+    expect(packageFile).toContain("create_findings: true");
     run(root, ["ticket", "new", "--title", "Prepare release", "--type", "feature"]);
     expect(run(root, ["package", "add", "P-001", "T-001"])).toMatchObject({ ok: true, data: { tickets: ["T-001"] } });
     expect(readFileSync(join(root, ".a-team/backlog/T-001-prepare-release.md"), "utf8")).toContain("package: P-001");
@@ -41,8 +44,14 @@ describe("dependency-aware package", () => {
     }
     const second = join(root, ".a-team/ready/T-002-expose-command.md");
     writeFileSync(second, readFileSync(second, "utf8").replace("depends_on: []", "depends_on:\n  - T-001"));
-    const packageDir = join(root, ".a-team/packages/ready");
-    writeFileSync(join(packageDir, "P-001-parser-slice.md"), `---\nid: P-001\nkind: sprint\ntitle: Parser slice\nstatus: ready\ntickets: [T-001, T-002]\nexecution:\n  mode: dependency-aware\n  parallelism: 2\n  stop_on_failure: true\nauthority:\n  create_findings: true\n  create_subtickets: false\n  reorder_independent_tickets: true\n  change_scope: false\ncreated_at: 2026-07-21\nupdated_at: 2026-07-21\n---\n# P-001 — Parser slice\n\n## Goal\n\nDeliver a parser slice.\n\n## Completion\n\nBoth tickets are done.\n\n## Execution notes\n\nNone.\n`);
+    run(root, ["package", "new", "--title", "Parser slice", "--kind", "sprint", "--goal", "Deliver a parser slice"]);
+    run(root, ["package", "add", "P-001", "T-001"]);
+    run(root, ["package", "add", "P-001", "T-002"]);
+    const blocked = join(root, ".a-team/ready/T-002-expose-command.md");
+    const blockedBacklog = join(root, ".a-team/backlog/T-002-expose-command.md");
+    writeFileSync(blockedBacklog, readFileSync(blocked, "utf8").replace("status: ready", "status: backlog"));
+    unlinkSync(blocked);
+    expect(run(root, ["package", "ready", "P-001", "--approve"])).toMatchObject({ ok: true, command: "package ready" });
     git(root, "add", "."); git(root, "commit", "-m", "define package"); git(root, "checkout", "-b", "coord/P-001");
 
     expect(run(root, ["package", "validate", "P-001"])).toMatchObject({ ok: true, data: { waves: [["T-001"], ["T-002"]] } });

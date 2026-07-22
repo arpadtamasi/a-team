@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { initCommand } from "../commands/init.js";
-import { closeTicket, newTicket, readyTicket, reopenTicket, reviewTicket, startTicket, validateTicket } from "../commands/ticket.js";
+import { closeTicket, defineTicket, newTicket, readyTicket, reopenTicket, reviewTicket, startTicket, validateTicket } from "../commands/ticket.js";
 import { statusCommand } from "../commands/status.js";
 import { newFinding, resolveFinding, validateFinding } from "../commands/finding.js";
-import { newPackage, packageStatus, startPackage, updatePackageTickets, validatePackage } from "../commands/package.js";
+import { newPackage, packageStatus, readyPackage, startPackage, updatePackageTickets, validatePackage } from "../commands/package.js";
 import { validateWorkspace } from "../commands/validate.js";
 import { listClaims, releaseClaim } from "../commands/claim.js";
 import { uiCommand } from "../commands/ui.js";
@@ -55,6 +55,11 @@ ticket
   .command("validate <id>")
   .option("--json")
   .action((id: string, options: { json?: boolean }) => print(validateTicket(id), Boolean(options.json)));
+ticket
+  .command("define <id>")
+  .requiredOption("--from <path>", "Markdown definition file")
+  .option("--json")
+  .action((id: string, options: { from: string; json?: boolean }) => print(defineTicket(id, options.from), Boolean(options.json)));
 ticket
   .command("ready <id>")
   .option("--approve")
@@ -108,8 +113,9 @@ packageCommand
   .requiredOption("--title <title>")
   .option("--kind <kind>", "Package kind", "batch")
   .option("--goal <goal>")
+  .option("--parallelism <count>", "Maximum concurrent tickets", (value) => Number(value), 2)
   .option("--json")
-  .action((options: { title: string; kind: string; goal?: string; json?: boolean }) => print(newPackage(options), Boolean(options.json)));
+  .action((options: { title: string; kind: string; goal?: string; parallelism: number; json?: boolean }) => print(newPackage(options), Boolean(options.json)));
 packageCommand
   .command("add <package-id> <ticket-id>")
   .option("--json")
@@ -122,6 +128,11 @@ packageCommand
   .command("validate <id>")
   .option("--json")
   .action((id: string, options: { json?: boolean }) => print(validatePackage(id), Boolean(options.json)));
+packageCommand
+  .command("ready <id>")
+  .option("--approve")
+  .option("--json")
+  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(readyPackage(id, Boolean(options.approve)), Boolean(options.json)));
 packageCommand
   .command("start <id>")
   .requiredOption("--agent <agent>")

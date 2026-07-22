@@ -70,6 +70,7 @@ a-team validate
 a-team status
 
 a-team ticket new --title "Add filtered export" --type feature --profile ui workflow
+a-team ticket define T-014 --from /tmp/T-014-definition.md
 a-team ticket validate T-014
 a-team ticket ready T-014 --approve
 a-team ticket start T-014 --agent codex
@@ -77,6 +78,7 @@ a-team ticket review T-014 --evidence "Acceptance tests and visual evidence pass
 a-team ticket close T-014 --approve
 
 a-team package validate P-012
+a-team package ready P-012 --approve
 a-team package start P-012 --agent codex
 a-team package status P-012
 

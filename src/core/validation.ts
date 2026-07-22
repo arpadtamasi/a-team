@@ -12,7 +12,7 @@ function values(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String) : value ? [String(value)] : [];
 }
 
-export function validateTicketFile(path: string, expectedState?: string): ValidationReport {
+function validateTicket(path: string, expectedState?: string, requireDefinition = false): ValidationReport {
   const errors: ValidationIssue[] = [];
   if (!existsSync(path)) return { valid: false, errors: [{ code: "NOT_FOUND", message: `Ticket not found: ${path}`, path }] };
   let entity;
@@ -26,7 +26,7 @@ export function validateTicketFile(path: string, expectedState?: string): Valida
   if (state !== directoryState) errors.push({ code: "STATE_MISMATCH", message: `status '${state}' does not match directory '${directoryState}'.`, path });
   if (expectedState && state !== expectedState) errors.push({ code: "WRONG_STATE", message: `Expected ticket state '${expectedState}', found '${state}'.`, path });
   const bodySections = sections(entity.content);
-  if (state !== "backlog") for (const heading of COMMON_SECTIONS) {
+  if (state !== "backlog" || requireDefinition) for (const heading of COMMON_SECTIONS) {
       const body = bodySections.get(heading.toLowerCase());
       if (body === undefined || body.trim() === "") errors.push({ code: "MISSING_SECTION", message: `Missing or empty section: ${heading}.`, path });
     }
@@ -36,7 +36,7 @@ export function validateTicketFile(path: string, expectedState?: string): Valida
       errors.push({ code: "UNKNOWN_PROFILE", message: `Unknown profile: ${profile}.`, path });
       continue;
     }
-    if (state === "backlog") continue;
+    if (state === "backlog" && !requireDefinition) continue;
     for (const heading of required) {
       const body = bodySections.get(heading.toLowerCase());
       if (body === undefined || body.trim() === "") errors.push({ code: "MISSING_PROFILE_SECTION", message: `Profile '${profile}' requires section: ${heading}.`, path });
@@ -48,6 +48,14 @@ export function validateTicketFile(path: string, expectedState?: string): Valida
   if (["review", "done"].includes(state) && !bodySections.get("review evidence")?.trim()) errors.push({ code: "MISSING_REVIEW_EVIDENCE", message: `${state} ticket requires review evidence.`, path });
   if (state === "done" && !["completed", "cancelled", "duplicate", "obsolete"].includes(String(entity.data.resolution))) errors.push({ code: "MISSING_RESOLUTION", message: "Done ticket requires a final resolution.", path });
   return { valid: errors.length === 0, errors };
+}
+
+export function validateTicketFile(path: string, expectedState?: string): ValidationReport {
+  return validateTicket(path, expectedState);
+}
+
+export function validateTicketDefinitionFile(path: string): ValidationReport {
+  return validateTicket(path, "backlog", true);
 }
 
 export function assertValid(report: ValidationReport): void {

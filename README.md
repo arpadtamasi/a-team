@@ -15,7 +15,7 @@ by the installer may expose installed skills differently.
 Install the public CLI and confirm the exact version:
 
 ```bash
-npm install --global @arpadtamasi/a-team@0.1.0
+npm install --global @arpadtamasi/a-team@0.1.1
 a-team --version
 ```
 
@@ -119,6 +119,19 @@ a-team claim release T-014 --force
 ```
 
 Every command supports `--json`. Mutations validate before writing and report both the violated rule and corrective action when rejected.
+
+## Maintainer releases
+
+`package.json#version` is the only release version source. Merge a reviewed version bump to
+`main`, then create `v<version>` on that exact commit. The `npm release` workflow rejects a
+tag/version mismatch or a commit outside `main`, runs the full tests, inspects the packed
+allowlist, and exercises a clean install before publishing.
+
+Publishing is limited to the `arpadtamasi/a-team` repository, `.github/workflows/npm-release.yml`,
+and the `npm-release` GitHub environment through npm Trusted Publishing. The workflow receives
+only `contents: read` and `id-token: write`; ordinary pushes and pull requests have no npm
+credential. Published versions are immutable. If a version already exists or a post-publish
+canary fails, correct it with a new patch version rather than attempting an overwrite.
 
 ## Scope
 

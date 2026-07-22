@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, test } from "vitest";
@@ -150,7 +150,9 @@ None.
     ).replace("- Define an observable condition.", "- A filtered export file is produced.")
       .replace("- Explain how acceptance will be checked.", "- Run the export integration test."));
 
+    rmSync(join(repository, ".a-team/ready"), { recursive: true });
     expect(run(repository, ["ticket", "ready", "T-001", "--approve"])).toMatchObject({ ok: true, command: "ticket ready" });
+    expect(existsSync(join(repository, ".a-team/ready/T-001-ship-export.md"))).toBe(true);
     git(repository, "add", ".");
     git(repository, "commit", "-m", "define ready ticket");
 

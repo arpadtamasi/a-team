@@ -4,11 +4,11 @@
 
 ## Ready packages
 
-- P-002-trustworthy-a-team-onboarding-path
+None.
 
 ## Active packages
 
-None.
+- P-002-trustworthy-a-team-onboarding-path
 
 ## Ready tickets
 

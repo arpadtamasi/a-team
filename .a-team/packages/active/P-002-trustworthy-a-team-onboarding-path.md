@@ -2,7 +2,7 @@
 id: P-002
 kind: milestone
 title: Trustworthy A-Team onboarding path
-status: ready
+status: active
 tickets:
   - T-008
   - T-009

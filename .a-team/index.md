@@ -16,11 +16,11 @@ None.
 
 ## Active tickets
 
-- T-008-publish-and-verify-the-a-team-cli-distribution
+None.
 
 ## Review
 
-None.
+- T-008-publish-and-verify-the-a-team-cli-distribution
 
 ## Blocked
 

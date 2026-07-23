@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, test } from "vitest";
+import { readWorkspace } from "../../src/commands/ui.js";
 
 const cli = resolve("dist/cli/index.js");
 const run = (cwd: string, args: string[]) => {
@@ -58,6 +59,13 @@ describe("dependency-aware package", () => {
     expect(run(root, ["package", "start", "P-001", "--agent", "codex"])).toMatchObject({ ok: true, data: { started: ["T-001"], waiting: ["T-002"] } });
     expect(existsSync(join(root, ".worktrees/T-001/.a-team/claims/T-001.yaml"))).toBe(true);
     expect(existsSync(join(root, ".worktrees/T-002"))).toBe(false);
-    expect(run(root, ["package", "status", "P-001"])).toMatchObject({ ok: true, data: { status: "active" } });
+    expect(run(root, ["package", "status", "P-001"])).toMatchObject({
+      ok: true,
+      data: { status: "active", tickets: [{ id: "T-001", state: "active", worktree: expect.stringContaining(".worktrees/T-001") }, { id: "T-002", state: "backlog" }] },
+    });
+    const workspace = readWorkspace(root);
+    expect(workspace.tickets.filter((ticket) => ticket.id === "T-001")).toEqual([
+      expect.objectContaining({ id: "T-001", status: "active", branch: "feat/T-001-build-parser", assigned_agent: "codex" }),
+    ]);
   });
 });

@@ -31,4 +31,4 @@ None.
 
 ## New findings
 
-None.
+- F-004-build-cli-removes-executable-bit-from-linked-a-team-binary

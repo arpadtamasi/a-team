@@ -20,11 +20,11 @@ None.
 
 ## Active tickets
 
-- T-010-show-active-worktree-ticket-state-on-the-execution-board
+None.
 
 ## Review
 
-None.
+- T-010-show-active-worktree-ticket-state-on-the-execution-board
 
 ## Blocked
 

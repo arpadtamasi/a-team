@@ -116,11 +116,20 @@ a-team finding new --title "Divergent permission checks" --type inconsistency --
 a-team finding validate F-032
 a-team finding resolve F-032 --disposition create-ticket --approve
 
+a-team decision create --from /tmp/cutover-decision.md --approve
+
 a-team claim list
 a-team claim release T-014 --force
 ```
 
 Every command supports `--json`. Mutations validate before writing and report both the violated rule and corrective action when rejected.
+
+A decision draft contains `title` frontmatter and non-empty `Decision`, `Context`, and
+`Consequences` sections. `decision create` requires explicit human approval, assigns the
+next stable `D-001`-style identifier and current date (or validates supplied values), and
+atomically publishes the validated record beneath `.a-team/decisions/`. Pass `--id D-001`
+when a caller needs to reserve a specific stable identity; an existing identity is never
+overwritten.
 
 ## Maintainer releases
 

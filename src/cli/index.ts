@@ -10,6 +10,7 @@ import { newPackage, packageStatus, readyPackage, startPackage, updatePackageTic
 import { validateWorkspace } from "../commands/validate.js";
 import { listClaims, releaseClaim } from "../commands/claim.js";
 import { uiCommand } from "../commands/ui.js";
+import { createDecision } from "../commands/decision.js";
 
 const program = new Command();
 const packagePath = fileURLToPath(new URL("../../package.json", import.meta.url));
@@ -23,6 +24,10 @@ function print(result: unknown, json: boolean): void {
 
 function humanize(result: unknown): string {
   if (typeof result === "object" && result && "command" in result) {
+    if ((result as { command: unknown }).command === "decision create" && "data" in result) {
+      const data = (result as { data: { id: unknown; path: unknown } }).data;
+      return `Recorded decision ${String(data.id)} at ${String(data.path)}.`;
+    }
     return `a-team ${String((result as { command: unknown }).command)} completed.`;
   }
   return String(result);
@@ -110,6 +115,17 @@ finding
   .option("--approve")
   .option("--json")
   .action((id: string, options: { disposition: string; approve?: boolean; json?: boolean }) => print(resolveFinding(id, options.disposition, Boolean(options.approve)), Boolean(options.json)));
+
+const decision = program.command("decision").description("Record durable human decisions");
+decision
+  .command("create")
+  .description("Validate and atomically record a durable decision")
+  .requiredOption("--from <path>", "Markdown decision source")
+  .option("--id <id>", "Stable decision identifier (for example D-001)")
+  .option("--approve", "Confirm the human-owned decision and consequences")
+  .option("--json")
+  .action((options: { from: string; id?: string; approve?: boolean; json?: boolean }) =>
+    print(createDecision({ from: options.from, id: options.id, approved: Boolean(options.approve) }), Boolean(options.json)));
 
 const packageCommand = program.command("package").description("Validate and execute coordinated packages");
 packageCommand

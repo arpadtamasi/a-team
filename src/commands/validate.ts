@@ -7,6 +7,7 @@ import { validateTicketFile } from "../core/validation.js";
 import { validatePackage } from "./package.js";
 import { validateClaim } from "../core/claim.js";
 import { parseMarkdown } from "../core/markdown.js";
+import { validateDecisionFile } from "../core/decision.js";
 
 export function validateWorkspace() {
   const root = findRepositoryRoot();
@@ -64,5 +65,19 @@ export function validateWorkspace() {
       if (!report.ok) errors.push(...report.errors.map((error) => ({ ...error, path: join(directory, filename) })));
     }
   }
-  return { ok: errors.length === 0, command: "validate", data: { tickets: seen.size }, errors };
+  const decisionsDirectory = join(root, ".a-team/decisions");
+  const decisions = existsSync(decisionsDirectory)
+    ? readdirSync(decisionsDirectory).filter((name) => name.endsWith(".md"))
+    : [];
+  const seenDecisions = new Map<string, string>();
+  for (const filename of decisions) {
+    const path = join(decisionsDirectory, filename);
+    errors.push(...validateDecisionFile(path));
+    const id = /^D-\d+/.exec(filename)?.[0];
+    if (!id) continue;
+    const previous = seenDecisions.get(id);
+    if (previous) errors.push({ code: "DUPLICATE_DECISION_ID", message: `${id} appears in both ${previous} and ${path}.`, path });
+    else seenDecisions.set(id, path);
+  }
+  return { ok: errors.length === 0, command: "validate", data: { tickets: seen.size, decisions: decisions.length }, errors };
 }

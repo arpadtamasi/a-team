@@ -68,6 +68,15 @@ backlog → ready → active → review → done
 
 All mutations go through the `a-team` CLI. Skills, automation, and a future local UI share the same command and validation services; none implements a competing workflow.
 
+Open the local filesystem-backed board from an initialized repository:
+
+```bash
+a-team ui
+```
+
+This uses the current directory by default. To serve another checkout or address its
+workspace directly, pass `--workspace <repository-root>` or `--workspace <repository-root>/.a-team`.
+
 ## Core safety rules
 
 - A backlog item is not executable until it is valid and explicitly ready.

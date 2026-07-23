@@ -23,7 +23,7 @@ None.
 
 ## Review
 
-- T-011-add-a-canonical-cli-writer-for-durable-decisions
+None.
 
 ## Blocked
 

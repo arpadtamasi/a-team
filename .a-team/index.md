@@ -20,11 +20,11 @@ None.
 
 ## Active tickets
 
-- T-011-add-a-canonical-cli-writer-for-durable-decisions
+None.
 
 ## Review
 
-None.
+- T-011-add-a-canonical-cli-writer-for-durable-decisions
 
 ## Blocked
 

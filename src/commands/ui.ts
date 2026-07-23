@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import matter from "gray-matter";
 import { parse } from "yaml";
 import { sections } from "../core/markdown.js";
+import { idFromFilename, resolveEffectiveTicket, type TicketLocation } from "../filesystem/entities.js";
 import { newFinding, resolveFinding } from "./finding.js";
 import { newPackage, updatePackageTickets } from "./package.js";
 import { readyTicket } from "./ticket.js";
@@ -26,14 +27,23 @@ export function readWorkspace(workspaceOption: string) {
   const candidate = resolve(workspaceOption);
   const workspace = existsSync(join(candidate, ".a-team")) ? join(candidate, ".a-team") : candidate;
   if (!existsSync(join(workspace, "config.yaml"))) throw new Error(`No A-Team workspace found at ${workspace}.`);
+  const projectRoot = basename(workspace) === ".a-team" ? dirname(workspace) : workspace;
   const config = parse(readFileSync(join(workspace, "config.yaml"), "utf8")) as { project?: { name?: string } };
   const migrationPath = join(workspace, "migration.json");
   const migration = existsSync(migrationPath) ? JSON.parse(readFileSync(migrationPath, "utf8")) as { project?: string; tickets?: Array<{ id: string; [key: string]: unknown }> } : null;
   const migrationById = new Map((migration?.tickets ?? []).map((ticket) => [ticket.id, ticket]));
-  const tickets = TICKET_STATES.flatMap((state) => markdownFiles(join(workspace, state)).map((filename) => {
-    const parsed = matter(readFileSync(join(workspace, state, filename), "utf8"));
-    return { ...parsed.data, status: state, filename, sections: sectionObject(parsed.content), migration: migrationById.get(String(parsed.data.id)) ?? null };
-  }));
+  const coordinatorTicketIds = TICKET_STATES.flatMap((state) => markdownFiles(join(workspace, state))).map(idFromFilename).filter((id): id is string => id !== null);
+  const diagnostics: Array<{ entity: "ticket"; id: string; worktree: string; message: string }> = [];
+  const readTicket = (id: string, ticket: TicketLocation) => {
+    const parsed = matter(readFileSync(ticket.path, "utf8"));
+    if (String(parsed.data.id) !== id) throw new Error(`Ticket metadata id '${String(parsed.data.id)}' does not match ${id}.`);
+    return { ...parsed.data, status: ticket.state, filename: ticket.filename, sections: sectionObject(parsed.content), migration: migrationById.get(id) ?? null };
+  };
+  const tickets = [...new Set(coordinatorTicketIds)].map((id) => {
+    const effective = resolveEffectiveTicket(projectRoot, id, (ticket) => readTicket(id, ticket));
+    if (effective.fallback) diagnostics.push({ entity: "ticket", id, worktree: effective.fallback.worktree, message: effective.fallback.reason });
+    return effective.value;
+  });
   const packages = PACKAGE_STATES.flatMap((state) => markdownFiles(join(workspace, "packages", state)).map((filename) => {
     const parsed = matter(readFileSync(join(workspace, "packages", state, filename), "utf8"));
     return { ...parsed.data, status: state, filename, sections: sectionObject(parsed.content) };
@@ -42,7 +52,7 @@ export function readWorkspace(workspaceOption: string) {
     const parsed = matter(readFileSync(join(workspace, "findings", state, filename), "utf8"));
     return { ...parsed.data, status: state, filename, sections: sectionObject(parsed.content) };
   })).sort((left, right) => left.filename.localeCompare(right.filename));
-  return { workspace, project: migration?.project ?? config.project?.name ?? "A-Team workspace", migration, tickets, packages, findings, generatedAt: new Date().toISOString() };
+  return { workspace, project: migration?.project ?? config.project?.name ?? "A-Team workspace", migration, tickets, packages, findings, diagnostics, generatedAt: new Date().toISOString() };
 }
 
 function json(response: ServerResponse, status: number, value: unknown): void {

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { findRepositoryRoot, regenerateIndex } from "../filesystem/workspace.js";
-import { findTicket, nextId } from "../filesystem/entities.js";
+import { findTicket, nextId, resolveEffectiveTicket } from "../filesystem/entities.js";
 import { parseMarkdown, renderMarkdown, sections } from "../core/markdown.js";
 import { assertClean, git } from "../git/git.js";
 import { slugify, startTicket } from "./ticket.js";
@@ -197,11 +197,8 @@ export function packageStatus(id: string) {
   const entity = parseMarkdown(readFileSync(pkg.path, "utf8"));
   const ids = Array.isArray(entity.data.tickets) ? entity.data.tickets.map(String) : [];
   const tickets = ids.map((ticketId) => {
-    const worktree = join(root, ".worktrees", ticketId);
-    if (existsSync(worktree)) {
-      try { return { id: ticketId, state: findTicket(worktree, ticketId).state, worktree }; } catch { /* fall through */ }
-    }
-    return { id: ticketId, state: findTicket(root, ticketId).state };
+    const effective = resolveEffectiveTicket(root, ticketId, (ticket) => ticket.state);
+    return { id: ticketId, state: effective.value, ...(effective.worktree ? { worktree: effective.worktree } : {}) };
   });
   return { ok: true, command: "package status", data: { id, status: pkg.state, tickets } };
 }

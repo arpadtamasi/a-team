@@ -1,0 +1,5 @@
+ticket: T-011
+agent: codex
+branch: fix/T-011-add-a-canonical-cli-writer-for-durable-decisions
+worktree: .worktrees/T-011
+started_at: 2026-07-23T17:37:44.904Z

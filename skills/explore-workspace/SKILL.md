@@ -9,6 +9,7 @@ Perform read-only portfolio analysis over the repository's canonical `.a-team/` 
 
 1. Locate the repository root and `.a-team/config.yaml`. Read `.a-team/index.md` for orientation, then inspect the relevant canonical files rather than relying on the index summary alone.
 2. Search every lifecycle directory under `.a-team/` for tickets, findings, and packages. Read `.a-team/decisions/` to distinguish durable human decisions from still-open decision sections. Include resolved history when it can explain a decision, duplicate, supersession, or dependency.
+   Durable decision records are created only with `a-team decision create --from <draft.md> --approve`; exploration remains read-only and never hand-edits `.a-team/decisions/`.
 3. Inspect `.a-team/migration.json` when present. Follow `source_file`, legacy identifiers, split records, and excluded-terminal records when current files do not contain enough evidence.
 4. Compare outcome, scope, evidence, lifecycle state, dependencies, decisions, and package membership. Never infer a relationship from title similarity alone.
 5. Separate results into the smallest useful groups, such as direct matches, dependencies, overlap or duplicate candidates, adjacent context, resolved history, and items needing a human decision. Omit empty groups.

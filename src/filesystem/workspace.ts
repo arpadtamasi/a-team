@@ -75,7 +75,10 @@ export function initializeWorkspace(options: InitOptions = {}): { root: string; 
   };
 
   writeFileSync(join(workspace, "config.yaml"), stringify(config));
-  writeFileSync(join(workspace, "README.md"), "# A-Team workspace\n\nRepository files are canonical. Use the `a-team` CLI to change state.\n");
+  writeFileSync(
+    join(workspace, "README.md"),
+    "# A-Team workspace\n\nRepository files are canonical. Use the `a-team` CLI to change state.\n\nCreate durable human decisions from a reviewed Markdown draft with `a-team decision create --from <draft.md> --approve`; do not edit `decisions/` directly. Canonical records use identity-only filenames such as `D-001.md`.\n",
+  );
   writeFileSync(join(workspace, "index.md"), renderEmptyIndex());
   const bundledProfiles = fileURLToPath(new URL("../../profiles", import.meta.url));
   if (existsSync(bundledProfiles)) {

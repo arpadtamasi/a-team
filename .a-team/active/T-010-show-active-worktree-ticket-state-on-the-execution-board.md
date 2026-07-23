@@ -1,7 +1,7 @@
 ---
 id: T-010
 title: Show active worktree ticket state on the execution board
-status: ready
+status: active
 origin: human
 types:
   - bug
@@ -14,10 +14,11 @@ risk: medium
 package: P-003
 depends_on: []
 blocks: []
-branch: null
+branch: fix/T-010-show-active-worktree-ticket-state-on-the-execution-board
 pull_request: null
 created_at: '2026-07-22'
 updated_at: '2026-07-23'
+assigned_agent: codex
 ---
 # T-010 — Show active worktree ticket state on the execution board
 

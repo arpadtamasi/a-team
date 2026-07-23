@@ -1,0 +1,5 @@
+ticket: T-010
+agent: codex
+branch: fix/T-010-show-active-worktree-ticket-state-on-the-execution-board
+worktree: .worktrees/T-010
+started_at: 2026-07-23T17:37:44.723Z

@@ -12,7 +12,6 @@ None.
 
 ## Ready tickets
 
-- T-010-show-active-worktree-ticket-state-on-the-execution-board
 - T-011-add-a-canonical-cli-writer-for-durable-decisions
 - T-012-make-the-ui-workspace-argument-contract-explicit
 - T-013-add-a-discoverable-bug-reporting-path
@@ -21,7 +20,7 @@ None.
 
 ## Active tickets
 
-None.
+- T-010-show-active-worktree-ticket-state-on-the-execution-board
 
 ## Review
 

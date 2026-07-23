@@ -4,11 +4,11 @@
 
 ## Ready packages
 
-- P-003-trustworthy-daily-use-and-feedback-intake
+None.
 
 ## Active packages
 
-None.
+- P-003-trustworthy-daily-use-and-feedback-intake
 
 ## Ready tickets
 

@@ -12,7 +12,7 @@ None.
 
 ## Ready tickets
 
-- T-009-publish-the-a-team-github-pages-onboarding-site
+None.
 
 ## Active tickets
 
@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-None.
+- T-009-publish-the-a-team-github-pages-onboarding-site
 
 ## Blocked
 

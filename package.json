@@ -27,10 +27,14 @@
     "templates"
   ],
   "scripts": {
-    "build": "npm run build:cli && npm run build:ui",
+    "build": "npm run build:cli && npm run build:ui && npm run build:site",
     "build:cli": "node scripts/clean.mjs && tsc -p tsconfig.json",
     "build:ui": "vite build --config ui/vite.config.ts",
+    "build:site": "vite build --config site/vite.config.ts",
     "dev:ui": "vite --config ui/vite.config.ts",
+    "dev:site": "vite --config site/vite.config.ts",
+    "preview:site": "vite preview --config site/vite.config.ts --host 127.0.0.1 --port 4174",
+    "test:site": "playwright test --config site/playwright.config.ts",
     "verify:pack": "npm run build && node scripts/verify-pack.mjs",
     "prepack": "npm run build",
     "pretest": "npm run build",
@@ -51,6 +55,8 @@
     "yaml": "^2.8.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.61.1",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

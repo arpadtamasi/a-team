@@ -1,7 +1,7 @@
 ---
 id: T-010
 title: Show active worktree ticket state on the execution board
-status: backlog
+status: ready
 origin: human
 types:
   - bug
@@ -11,13 +11,13 @@ profiles:
   - workflow
 priority: high
 risk: medium
-package: null
+package: P-003
 depends_on: []
 blocks: []
 branch: null
 pull_request: null
 created_at: '2026-07-22'
-updated_at: '2026-07-22'
+updated_at: '2026-07-23'
 ---
 # T-010 — Show active worktree ticket state on the execution board
 

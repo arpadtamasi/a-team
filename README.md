@@ -129,7 +129,8 @@ A decision draft contains `title` frontmatter and non-empty `Decision`, `Context
 next stable `D-001`-style identifier and current date (or validates supplied values), and
 atomically publishes the validated record beneath `.a-team/decisions/`. Pass `--id D-001`
 when a caller needs to reserve a specific stable identity; an existing identity is never
-overwritten.
+overwritten. The canonical filename is the identity alone (`D-001.md`), so different
+titles cannot race around the identity reservation.
 
 ## Maintainer releases
 

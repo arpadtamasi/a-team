@@ -15,4 +15,4 @@ Repository files are canonical. Chat history, pull-request comments, and user in
 
 A decision draft uses `title` frontmatter and non-empty `Decision`, `Context`, and
 `Consequences` sections. The CLI assigns a stable `D-001`-style identifier and date,
-validates the draft, and publishes it atomically.
+validates the draft, and publishes it atomically to the identity-only filename (`D-001.md`).

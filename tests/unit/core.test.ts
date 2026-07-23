@@ -70,7 +70,7 @@ describe("core deterministic rules", () => {
     const source = join(root, "decision.md");
     writeFileSync(source, "---\ntitle: Cut over\n---\n## Decision\n\nProceed.\n\n## Context\n\nReady.\n\n## Consequences\n\nMonitor.\n");
     createDecision({ from: source, id: "D-001", approved: true }, root);
-    const canonical = join(root, ".a-team/decisions/D-001-cut-over.md");
+    const canonical = join(root, ".a-team/decisions/D-001.md");
     const before = readFileSync(canonical, "utf8");
     expect(() => createDecision({ from: source, id: "D-001", approved: true }, root)).toThrow("already exists");
     expect(readFileSync(canonical, "utf8")).toBe(before);

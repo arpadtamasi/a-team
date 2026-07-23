@@ -38,7 +38,7 @@ export function nextDecisionId(root: string): string {
   const directory = join(root, ".a-team/decisions");
   if (!existsSync(directory)) return "D-001";
   const maximum = readdirSync(directory)
-    .map((name) => /^D-(\d+)-/.exec(name)?.[1])
+    .map((name) => /^D-(\d+)(?:-|\.md$)/.exec(name)?.[1])
     .filter((value): value is string => value !== undefined)
     .reduce((current, value) => Math.max(current, Number(value)), 0);
   return `D-${String(maximum + 1).padStart(3, "0")}`;
@@ -98,8 +98,8 @@ export function validateDecisionFile(path: string): DecisionValidationIssue[] {
     const errors = validateDecision(draft, path);
     const unknown = Object.keys(entity.data).filter((field) => !DECISION_FIELDS.has(field));
     if (unknown.length) errors.push({ code: "UNKNOWN_DECISION_FIELD", message: `Unsupported decision fields: ${unknown.join(", ")}.`, path });
-    if (!basename(path).startsWith(`${draft.id}-`)) {
-      errors.push({ code: "DECISION_FILENAME_MISMATCH", message: `Decision filename must start with ${draft.id}-.`, path });
+    if (basename(path) !== `${draft.id}.md`) {
+      errors.push({ code: "DECISION_FILENAME_MISMATCH", message: `Decision filename must be ${draft.id}.md.`, path });
     }
     return errors;
   } catch (error) {

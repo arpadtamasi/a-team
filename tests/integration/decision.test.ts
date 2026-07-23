@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -8,6 +8,24 @@ const cli = resolve("dist/cli/index.js");
 
 function run(cwd: string, args: string[], env?: NodeJS.ProcessEnv) {
   return spawnSync("node", [cli, ...args, "--json"], { cwd, encoding: "utf8", env: { ...process.env, ...env } });
+}
+
+function runAsync(cwd: string, args: string[], env?: NodeJS.ProcessEnv): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  const child = spawn("node", [cli, ...args, "--json"], { cwd, env: { ...process.env, ...env } });
+  let stdout = "";
+  let stderr = "";
+  child.stdout.setEncoding("utf8").on("data", (chunk: string) => { stdout += chunk; });
+  child.stderr.setEncoding("utf8").on("data", (chunk: string) => { stderr += chunk; });
+  return new Promise((resolvePromise) => child.on("close", (status) => resolvePromise({ status, stdout, stderr })));
+}
+
+async function waitForCandidate(root: string): Promise<void> {
+  const directory = join(root, ".a-team/decisions");
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    if (readdirSync(directory).some((name) => name.startsWith(".D-001-") && name.endsWith(".tmp"))) return;
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 10));
+  }
+  throw new Error("Timed out waiting for the first decision writer to reach publication.");
 }
 
 function initialize(): string {
@@ -32,22 +50,22 @@ describe("durable decision CLI", () => {
     expect(JSON.parse(created.stdout)).toMatchObject({
       ok: true,
       command: "decision create",
-      data: { id: "D-001", path: expect.stringContaining(".a-team/decisions/D-001-adopt-blue-green-cutover.md") },
+      data: { id: "D-001", path: expect.stringContaining(".a-team/decisions/D-001.md") },
     });
-    const canonical = join(root, ".a-team/decisions/D-001-adopt-blue-green-cutover.md");
+    const canonical = join(root, ".a-team/decisions/D-001.md");
     expect(readFileSync(canonical, "utf8")).toContain("## Consequences");
     const humanSource = join(root, "second.md");
     writeFileSync(humanSource, validSource.replace("Adopt blue-green cutover", "Keep rollback window"));
     const human = execFileSync("node", [cli, "decision", "create", "--from", humanSource, "--approve"], { cwd: root, encoding: "utf8" });
     expect(human).toContain("Recorded decision D-002 at");
-    expect(human).toContain(".a-team/decisions/D-002-keep-rollback-window.md");
+    expect(human).toContain(".a-team/decisions/D-002.md");
 
     const validation = run(root, ["validate"]);
     expect(validation.status).toBe(0);
     expect(JSON.parse(validation.stdout)).toMatchObject({ ok: true, data: { decisions: 2 } });
     expect(readdirSync(join(root, ".a-team/decisions")).sort()).toEqual([
-      "D-001-adopt-blue-green-cutover.md",
-      "D-002-keep-rollback-window.md",
+      "D-001.md",
+      "D-002.md",
     ]);
   });
 
@@ -75,14 +93,14 @@ describe("durable decision CLI", () => {
     const source = join(root, "cutover.md");
     writeFileSync(source, validSource);
     const failed = run(root, ["decision", "create", "--from", source, "--id", "D-007", "--approve"], {
-      A_TEAM_TEST_FAIL_DECISION_BEFORE_RENAME: "1",
+      A_TEAM_TEST_FAIL_DECISION_BEFORE_PUBLISH: "1",
     });
     expect(failed.status).toBe(1);
     expect(failed.stdout).toContain("Injected decision write failure");
     expect(readdirSync(join(root, ".a-team/decisions"))).toEqual([]);
 
     expect(run(root, ["decision", "create", "--from", source, "--id", "D-007", "--approve"]).status).toBe(0);
-    expect(existsSync(join(root, ".a-team/decisions/D-007-adopt-blue-green-cutover.md"))).toBe(true);
+    expect(existsSync(join(root, ".a-team/decisions/D-007.md"))).toBe(true);
   });
 
   test("workspace validation reports malformed canonical decision records", () => {
@@ -107,5 +125,28 @@ describe("durable decision CLI", () => {
     expect(JSON.parse(result.stdout)).toMatchObject({
       errors: expect.arrayContaining([expect.objectContaining({ code: "DUPLICATE_DECISION_ID" })]),
     });
+  });
+
+  test("atomically reserves an id across concurrent writers with different titles", async () => {
+    const root = initialize();
+    const firstSource = join(root, "first.md");
+    const secondSource = join(root, "second.md");
+    writeFileSync(firstSource, validSource.replace("Adopt blue-green cutover", "First title"));
+    writeFileSync(secondSource, validSource.replace("Adopt blue-green cutover", "Second title"));
+
+    const first = runAsync(root, ["decision", "create", "--from", firstSource, "--id", "D-001", "--approve"], {
+      A_TEAM_TEST_DECISION_PUBLISH_DELAY_MS: "3000",
+    });
+    await waitForCandidate(root);
+    const second = await runAsync(root, ["decision", "create", "--from", secondSource, "--id", "D-001", "--approve"]);
+    const delayed = await first;
+
+    expect(second.status).toBe(0);
+    expect(delayed.status).toBe(1);
+    expect(delayed.stdout).toContain("Decision D-001 already exists");
+    expect(readdirSync(join(root, ".a-team/decisions"))).toEqual(["D-001.md"]);
+    const canonical = readFileSync(join(root, ".a-team/decisions/D-001.md"), "utf8");
+    expect(canonical).toContain("title: Second title");
+    expect(canonical).not.toContain("title: First title");
   });
 });

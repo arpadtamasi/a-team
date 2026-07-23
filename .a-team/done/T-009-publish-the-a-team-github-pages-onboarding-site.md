@@ -1,7 +1,7 @@
 ---
 id: T-009
 title: Publish the A-Team GitHub Pages onboarding site
-status: review
+status: done
 origin: human
 types:
   - feature
@@ -19,6 +19,7 @@ pull_request: 'PR-13, PR-14'
 created_at: '2026-07-22'
 updated_at: '2026-07-23'
 assigned_agent: codex
+resolution: completed
 ---
 # T-009 — Publish the A-Team GitHub Pages onboarding site
 

@@ -1,7 +1,7 @@
 ---
 id: T-011
 title: Add a canonical CLI writer for durable decisions
-status: ready
+status: active
 origin: human
 types:
   - bug
@@ -13,10 +13,11 @@ risk: medium
 package: P-003
 depends_on: []
 blocks: []
-branch: null
+branch: fix/T-011-add-a-canonical-cli-writer-for-durable-decisions
 pull_request: null
 created_at: '2026-07-23'
 updated_at: '2026-07-23'
+assigned_agent: codex
 ---
 # T-011 — Add a canonical CLI writer for durable decisions
 

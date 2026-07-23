@@ -2,7 +2,7 @@
 id: P-002
 kind: milestone
 title: Trustworthy A-Team onboarding path
-status: active
+status: done
 tickets:
   - T-008
   - T-009
@@ -16,7 +16,7 @@ authority:
   reorder_independent_tickets: false
   change_scope: false
 created_at: '2026-07-22'
-updated_at: '2026-07-22'
+updated_at: '2026-07-23'
 ---
 # P-002 — Trustworthy A-Team onboarding path
 

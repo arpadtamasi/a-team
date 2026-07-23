@@ -8,7 +8,7 @@ None.
 
 ## Active packages
 
-- P-002-trustworthy-a-team-onboarding-path
+None.
 
 ## Ready tickets
 
@@ -16,7 +16,7 @@ None.
 
 ## Active tickets
 
-- T-009-publish-the-a-team-github-pages-onboarding-site
+None.
 
 ## Review
 

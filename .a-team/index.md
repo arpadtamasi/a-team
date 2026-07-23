@@ -24,7 +24,7 @@ None.
 
 ## Review
 
-- T-010-show-active-worktree-ticket-state-on-the-execution-board
+None.
 
 ## Blocked
 

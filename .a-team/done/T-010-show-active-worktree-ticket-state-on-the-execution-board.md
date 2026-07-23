@@ -1,7 +1,7 @@
 ---
 id: T-010
 title: Show active worktree ticket state on the execution board
-status: review
+status: done
 origin: human
 types:
   - bug
@@ -19,6 +19,7 @@ pull_request: null
 created_at: '2026-07-22'
 updated_at: '2026-07-23'
 assigned_agent: codex
+resolution: completed
 ---
 # T-010 — Show active worktree ticket state on the execution board
 

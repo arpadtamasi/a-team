@@ -1,7 +1,7 @@
 ---
 id: T-012
 title: Make the UI workspace argument contract explicit
-status: ready
+status: active
 origin: human
 types:
   - bug
@@ -12,10 +12,11 @@ risk: low
 package: P-003
 depends_on: []
 blocks: []
-branch: null
+branch: fix/T-012-make-the-ui-workspace-argument-contract-explicit
 pull_request: null
 created_at: '2026-07-23'
 updated_at: '2026-07-23'
+assigned_agent: codex
 ---
 # T-012 — Make the UI workspace argument contract explicit
 

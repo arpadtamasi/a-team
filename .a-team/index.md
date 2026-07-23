@@ -12,14 +12,13 @@ None.
 
 ## Ready tickets
 
-- T-012-make-the-ui-workspace-argument-contract-explicit
 - T-013-add-a-discoverable-bug-reporting-path
 - T-014-ui-port-collision-returns-raw-eaddrinuse-without-recovery-gu
 - T-015-completed-package-leaves-the-coordinator-checkout-on-its-mer
 
 ## Active tickets
 
-None.
+- T-012-make-the-ui-workspace-argument-contract-explicit
 
 ## Review
 

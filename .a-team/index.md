@@ -16,11 +16,11 @@ None.
 
 ## Active tickets
 
-- T-009-publish-the-a-team-github-pages-onboarding-site
+None.
 
 ## Review
 
-None.
+- T-009-publish-the-a-team-github-pages-onboarding-site
 
 ## Blocked
 

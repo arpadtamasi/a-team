@@ -28,7 +28,7 @@
   ],
   "scripts": {
     "build": "npm run build:cli && npm run build:ui && npm run build:site",
-    "build:cli": "node scripts/clean.mjs && tsc -p tsconfig.json",
+    "build:cli": "node scripts/clean.mjs && tsc -p tsconfig.json && node scripts/chmod-bin.mjs",
     "build:ui": "vite build --config ui/vite.config.ts",
     "build:site": "vite build --config site/vite.config.ts",
     "dev:ui": "vite --config ui/vite.config.ts",

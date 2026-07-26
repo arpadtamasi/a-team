@@ -3,7 +3,7 @@ id: T-016
 title: >-
   a-team ui reads state from a churning working tree, so findings flicker/vanish
   from the UI
-status: backlog
+status: ready
 origin: finding
 types:
   - feature
@@ -84,15 +84,7 @@ from the primary working tree's momentary `HEAD`.
 
 ## Open decisions
 
-- **Uncommitted intake visibility — DECIDED: (a), minimal form.** Union the
-  base ref with the primary working tree's uncommitted `.a-team` additions
-  **only while `HEAD` is the base branch** — a few lines, no cross-branch
-  handling. This union is explicitly **interim**: once the write-side ticket
-  makes `finding new` auto-commit intake to the base ref, reads collapse to the
-  pure base ref (option (b)) and the union is removed. Do not build a general
-  uncommitted-change tracker.
-- **Reuse depth.** How much of the existing `effective`-status/worktree
-  resolution is reusable vs. needs rework — settle by reading that impl first.
+None.
 
 ## Execution notes
 
@@ -101,3 +93,9 @@ from the primary working tree's momentary `HEAD`.
 - Existing worktree awareness to extend: `ui.ts:36–44`.
 - Design basis: **D-001** (named-ref derivation, base + worktree overlay),
   source finding **F-006**. Enables **F-007** (triage agent needs reliable reads).
+- Resolved design decision: uncommitted-intake = **(a) minimal** — base ref ∪
+  the primary dir's uncommitted `.a-team` adds, only while `HEAD` is the base
+  branch; interim until write-side auto-commit lands, then collapses to pure
+  base-ref reads. Do not build a general uncommitted-change tracker.
+- First step at implementation: read the existing `effective`-status/worktree
+  resolution (`ui.ts:36–44` and helpers) to decide how much to reuse vs. rework.

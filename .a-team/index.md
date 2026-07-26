@@ -32,3 +32,4 @@ None.
 ## New findings
 
 - F-004-build-cli-removes-executable-bit-from-linked-a-team-binary
+- F-005-ui-has-no-dedicated-detail-view-for-tickets-or-findings-only

@@ -32,7 +32,7 @@ test("renders the approved content contract in order", async ({ page }) => {
   await expect(page.locator("#install")).toContainText("npx skills@1.5.20 add arpadtamasi/a-team");
   await expect(page.locator("#install")).toContainText("## Acceptance");
   expect([...responseTypes.entries()].find(([path]) => path.endsWith(".css"))?.[1]).toContain("text/css");
-  await expect(page.locator("body")).toHaveCSS("background-color", "rgb(241, 237, 223)");
+  await expect(page.locator("body")).toHaveCSS("background-color", "rgb(243, 242, 242)");
   expect(requests.some((url) => new URL(url).pathname.startsWith("/api/"))).toBe(false);
   expect(failedResponses).toEqual([]);
 });

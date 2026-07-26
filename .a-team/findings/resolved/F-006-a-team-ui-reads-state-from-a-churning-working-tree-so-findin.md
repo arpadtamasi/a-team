@@ -3,13 +3,16 @@ id: F-006
 title: >-
   a-team ui reads state from a churning working tree, so findings flicker/vanish
   from the UI
-status: new
+status: resolved
 origin: agent
 finding_type: bug
 confidence: high
 severity: medium
 discovered_during: null
 created_at: '2026-07-26'
+disposition: create-ticket
+resolved_at: '2026-07-26T20:13:07.495Z'
+ticket: T-016
 ---
 # F-006 — a-team ui reads state from a churning working tree, so findings flicker/vanish from the UI
 

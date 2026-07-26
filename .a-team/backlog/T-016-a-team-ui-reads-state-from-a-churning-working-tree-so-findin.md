@@ -36,7 +36,9 @@ from the primary working tree's momentary `HEAD`.
   filesystem (`readFileSync`/`readdirSync`) on every `/api/workspace` poll.
 - Source the baseline entity set from the **configured base ref**
   (`config.yaml → git.base_branch`) via git plumbing (`git show <ref>:…` /
-  `git ls-tree`), without checking anything out.
+  `git ls-tree`), without checking anything out, **unioned with the primary
+  working tree's uncommitted additions for the base branch** (decision (a)
+  below) so freshly-created intake is visible immediately.
 - **Extend** the existing worktree-aware status resolution (the `effective` /
   `diagnostics` / `fallback` logic around `ui.ts:36–44`) into a deliberate
   overlay: active worktrees contribute in-flight entities, marked with their
@@ -56,6 +58,9 @@ from the primary working tree's momentary `HEAD`.
   change the set of findings/tickets/packages returned by `/api/workspace`.
 - The returned baseline reflects the configured `git.base_branch`, resolved via
   git plumbing (no checkout), and is stable across concurrent branch churn.
+- A finding created via `finding new` but not yet committed appears
+  immediately **while the primary directory is on the base branch** (baseline =
+  base ref ∪ that dir's uncommitted `.a-team` additions).
 - Active worktrees are overlaid as in-flight entities with visible
   claim/branch/worktree provenance; base-vs-worktree disagreement is reported as
   drift rather than silently resolved.
@@ -79,13 +84,13 @@ from the primary working tree's momentary `HEAD`.
 
 ## Open decisions
 
-- **Uncommitted intake visibility.** `finding new` writes the file and
-  regenerates the index but does **not** commit. If the baseline reads only the
-  base ref, a freshly-written-but-uncommitted finding would disappear until
-  committed. Decide: (a) union base ref + uncommitted working-tree adds for the
-  base branch, (b) accept that intake is only visible once committed (pairs with
-  the write-side ticket that commits intake to base), or (c) treat the primary
-  checkout's *own* uncommitted adds as a third overlay.
+- **Uncommitted intake visibility — DECIDED: (a), minimal form.** Union the
+  base ref with the primary working tree's uncommitted `.a-team` additions
+  **only while `HEAD` is the base branch** — a few lines, no cross-branch
+  handling. This union is explicitly **interim**: once the write-side ticket
+  makes `finding new` auto-commit intake to the base ref, reads collapse to the
+  pure base ref (option (b)) and the union is removed. Do not build a general
+  uncommitted-change tracker.
 - **Reuse depth.** How much of the existing `effective`-status/worktree
   resolution is reusable vs. needs rework — settle by reading that impl first.
 

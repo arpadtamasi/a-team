@@ -20,11 +20,11 @@ None.
 
 ## Active tickets
 
-- T-017-ui-has-no-dedicated-detail-view-for-tickets-or-findings-only
+None.
 
 ## Review
 
-None.
+- T-017-ui-has-no-dedicated-detail-view-for-tickets-or-findings-only
 
 ## Blocked
 

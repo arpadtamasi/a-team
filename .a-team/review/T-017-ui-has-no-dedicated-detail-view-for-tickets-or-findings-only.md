@@ -1,7 +1,7 @@
 ---
 id: T-017
 title: UI has no dedicated detail view for tickets or findings (only packages do)
-status: active
+status: review
 origin: finding
 types:
   - feature
@@ -83,3 +83,28 @@ None.
 - Drawer pattern to copy: `SourceDrawer` (`:768`); mount beside it in the App
   return (`:1001`). `openEntity` to rewire: `:872`.
 - Design basis: source finding F-005; the fuller spec lives in D-004.
+
+## Review evidence
+
+| Acceptance condition | Evidence |
+|---|---|
+| Clicking a ticket id opens a drawer showing its title, metadata chips, and | Built EntityDrawer in ui/src/App.tsx; npm run build:ui compiles with 0 type errors (281 modules). Ran the server against the one&a workspace (50 tickets) on :4399 — clicking a ticket/finding/package id opens a drawer rendering every section plus metadata chips; entity ids inside are clickable; Esc/close/backdrop dismiss. Acceptance conditions 1-4 verified. |
+| Clicking a finding id shows its evidence/observation/impact/etc.; clicking a | Built EntityDrawer in ui/src/App.tsx; npm run build:ui compiles with 0 type errors (281 modules). Ran the server against the one&a workspace (50 tickets) on :4399 — clicking a ticket/finding/package id opens a drawer rendering every section plus metadata chips; entity ids inside are clickable; Esc/close/backdrop dismiss. Acceptance conditions 1-4 verified. |
+| Entity ids inside the drawer (depends_on, members, links) are clickable and | Built EntityDrawer in ui/src/App.tsx; npm run build:ui compiles with 0 type errors (281 modules). Ran the server against the one&a workspace (50 tickets) on :4399 — clicking a ticket/finding/package id opens a drawer rendering every section plus metadata chips; entity ids inside are clickable; Esc/close/backdrop dismiss. Acceptance conditions 1-4 verified. |
+| Esc and the ✕ close it; clicking the backdrop closes it. | Built EntityDrawer in ui/src/App.tsx; npm run build:ui compiles with 0 type errors (281 modules). Ran the server against the one&a workspace (50 tickets) on :4399 — clicking a ticket/finding/package id opens a drawer rendering every section plus metadata chips; entity ids inside are clickable; Esc/close/backdrop dismiss. Acceptance conditions 1-4 verified. |
+
+### Verification performed
+
+Built EntityDrawer in ui/src/App.tsx; npm run build:ui compiles with 0 type errors (281 modules). Ran the server against the one&a workspace (50 tickets) on :4399 — clicking a ticket/finding/package id opens a drawer rendering every section plus metadata chips; entity ids inside are clickable; Esc/close/backdrop dismiss. Acceptance conditions 1-4 verified.
+
+### Deviations
+
+None.
+
+### Findings created
+
+None.
+
+### Known concerns
+
+None.

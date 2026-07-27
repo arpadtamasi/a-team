@@ -808,6 +808,66 @@ function MigrationDrawer({ migration, onClose, onEntity, onSource }: { migration
   </div>;
 }
 
+/* ── Entity detail drawer ────────────────────────────── */
+const ID_SPLIT = /(\b(?:O-\d+(?:\.\d+)?|T-\d+|F-\d+|P-\d+)\b)/g;
+const ID_TEST = /^(?:O-\d+(?:\.\d+)?|T-\d+|F-\d+|P-\d+)$/;
+function titleCase(value: string): string {
+  return value.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+function InlineIds({ text, onEntity }: { text: string; onEntity: (id: string) => void }) {
+  return <>{text.split(ID_SPLIT).map((part, i) => ID_TEST.test(part)
+    ? <button key={i} type="button" className="inline-entity mono" onClick={() => onEntity(part)}>{part}</button>
+    : part)}</>;
+}
+function EntityDrawer({ id, workspace, onClose, onEntity, onSource, onDiscuss }: {
+  id: string; workspace: Workspace; onClose: () => void; onEntity: (id: string) => void; onSource: (r: SourceReference) => void; onDiscuss: (id: string) => void;
+}) {
+  useEffect(() => { const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose(); window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); }, [onClose]);
+  const ticket = workspace.tickets.find((t) => t.id === id);
+  const pkg = workspace.packages.find((p) => p.id === id);
+  const finding = workspace.findings.find((f) => f.id === id);
+  const entity = ticket ?? pkg ?? finding;
+  if (!entity) return null;
+  const kind = ticket ? "ticket" : pkg ? "package" : "finding";
+  const drift = (workspace.diagnostics ?? []).filter((d) => d.id === entity.id);
+  const chips: Array<[string, string]> = [];
+  if (ticket) {
+    chips.push(["status", ticket.status], ["priority", `P·${ticket.priority}`], ["risk", ticket.risk]);
+    if (ticket.types?.length) chips.push(["type", ticket.types.join(", ")]);
+    chips.push(["package", ticket.package ?? "unpackaged"]);
+    if (ticket.depends_on?.length) chips.push(["depends on", ticket.depends_on.join(" ")]);
+    if (ticket.branch) chips.push(["branch", ticket.branch]);
+    if (ticket.blocked) chips.push(["blocked", "yes"]);
+    if (ticket.resolution) chips.push(["resolution", ticket.resolution]);
+  } else if (finding) {
+    chips.push(["status", finding.status], ["type", finding.finding_type], ["severity", finding.severity], ["confidence", finding.confidence]);
+    if (finding.discovered_during) chips.push(["discovered during", finding.discovered_during]);
+    if (finding.became) chips.push(["became", finding.became]);
+    if (finding.resolution) chips.push(["disposition", finding.resolution]);
+  } else if (pkg) {
+    chips.push(["status", pkg.status], ["kind", pkg.kind], ["members", (pkg.tickets ?? []).join(" ") || "—"]);
+    if (pkg.execution?.mode) chips.push(["execution", `${pkg.execution.mode} · parallelism ${pkg.execution.parallelism ?? "?"} · ${pkg.execution.stop_on_failure ? "stop on failure" : "continue on failure"}`]);
+  }
+  return <div className="overlay overlay--right" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <aside className="drawer scroll" role="dialog" aria-modal="true" aria-label={`${kind} detail`} style={{ position: "relative" }}>
+      <button type="button" className="btn btn-secondary btn-icon drawer__close" onClick={onClose} aria-label="Close">✕</button>
+      <div className="drawer__eyebrow"><span className="tag tag-outline">{kind}</span><span className="mono">{entity.id}</span></div>
+      <h2 style={{ marginTop: 4 }}>{entity.title}</h2>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "12px 0 4px" }}>
+        {chips.map(([k, v]) => <span key={k} className="tag tag-neutral" style={{ fontWeight: 500 }}><span style={{ opacity: .55 }}>{k}: </span><InlineIds text={v} onEntity={onEntity} /></span>)}
+      </div>
+      {drift.length > 0 && <div className="callout-fail" style={{ marginTop: 10 }}><div className="kicker">state drift</div>{drift.map((d, i) => <div key={i} className="mono" style={{ fontSize: 12.5 }}>{d.message} · {d.worktree}</div>)}</div>}
+      {Object.entries(entity.sections ?? {}).map(([name, body]) => body && body.trim()
+        ? <section key={name}><div className="kicker">{titleCase(name)}</div><MarkdownContent value={body} onEntity={onEntity} onSource={onSource} /></section>
+        : null)}
+      <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => onDiscuss(entity.id)}>Discuss</button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => onSource({ id: entity.id })}>Raw source</button>
+      </div>
+    </aside>
+  </div>;
+}
+
 /* ── Thread metadata (seeded context + starters) ─────── */
 function threadMeta(scope: string, kind: ThreadKind): { title: string; context: string; placeholder: string; contextNote: string; starters: string[] } {
   if (kind === "workspace") return { title: "What should I do next?", context: "no entity attached · repo context", placeholder: "Ask about the whole workspace…", contextNote: "Workspace context", starters: ["Summarize state", "What should I do next?", "Draft a finding"] };
@@ -833,6 +893,7 @@ export function App() {
   const [validated, setValidated] = useState<Record<string, ValidationState>>({});
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
   const [sourceReference, setSourceReference] = useState<SourceReference | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [showMigration, setShowMigration] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [driftOpen, setDriftOpen] = useState(false);
@@ -871,17 +932,11 @@ export function App() {
 
   const openEntity = useCallback((id: string) => {
     const ticket = workspace?.tickets.find((t) => t.id === id || t.migration?.legacy_id === id);
-    if (ticket) {
-      setSourceReference(null);
-      if (["backlog", "ready"].includes(ticket.status)) setStage("shape");
-      else if (ticket.status === "done") setStage("done");
-      else setStage("run");
-      return;
-    }
+    if (ticket) { setSourceReference(null); setDetailId(ticket.id); return; }
     const pkg = workspace?.packages.find((p) => p.id === id);
-    if (pkg) { setSourceReference(null); setSelectedPackage(pkg.id); setStage("packages"); return; }
+    if (pkg) { setSourceReference(null); setDetailId(pkg.id); return; }
     const finding = workspace?.findings.find((f) => f.id === id);
-    if (finding) { setSourceReference(null); setStage("inbox"); window.setTimeout(() => document.getElementById(`entity-${finding.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 40); return; }
+    if (finding) { setSourceReference(null); setDetailId(finding.id); return; }
     setSourceReference({ id });
   }, [workspace]);
 
@@ -999,6 +1054,7 @@ export function App() {
     </div>
     {shortcutsOpen && <ShortcutSheet onClose={() => setShortcutsOpen(false)} />}
     {sourceReference && <SourceDrawer reference={sourceReference} onClose={() => setSourceReference(null)} onEntity={openEntity} onSource={setSourceReference} />}
+    {detailId && <EntityDrawer id={detailId} workspace={workspace} onClose={() => setDetailId(null)} onEntity={openEntity} onSource={setSourceReference} onDiscuss={openThread} />}
     {showMigration && workspace.migration && <MigrationDrawer migration={workspace.migration} onClose={() => setShowMigration(false)} onEntity={openEntity} onSource={setSourceReference} />}
   </div>;
 }

@@ -33,6 +33,5 @@ None.
 ## New findings
 
 - F-004-build-cli-removes-executable-bit-from-linked-a-team-binary
-- F-005-ui-has-no-dedicated-detail-view-for-tickets-or-findings-only
 - F-007-triage-assistant-agent-gather-decision-context-for-a-finding
 - F-008-sequential-ids-collide-and-lifecycle-states-duplicate-under-

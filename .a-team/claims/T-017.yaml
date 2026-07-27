@@ -1,5 +1,0 @@
-ticket: T-017
-agent: claude
-branch: feat/T-017-ui-has-no-dedicated-detail-view-for-tickets-or-findings-only
-worktree: .worktrees/T-017
-started_at: 2026-07-27T15:20:24.287Z

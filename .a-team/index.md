@@ -24,7 +24,7 @@ None.
 
 ## Review
 
-- T-017-ui-has-no-dedicated-detail-view-for-tickets-or-findings-only
+None.
 
 ## Blocked
 

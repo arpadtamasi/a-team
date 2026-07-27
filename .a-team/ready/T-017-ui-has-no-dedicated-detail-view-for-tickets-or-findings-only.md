@@ -1,7 +1,7 @@
 ---
 id: T-017
 title: UI has no dedicated detail view for tickets or findings (only packages do)
-status: backlog
+status: ready
 origin: finding
 types:
   - feature

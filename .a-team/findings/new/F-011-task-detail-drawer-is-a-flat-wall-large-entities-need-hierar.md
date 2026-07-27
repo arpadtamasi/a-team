@@ -32,3 +32,12 @@ High: the evidence is directly observable.
 ## Suggested disposition
 
 Investigate and create the smallest appropriate ticket after human approval.
+
+## Suggested direction
+
+Interaction (operator, 2026-07-27): sections should expand **in place, downward** —
+collapsible/accordion, compact-by-default (headers only), the operator opens what
+they need. Not a flat all-open wall, and not a separate side panel for the long
+tail. Pairs with the D-004 hierarchy: outcome/acceptance/ready-status shown up
+top by default; scope/non-goals/constraints/execution-notes/profile-states
+collapsed below and expanded on demand.

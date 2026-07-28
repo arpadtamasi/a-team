@@ -20,11 +20,11 @@ None.
 
 ## Active tickets
 
-- T-018-bare-numeric-ids-are-unusable-as-human-references-always-sho
+None.
 
 ## Review
 
-None.
+- T-018-bare-numeric-ids-are-unusable-as-human-references-always-sho
 
 ## Blocked
 

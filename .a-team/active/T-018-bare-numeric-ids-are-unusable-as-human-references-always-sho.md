@@ -3,7 +3,7 @@ id: T-018
 title: >-
   Bare numeric IDs are unusable as human references — always show the title
   alongside the id
-status: ready
+status: active
 origin: finding
 types:
   - feature
@@ -13,11 +13,12 @@ risk: low
 package: null
 depends_on: []
 blocks: []
-branch: null
+branch: feat/T-018-bare-numeric-ids-are-unusable-as-human-references-always-sho
 pull_request: null
 created_at: '2026-07-28'
 updated_at: '2026-07-28'
 source_finding: F-012
+assigned_agent: claude
 ---
 # T-018 — Bare numeric IDs are unusable as human references — always show the title alongside the id
 

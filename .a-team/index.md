@@ -23,7 +23,7 @@ None.
 
 ## Review
 
-- T-016-a-team-ui-reads-state-from-a-churning-working-tree-so-findin
+None.
 
 ## Blocked
 

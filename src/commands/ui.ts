@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import matter from "gray-matter";
 import { parse } from "yaml";
 import { sections } from "../core/markdown.js";
-import { idFromFilename, resolveEffectiveTicket, type TicketLocation } from "../filesystem/entities.js";
+import { findTicket, idFromFilename } from "../filesystem/entities.js";
 import { newFinding, resolveFinding } from "./finding.js";
 import { newPackage, updatePackageTickets } from "./package.js";
 import { readyTicket } from "./ticket.js";
@@ -15,8 +15,24 @@ import { readyTicket } from "./ticket.js";
 const TICKET_STATES = ["backlog", "ready", "active", "review", "done"];
 const PACKAGE_STATES = ["backlog", "ready", "active", "done"];
 
-function markdownFiles(directory: string): string[] {
-  return existsSync(directory) ? readdirSync(directory).filter((name) => name.endsWith(".md")).sort() : [];
+function git(root: string, args: string[]): { ok: boolean; out: string } {
+  const result = spawnSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+  return { ok: result.status === 0, out: result.stdout ?? "" };
+}
+function listMdFromRef(root: string, ref: string, subpath: string): string[] {
+  const result = git(root, ["ls-tree", "-r", "--name-only", ref, `.a-team/${subpath}`]);
+  return result.ok ? result.out.split("\n").map((line) => line.trim()).filter((line) => line.endsWith(".md")) : [];
+}
+function readMdFromRef(root: string, ref: string, repoPath: string): string | null {
+  const result = git(root, ["show", `${ref}:${repoPath}`]);
+  return result.ok ? result.out : null;
+}
+function uncommittedMdAdds(root: string, subpath: string): string[] {
+  const result = git(root, ["status", "--porcelain", "--", `.a-team/${subpath}`]);
+  if (!result.ok) return [];
+  return result.out.split("\n").filter(Boolean)
+    .filter((line) => { const flag = line.slice(0, 2); return flag === "??" || flag.includes("A"); })
+    .map((line) => line.slice(3).trim()).filter((path) => path.endsWith(".md"));
 }
 
 function sectionObject(content: string): Record<string, string> {
@@ -28,30 +44,71 @@ export function readWorkspace(workspaceOption: string) {
   const workspace = existsSync(join(candidate, ".a-team")) ? join(candidate, ".a-team") : candidate;
   if (!existsSync(join(workspace, "config.yaml"))) throw new Error(`No A-Team workspace found at ${workspace}.`);
   const projectRoot = basename(workspace) === ".a-team" ? dirname(workspace) : workspace;
-  const config = parse(readFileSync(join(workspace, "config.yaml"), "utf8")) as { project?: { name?: string } };
+  const config = parse(readFileSync(join(workspace, "config.yaml"), "utf8")) as { project?: { name?: string }; git?: { base_branch?: string } };
+  const base = config.git?.base_branch ?? "main";
+  // Read from the base ref only when this workspace IS a git repo root with that ref; otherwise (non-git
+  // fixtures, example dirs, a nested/uncommitted workspace) fall back to reading the working tree directly.
+  const toplevel = git(projectRoot, ["rev-parse", "--show-toplevel"]);
+  const useBase = toplevel.ok && resolve(toplevel.out.trim()) === resolve(projectRoot)
+    && git(projectRoot, ["rev-parse", "--verify", "--quiet", `${base}^{commit}`]).ok;
+  const onBase = useBase && git(projectRoot, ["rev-parse", "--abbrev-ref", "HEAD"]).out.trim() === base;
   const migrationPath = join(workspace, "migration.json");
   const migration = existsSync(migrationPath) ? JSON.parse(readFileSync(migrationPath, "utf8")) as { project?: string; tickets?: Array<{ id: string; [key: string]: unknown }> } : null;
   const migrationById = new Map((migration?.tickets ?? []).map((ticket) => [ticket.id, ticket]));
-  const coordinatorTicketIds = TICKET_STATES.flatMap((state) => markdownFiles(join(workspace, state))).map(idFromFilename).filter((id): id is string => id !== null);
-  const diagnostics: Array<{ entity: "ticket"; id: string; worktree: string; message: string }> = [];
-  const readTicket = (id: string, ticket: TicketLocation) => {
-    const parsed = matter(readFileSync(ticket.path, "utf8"));
-    if (String(parsed.data.id) !== id) throw new Error(`Ticket metadata id '${String(parsed.data.id)}' does not match ${id}.`);
-    return { ...parsed.data, status: ticket.state, filename: ticket.filename, sections: sectionObject(parsed.content), migration: migrationById.get(id) ?? null };
+
+  // Derive the baseline entity set from the configured base ref (git plumbing, no checkout), so it does
+  // not change when another process checks out a different branch in the primary working tree. When the
+  // primary dir IS on the base branch, union its uncommitted .a-team additions so freshly-created intake
+  // shows immediately. Active worktrees are overlaid per ticket below. (T-016 / D-001)
+  const readMd = (repoPath: string, fromRef: boolean): string =>
+    (fromRef ? readMdFromRef(projectRoot, base, repoPath) : readFileSync(join(projectRoot, repoPath), "utf8")) ?? "";
+  const gather = (states: readonly string[], sub: (state: string) => string) => {
+    const entries: Array<{ state: string; repoPath: string; fromRef: boolean }> = [];
+    const seen = new Set<string>();
+    for (const state of states) {
+      const subpath = sub(state);
+      if (useBase) {
+        for (const path of listMdFromRef(projectRoot, base, subpath)) if (!seen.has(path)) { seen.add(path); entries.push({ state, repoPath: path, fromRef: true }); }
+        if (onBase) for (const path of uncommittedMdAdds(projectRoot, subpath)) if (!seen.has(path)) { seen.add(path); entries.push({ state, repoPath: path, fromRef: false }); }
+      } else {
+        const dir = join(workspace, subpath);
+        if (existsSync(dir)) for (const name of readdirSync(dir).filter((entry) => entry.endsWith(".md"))) {
+          const path = `.a-team/${subpath}/${name}`;
+          if (!seen.has(path)) { seen.add(path); entries.push({ state, repoPath: path, fromRef: false }); }
+        }
+      }
+    }
+    return entries.sort((left, right) => basename(left.repoPath).localeCompare(basename(right.repoPath)));
   };
-  const tickets = [...new Set(coordinatorTicketIds)].map((id) => {
-    const effective = resolveEffectiveTicket(projectRoot, id, (ticket) => readTicket(id, ticket));
-    if (effective.fallback) diagnostics.push({ entity: "ticket", id, worktree: effective.fallback.worktree, message: effective.fallback.reason });
-    return effective.value;
+  const parseEntity = (entry: { state: string; repoPath: string; fromRef: boolean }) => {
+    const parsed = matter(readMd(entry.repoPath, entry.fromRef));
+    return { ...parsed.data, status: entry.state, filename: basename(entry.repoPath), sections: sectionObject(parsed.content) };
+  };
+
+  const diagnostics: Array<{ entity: "ticket"; id: string; worktree: string; message: string }> = [];
+
+  // Tickets: base-ref baseline, overlaid per id by any live worktree (in-flight truth from .worktrees/<id>).
+  const ticketBase = new Map<string, { state: string; repoPath: string; fromRef: boolean }>();
+  for (const entry of gather(TICKET_STATES, (state) => state)) {
+    const id = idFromFilename(basename(entry.repoPath));
+    if (id && !ticketBase.has(id)) ticketBase.set(id, entry);
+  }
+  const tickets = [...ticketBase].map(([id, entry]) => {
+    const worktree = join(projectRoot, ".worktrees", id);
+    if (existsSync(worktree)) {
+      try {
+        const location = findTicket(worktree, id);
+        const parsed = matter(readFileSync(location.path, "utf8"));
+        if (String(parsed.data.id) !== id) throw new Error(`Ticket metadata id '${String(parsed.data.id)}' does not match ${id}.`);
+        return { ...parsed.data, status: location.state, filename: location.filename, sections: sectionObject(parsed.content), migration: migrationById.get(id) ?? null, worktree: worktree };
+      } catch (error) {
+        diagnostics.push({ entity: "ticket", id, worktree: worktree, message: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    return { ...parseEntity(entry), migration: migrationById.get(id) ?? null };
   });
-  const packages = PACKAGE_STATES.flatMap((state) => markdownFiles(join(workspace, "packages", state)).map((filename) => {
-    const parsed = matter(readFileSync(join(workspace, "packages", state, filename), "utf8"));
-    return { ...parsed.data, status: state, filename, sections: sectionObject(parsed.content) };
-  })).sort((left, right) => left.filename.localeCompare(right.filename));
-  const findings = ["new", "resolved"].flatMap((state) => markdownFiles(join(workspace, "findings", state)).map((filename) => {
-    const parsed = matter(readFileSync(join(workspace, "findings", state, filename), "utf8"));
-    return { ...parsed.data, status: state, filename, sections: sectionObject(parsed.content) };
-  })).sort((left, right) => left.filename.localeCompare(right.filename));
+  const packages = gather(PACKAGE_STATES, (state) => `packages/${state}`).map(parseEntity);
+  const findings = gather(["new", "resolved"], (state) => `findings/${state}`).map(parseEntity);
   return { workspace, project: migration?.project ?? config.project?.name ?? "A-Team workspace", migration, tickets, packages, findings, diagnostics, generatedAt: new Date().toISOString() };
 }
 

@@ -3,7 +3,7 @@ id: T-016
 title: >-
   a-team ui reads state from a churning working tree, so findings flicker/vanish
   from the UI
-status: active
+status: review
 origin: finding
 types:
   - feature
@@ -100,3 +100,28 @@ None.
   base-ref reads. Do not build a general uncommitted-change tracker.
 - First step at implementation: read the existing `effective`-status/worktree
   resolution (`ui.ts:36–44` and helpers) to decide how much to reuse vs. rework.
+
+## Review evidence
+
+| Acceptance condition | Evidence |
+|---|---|
+| With the a-team UI running against a workspace, checking out any branch (or | readWorkspace derives the baseline from the configured base ref via git plumbing (ls-tree/show, no checkout), unions uncommitted .a-team adds when on the base branch, overlays live worktrees per ticket, and falls back to the working tree when the workspace is not a git repo root with that ref. Verified: (A) pointing at a worktree on feat/T-016 (T-016 'active' on disk) returns T-016 'ready' from the base ref — the view no longer follows the churned working tree; (B) pointing at main (worktree present) returns 'active' with worktree provenance — overlay preserved. All 32 repo tests pass incl. ui-data.test.ts; build:cli + build:ui clean. |
+| The returned baseline reflects the configured `git.base_branch`, resolved via | readWorkspace derives the baseline from the configured base ref via git plumbing (ls-tree/show, no checkout), unions uncommitted .a-team adds when on the base branch, overlays live worktrees per ticket, and falls back to the working tree when the workspace is not a git repo root with that ref. Verified: (A) pointing at a worktree on feat/T-016 (T-016 'active' on disk) returns T-016 'ready' from the base ref — the view no longer follows the churned working tree; (B) pointing at main (worktree present) returns 'active' with worktree provenance — overlay preserved. All 32 repo tests pass incl. ui-data.test.ts; build:cli + build:ui clean. |
+| A finding created via `finding new` but not yet committed appears | readWorkspace derives the baseline from the configured base ref via git plumbing (ls-tree/show, no checkout), unions uncommitted .a-team adds when on the base branch, overlays live worktrees per ticket, and falls back to the working tree when the workspace is not a git repo root with that ref. Verified: (A) pointing at a worktree on feat/T-016 (T-016 'active' on disk) returns T-016 'ready' from the base ref — the view no longer follows the churned working tree; (B) pointing at main (worktree present) returns 'active' with worktree provenance — overlay preserved. All 32 repo tests pass incl. ui-data.test.ts; build:cli + build:ui clean. |
+| Active worktrees are overlaid as in-flight entities with visible | readWorkspace derives the baseline from the configured base ref via git plumbing (ls-tree/show, no checkout), unions uncommitted .a-team adds when on the base branch, overlays live worktrees per ticket, and falls back to the working tree when the workspace is not a git repo root with that ref. Verified: (A) pointing at a worktree on feat/T-016 (T-016 'active' on disk) returns T-016 'ready' from the base ref — the view no longer follows the churned working tree; (B) pointing at main (worktree present) returns 'active' with worktree provenance — overlay preserved. All 32 repo tests pass incl. ui-data.test.ts; build:cli + build:ui clean. |
+
+### Verification performed
+
+readWorkspace derives the baseline from the configured base ref via git plumbing (ls-tree/show, no checkout), unions uncommitted .a-team adds when on the base branch, overlays live worktrees per ticket, and falls back to the working tree when the workspace is not a git repo root with that ref. Verified: (A) pointing at a worktree on feat/T-016 (T-016 'active' on disk) returns T-016 'ready' from the base ref — the view no longer follows the churned working tree; (B) pointing at main (worktree present) returns 'active' with worktree provenance — overlay preserved. All 32 repo tests pass incl. ui-data.test.ts; build:cli + build:ui clean.
+
+### Deviations
+
+None.
+
+### Findings created
+
+None.
+
+### Known concerns
+
+None.

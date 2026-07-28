@@ -19,11 +19,11 @@ None.
 
 ## Active tickets
 
-- T-016-a-team-ui-reads-state-from-a-churning-working-tree-so-findin
+None.
 
 ## Review
 
-None.
+- T-016-a-team-ui-reads-state-from-a-churning-working-tree-so-findin
 
 ## Blocked
 

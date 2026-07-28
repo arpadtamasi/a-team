@@ -3,13 +3,16 @@ id: F-012
 title: >-
   Bare numeric IDs are unusable as human references — always show the title
   alongside the id
-status: new
+status: resolved
 origin: agent
 finding_type: improvement
 confidence: high
 severity: medium
 discovered_during: null
 created_at: '2026-07-28'
+disposition: create-ticket
+resolved_at: '2026-07-28T08:59:52.645Z'
+ticket: T-018
 ---
 # F-012 — Bare numeric IDs are unusable as human references — always show the title alongside the id
 

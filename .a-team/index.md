@@ -38,3 +38,4 @@ None.
 - F-009-ui-has-no-decisions-surface-d-xxx-records-are-invisible-in-t
 - F-010-the-local-ui-is-visually-overcrowded-needs-a-density-hierarc
 - F-011-task-detail-drawer-is-a-flat-wall-large-entities-need-hierar
+- F-012-bare-numeric-ids-are-unusable-as-human-references-always-sho

@@ -39,3 +39,4 @@ None.
 - F-010-the-local-ui-is-visually-overcrowded-needs-a-density-hierarc
 - F-011-task-detail-drawer-is-a-flat-wall-large-entities-need-hierar
 - F-013-bare-ids-in-agent-text-surfaces-cli-output-index-commits-cha
+- F-014-a-team-ui-does-not-open-the-browser-auto-open-the-served-url

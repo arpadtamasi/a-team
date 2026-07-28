@@ -30,3 +30,19 @@ High: the evidence is directly observable.
 ## Suggested disposition
 
 Investigate and create the smallest appropriate ticket after human approval.
+
+## Suggested direction
+
+Reframe (operator, 2026-07-28): the D-records are not a change-log — they are the
+project's **principles** (durable, cross-cutting standing rules: "identity =
+ULID", "intake to base ref", "two gates", …). So they deserve a **dedicated,
+first-class surface** — a **Principles page** in the nav — not a list buried
+under an existing stage.
+
+This is a control-plane concept, not decoration: the operator directs the agent
+swarm through two durable-vs-per-task surfaces — **contracts** (per ticket, the
+"how" of one task) and **principles** (standing, the "rules everything obeys").
+Principles are the constitution the swarm runs under; the UI should make them as
+visible and navigable as the work itself, and resolve D- links (fold into F-012's
+entity-link work). Ties to the positioning: contracts + principles = how a human
+steers a swarm without supervising it.

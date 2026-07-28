@@ -3,7 +3,7 @@ id: T-018
 title: >-
   Bare numeric IDs are unusable as human references — always show the title
   alongside the id
-status: review
+status: done
 origin: finding
 types:
   - feature
@@ -19,6 +19,7 @@ created_at: '2026-07-28'
 updated_at: '2026-07-28'
 source_finding: F-012
 assigned_agent: claude
+resolution: completed
 ---
 # T-018 — Bare numeric IDs are unusable as human references — always show the title alongside the id
 

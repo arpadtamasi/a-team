@@ -24,7 +24,7 @@ None.
 
 ## Review
 
-- T-018-bare-numeric-ids-are-unusable-as-human-references-always-sho
+None.
 
 ## Blocked
 

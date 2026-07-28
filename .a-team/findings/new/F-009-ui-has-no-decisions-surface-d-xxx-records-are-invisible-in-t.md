@@ -46,3 +46,13 @@ Principles are the constitution the swarm runs under; the UI should make them as
 visible and navigable as the work itself, and resolve D- links (fold into F-012's
 entity-link work). Ties to the positioning: contracts + principles = how a human
 steers a swarm without supervising it.
+
+Completion (operator, 2026-07-28): a decision's **scope** decides its home, so the
+decisions surface is **two-fold**, not one page:
+- **principle** (global, cross-cutting) → the dedicated **Principles page**;
+- **entity-scoped** decision (made for a specific ticket/finding/package) → shown
+  **on that entity's detail**, where it belongs — not on the global page.
+A ticket's resolved "Open decisions" are exactly its entity-scoped D-records
+(cf. D-004: an open question → a decision, scoped to whatever raised it). So the
+UI needs both: a Principles page for global rules, and per-entity decision
+attachment in the T-017 drawer.

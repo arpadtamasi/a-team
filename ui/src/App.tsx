@@ -36,6 +36,11 @@ type Thread = { scope: string; kind: ThreadKind; agent: Agent; draft: string; me
 type ThreadKind = "workspace" | "ticket" | "package" | "finding";
 
 const ENTITY_PATTERN = /\b(?:O-\d+(?:\.\d+)?|T-\d+|F-\d+|P-\d+)\b/g;
+const entityTitles = new Map<string, string>();
+function entityLabel(id: string): string {
+  const title = entityTitles.get(id);
+  return title ? `${id} — ${title}` : id;
+}
 const GAP = "[backend-gap]";
 
 /* ── Markdown + entity links ─────────────────────────── */
@@ -71,7 +76,7 @@ function MarkdownContent({ value, onEntity, onSource, className = "" }: { value:
     components={{ a: ({ href = "", children }) => {
       const label = String(children);
       const entityId = href.startsWith("entity:") ? href.slice(7) : label.match(ENTITY_PATTERN)?.[0];
-      if (entityId) return <button type="button" className={`inline-entity ent-${stampSuffix(entityId)}`} onClick={() => onEntity(entityId)}>{children}</button>;
+      if (entityId) return <button type="button" className={`inline-entity ent-${stampSuffix(entityId)}`} title={entityLabel(entityId)} onClick={() => onEntity(entityId)}>{children}</button>;
       if (/\.md(?:#.*)?$/i.test(href)) return <button type="button" className="inline-entity" onClick={() => onSource({ path: href.split("#")[0] })}>{children}</button>;
       if (/^https?:|^mailto:/.test(href)) return <a href={href} target="_blank" rel="noreferrer noopener">{children}</a>;
       return <span>{children}</span>;
@@ -151,8 +156,8 @@ function Eid({ id, onClick, dark, label }: { id: string; onClick?: () => void; d
   const cls = `eid stamp-${stampSuffix(id)}${dark ? " on-dark" : ""}`;
   const text = label ?? id;
   return onClick
-    ? <button type="button" className={cls} onClick={onClick}>{text}</button>
-    : <span className={cls}>{text}</span>;
+    ? <button type="button" className={cls} title={entityLabel(id)} onClick={onClick}>{text}</button>
+    : <span className={cls} title={entityLabel(id)}>{text}</span>;
 }
 
 /* ══ Stage rail ═════════════════════════════════════════ */
@@ -816,7 +821,7 @@ function titleCase(value: string): string {
 }
 function InlineIds({ text, onEntity }: { text: string; onEntity: (id: string) => void }) {
   return <>{text.split(ID_SPLIT).map((part, i) => ID_TEST.test(part)
-    ? <button key={i} type="button" className="inline-entity mono" onClick={() => onEntity(part)}>{part}</button>
+    ? <button key={i} type="button" className="inline-entity mono" title={entityLabel(part)} onClick={() => onEntity(part)}>{part}</button>
     : part)}</>;
 }
 function EntityDrawer({ id, workspace, onClose, onEntity, onSource, onDiscuss }: {
@@ -921,6 +926,12 @@ export function App() {
 
   const ticketMap = useMemo(() => new Map((workspace?.tickets ?? []).map((t) => [t.id, t])), [workspace]);
   const packageMap = useMemo(() => new Map((workspace?.packages ?? []).map((p) => [p.id, p])), [workspace]);
+  useMemo(() => {
+    entityTitles.clear();
+    (workspace?.tickets ?? []).forEach((t) => entityTitles.set(t.id, t.title));
+    (workspace?.packages ?? []).forEach((p) => entityTitles.set(p.id, p.title));
+    (workspace?.findings ?? []).forEach((f) => entityTitles.set(f.id, f.title));
+  }, [workspace]);
 
   const openThread = useCallback((scope: string) => {
     const kind = scopeKind(scope);

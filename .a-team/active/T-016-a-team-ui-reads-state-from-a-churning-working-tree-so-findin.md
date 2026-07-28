@@ -3,7 +3,7 @@ id: T-016
 title: >-
   a-team ui reads state from a churning working tree, so findings flicker/vanish
   from the UI
-status: ready
+status: active
 origin: finding
 types:
   - feature
@@ -13,11 +13,12 @@ risk: medium
 package: null
 depends_on: []
 blocks: []
-branch: null
+branch: feat/T-016-a-team-ui-reads-state-from-a-churning-working-tree-so-findin
 pull_request: null
 created_at: '2026-07-26'
-updated_at: '2026-07-26'
+updated_at: '2026-07-28'
 source_finding: F-006
+assigned_agent: claude
 ---
 # T-016 — a-team ui reads state from a churning working tree, so findings flicker/vanish from the UI
 

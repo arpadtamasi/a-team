@@ -1,0 +1,5 @@
+ticket: T-016
+agent: claude
+branch: feat/T-016-a-team-ui-reads-state-from-a-churning-working-tree-so-findin
+worktree: .worktrees/T-016
+started_at: 2026-07-28T16:19:25.582Z

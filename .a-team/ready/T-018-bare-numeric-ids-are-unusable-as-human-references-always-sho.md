@@ -3,7 +3,7 @@ id: T-018
 title: >-
   Bare numeric IDs are unusable as human references — always show the title
   alongside the id
-status: backlog
+status: ready
 origin: finding
 types:
   - feature

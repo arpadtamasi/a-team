@@ -116,10 +116,10 @@ function relativeTime(iso?: string | null): string {
 }
 const pkgModeSummary = (p: Package) => `${pkgMode(p)} · parallelism ${pkgParallelism(p)} · ${pkgStop(p) ? "stop on failure" : "continue on failure"}`;
 
-function computeWaves(members: Ticket[]): Ticket[][] {
+function computeWaves(members: Ticket[], includeDone = false): Ticket[][] {
   const memberIds = new Set(members.map((t) => t.id));
   const placed = new Set<string>();
-  let pool = members.filter((t) => t.status !== "done");
+  let pool = includeDone ? [...members] : members.filter((t) => t.status !== "done");
   if (!pool.length) pool = [...members];
   const waves: Ticket[][] = [];
   let guard = 0;
@@ -133,10 +133,37 @@ function computeWaves(members: Ticket[]): Ticket[][] {
   return waves;
 }
 
+function waveLabel(wave: Ticket[]): string {
+  const done = wave.filter((t) => t.status === "done").length;
+  const open = wave.length - done;
+  if (!done) return `${open} parallel`;
+  if (!open) return `${done} done`;
+  return `${open} parallel · ${done} done`;
+}
+
+function WaveGraph({ members, onEntity }: { members: Ticket[]; onEntity: (id: string) => void }) {
+  const waves = computeWaves(members, true);
+  if (waves.length === 0) return <div className="pane-empty" style={{ padding: 0 }}>No members to sequence.</div>;
+  return <div className="graph scroll">
+    {waves.map((wave, wi) => <div key={wi} className="graph__col">
+      <div className="graph__wave">
+        <div className="graph__wave-label">wave {wi + 1} · {waveLabel(wave)}</div>
+        {wave.map((t) => <button type="button" key={t.id} className={`graph__node node-${stateOf(t)}`} style={{ textAlign: "left", cursor: "pointer" }} onClick={() => onEntity(t.id)}>
+          <div className="graph__node-id"><span className="eid stamp-t">{t.id}</span><StateChip ticket={t} /></div>
+          <div className="graph__node-short">{t.title.split(" ").slice(0, 6).join(" ")}…</div>
+        </button>)}
+      </div>
+      {wi < waves.length - 1 && <div className="graph__arrow">→</div>}
+    </div>)}
+  </div>;
+}
+
 /* ── Small presentational bits ───────────────────────── */
+/* Display label only — the stored status stays `ready` until the rename ticket lands. */
+const stateLabel = (s: Status | "blocked") => (s === "ready" ? "defined" : s);
 function StateChip({ ticket }: { ticket: Ticket }) {
   const s = stateOf(ticket);
-  return <span className={`state state-${s}`}>{s}</span>;
+  return <span className={`state state-${s}`}>{stateLabel(s)}</span>;
 }
 function ClaimDot({ agent }: { agent?: string }) {
   const cls = agent === "codex" ? "dot-codex" : agent === "claude" ? "dot-claude" : "dot-none";
@@ -206,7 +233,7 @@ function NeedsStrip({ items, running, ready, onSearch }: {
   return <div className="needs">
     <div className="needs__label"><div className="kicker">attention</div><b>Needs you</b></div>
     {empty
-      ? <div className="needs__empty"><b>Nothing needs you.</b><span>{running} running · {ready} ready to launch</span></div>
+      ? <div className="needs__empty"><b>Nothing needs you.</b><span>{running} running · {ready} defined and waiting</span></div>
       : <div className="needs__items">{items.map((item) => <button key={item.label} type="button" className={`needs__item ${item.n === 0 ? "is-zero" : ""} ${item.hot && item.n ? "is-hot" : ""}`} onClick={item.go}>
         <span className="needs__item-n">{item.n}</span>
         <span className="needs__item-txt"><b>{item.label}</b><span>→ {item.dest}</span></span>
@@ -339,7 +366,7 @@ function ShapeStage({ workspace, packageMap, validated, onValidate, onEntity, on
               <span className="mono" style={{ opacity: .55 }}>{dependsLabel(t)}</span>
               <span className="tk-row__actions">
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => onDiscuss(t.id)}>Shape with agent</button>
-                <button type="button" className="btn btn-primary btn-sm" disabled={v?.status === "checking"} onClick={() => onValidate(t)}>{v?.status === "checking" ? "Checking…" : "Validate → Ready"}</button>
+                <button type="button" className="btn btn-primary btn-sm" disabled={v?.status === "checking"} onClick={() => onValidate(t)}>{v?.status === "checking" ? "Checking…" : "Validate → Defined"}</button>
               </span>
             </div>
             {v?.status === "fail" && v.issues && <div className="callout-fail">
@@ -351,10 +378,10 @@ function ShapeStage({ workspace, packageMap, validated, onValidate, onEntity, on
         })}
       </div>
       <div className="shape__pane">
-        <div className="subhead"><b>Ready</b><span className="count accent">{ready.length}</span><span className="note">executable · grouped by package</span><span className="path">tickets/ready/</span></div>
+        <div className="subhead"><b>Defined</b><span className="count accent">{ready.length}</span><span className="note">executable · grouped by package</span><span className="path">tickets/ready/</span></div>
         {ready.length === 0 && <div className="pane-empty">Human approval has not moved any ticket here yet.</div>}
         {[...readyByPkg.entries()].map(([pkgId, rows]) => <div key={pkgId} className="ready-group">
-          <div className="ready-group__head"><Eid id={pkgId} /><span style={{ fontSize: 12, fontWeight: 600 }}>{packageMap.get(pkgId)?.title ?? "Package"}</span><span className="note">{rows.length} ready</span></div>
+          <div className="ready-group__head"><Eid id={pkgId} /><span style={{ fontSize: 12, fontWeight: 600 }}>{packageMap.get(pkgId)?.title ?? "Package"}</span><span className="note">{rows.length} defined</span></div>
           {rows.map((t) => <div key={t.id} className="tk-row">
             <div className="tk-row__top"><Eid id={t.id} onClick={() => onEntity(t.id)} /><span className="tk-row__title">{t.title}</span></div>
             <div className="tk-row__meta"><span className="tag tag-neutral">{t.types[0] ?? "ticket"}</span><span className="mono">P{t.priority} · risk {t.risk}</span><span className="mono" style={{ opacity: .55 }}>{dependsLabel(t)}</span>
@@ -362,7 +389,7 @@ function ShapeStage({ workspace, packageMap, validated, onValidate, onEntity, on
           </div>)}
         </div>)}
         {unpackaged.length > 0 && <div className="ready-group">
-          <div className="ready-group__head is-unpackaged"><span className="mono">—</span><span style={{ fontSize: 12, fontWeight: 600 }}>Unpackaged and ready</span><span className="note">a decision waiting to happen</span></div>
+          <div className="ready-group__head is-unpackaged"><span className="mono">—</span><span style={{ fontSize: 12, fontWeight: 600 }}>Unpackaged and defined</span><span className="note">a decision waiting to happen</span></div>
           {unpackaged.map((t) => <div key={t.id} className="tk-row">
             <div className="tk-row__top"><Eid id={t.id} onClick={() => onEntity(t.id)} /><span className="tk-row__title">{t.title}</span></div>
             <div className="tk-row__meta"><span className="tag tag-neutral">{t.types[0] ?? "ticket"}</span><span className="mono">P{t.priority} · risk {t.risk}</span><span className="mono" style={{ opacity: .55 }}>{dependsLabel(t)}</span>
@@ -408,9 +435,8 @@ function PackagesStage({ workspace, ticketMap, selected, onSelect, onEntity, onS
     const launchable = allReady && active.status === "backlog";
     const launchReason = active.status === "active" ? "Already running — see Run. Launch is disabled while a run is in flight."
       : active.status === "done" ? "Package is done. Its members are archived in Done."
-        : members.length === 0 ? "No members yet. Add ready tickets before launch."
+        : members.length === 0 ? "No members yet. Add defined tickets before launch."
           : `${backlogMembers.length} member ticket${backlogMembers.length === 1 ? "" : "s"} still in backlog. Validate them in Shape before launch.`;
-    const nodeClass = (t: Ticket) => (t.status === "active" ? "node-active" : t.status === "ready" ? "node-ready" : t.status === "done" ? "node-done" : "");
     const available = workspace.tickets.filter((t) => !active.tickets.includes(t.id) && t.status !== "done");
 
     return <div className="pkg-detail">
@@ -428,18 +454,7 @@ function PackagesStage({ workspace, ticketMap, selected, onSelect, onEntity, onS
         <div className="pkg-body__main">
           <div className="pkg-block">
             <div className="pkg-block__head"><b>Execution order</b><span>derived from depends_on · columns run in parallel</span></div>
-            {waves.length === 0 ? <div className="pane-empty" style={{ padding: 0 }}>No members to sequence.</div> : <div className="graph scroll">
-              {waves.map((wave, wi) => <div key={wi} className="graph__col">
-                <div className="graph__wave">
-                  <div className="graph__wave-label">wave {wi + 1} · {wave.length} parallel</div>
-                  {wave.map((t) => <button type="button" key={t.id} className={`graph__node ${nodeClass(t)}`} style={{ textAlign: "left", cursor: "pointer", border: "1px solid var(--line)", borderLeftWidth: 3 }} onClick={() => onEntity(t.id)}>
-                    <div className="graph__node-id"><span className="eid stamp-t">{t.id}</span><span className="st">{stateOf(t)}</span></div>
-                    <div className="graph__node-short">{t.title.split(" ").slice(0, 6).join(" ")}…</div>
-                  </button>)}
-                </div>
-                {wi < waves.length - 1 && <div className="graph__arrow">→</div>}
-              </div>)}
-            </div>}
+            <WaveGraph members={members} onEntity={onEntity} />
           </div>
           <div className="pkg-block" style={{ borderBottom: 0 }}>
             <div className="pkg-block__head"><b>Members</b><span className="mono">{members.length} tickets</span>
@@ -482,7 +497,7 @@ function PackagesStage({ workspace, ticketMap, selected, onSelect, onEntity, onS
           <div className="launch">
             <h5>Launch</h5>
             {launchable ? <>
-              <p>All {members.length} members are ready and validated. Hand the batch to the machine.</p>
+              <p>All {members.length} members are defined and validated. Hand the batch to the machine.</p>
               <button type="button" className="btn btn-primary btn-block" onClick={() => setPreflight((v) => !v)}>▶ Launch package</button>
             </> : <>
               <button type="button" className="btn btn-primary btn-block" disabled>▶ Launch package</button>
@@ -587,6 +602,7 @@ function RunStage({ workspace, packageMap, ticketMap, onEntity, onSource, onDisc
   workspace: Workspace; packageMap: Map<string, Package>; ticketMap: Map<string, Ticket>; onEntity: (id: string) => void; onSource: (r: SourceReference) => void; onDiscuss: (id: string) => void; onOpenMigration: () => void; driftOpen: boolean; setDriftOpen: (v: boolean) => void;
 }) {
   const [openRow, setOpenRow] = useState<string | null>(null);
+  const [selectedPkg, setSelectedPkg] = useState<string | null>(null);
   const diagnostics = workspace.diagnostics ?? [];
   const diagById = new Map(diagnostics.map((d) => [d.id, d]));
   const runTickets = workspace.tickets.filter((t) => ["active", "review"].includes(t.status) || t.blocked);
@@ -595,6 +611,7 @@ function RunStage({ workspace, packageMap, ticketMap, onEntity, onSource, onDisc
   const blockedCount = runTickets.filter((t) => t.blocked).length;
 
   const runPackages = workspace.packages.filter((p) => p.status === "active" || runTickets.some((t) => t.package === p.id));
+  const firstRunPkg = runPackages.find((p) => p.tickets.some((id) => runTickets.some((t) => t.id === id)))?.id ?? null;
   const looseTickets = runTickets.filter((t) => !t.package);
   const migrationCount = workspace.tickets.filter((t) => t.migration?.split).length;
 
@@ -636,20 +653,27 @@ function RunStage({ workspace, packageMap, ticketMap, onEntity, onSource, onDisc
       </div>}
     </div>}
 
-    {runPackages.length === 0 && looseTickets.length === 0 && <div className="pane-empty" style={{ padding: "24px 22px" }}>Nothing is running. Launch a ready package from Packages.</div>}
+    {runPackages.length === 0 && looseTickets.length === 0 && <div className="pane-empty" style={{ padding: "24px 22px" }}>Nothing is running. Launch a defined package from Packages.</div>}
 
     {runPackages.map((p) => {
-      const rows = p.tickets.map((id) => ticketMap.get(id)).filter((t): t is Ticket => Boolean(t) && (["active", "review"].includes(t!.status) || Boolean(t!.blocked)));
+      const members = p.tickets.map((id) => ticketMap.get(id)).filter((t): t is Ticket => Boolean(t));
+      const rows = members.filter((t) => ["active", "review"].includes(t.status) || Boolean(t.blocked));
       if (rows.length === 0) return null;
-      const done = p.tickets.map((id) => ticketMap.get(id)).filter((t) => t?.status === "done").length;
-      return <div key={p.id} className="run-pkg">
-        <div className="run-pkg__head">
+      const done = members.filter((t) => t.status === "done").length;
+      const selected = (selectedPkg ?? firstRunPkg) === p.id;
+      return <div key={p.id} className={`run-pkg ${selected ? "is-selected" : ""}`}>
+        <button type="button" className="run-pkg__head" onClick={() => setSelectedPkg(p.id)}>
+          <span className="caret">{selected ? "▾" : "▸"}</span>
           <Eid id={p.id} dark /><span className="title">{p.title}</span><span className="mode">{pkgModeSummary(p)}</span>
           <span className="right">
             <span className="progress-txt">{done}/{p.tickets.length} done · {rows.filter((t) => t.status === "active").length} active · {rows.filter((t) => t.status === "review").length} review</span>
-            <button type="button" className="ghost-btn" onClick={() => onDiscuss(p.id)}>Package thread</button>
+            <span className="ghost-btn" role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); onDiscuss(p.id); }} onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onDiscuss(p.id); } }}>Package thread</span>
           </span>
-        </div>
+        </button>
+        {selected && <div className="run-pkg__graph">
+          <div className="pkg-block__head"><b>Execution order</b><span>derived from depends_on · columns run in parallel</span></div>
+          <WaveGraph members={members} onEntity={onEntity} />
+        </div>}
         <div className="run-head-row run-cols"><span>id</span><span>ticket</span><span>state</span><span>claim</span><span>branch</span><span>worktree</span><span>activity</span></div>
         {rows.map(renderRow)}
       </div>;
@@ -803,7 +827,7 @@ function MigrationDrawer({ migration, onClose, onEntity, onSource }: { migration
       <button type="button" className="btn btn-secondary btn-icon drawer__close" onClick={onClose} aria-label="Close">✕</button>
       <div className="drawer__eyebrow"><span className="tag tag-outline">migration log</span><span>{migration.split_audit.length} decisions</span></div>
       <h2>Where the old board changed shape</h2>
-      <p style={{ opacity: .75, marginTop: -8 }}>Source truth is preserved. Compound work becomes packages or independent tickets; nothing is silently promoted to Ready.</p>
+      <p style={{ opacity: .75, marginTop: -8 }}>Source truth is preserved. Compound work becomes packages or independent tickets; nothing is silently promoted to Defined.</p>
       <section style={{ borderTop: 0 }}>{migration.split_audit.map((split) => <div key={split.legacy_id} className="split-item">
         <div className="split-item__top"><button type="button" className="inline-entity mono" onClick={() => onEntity(split.legacy_id)}>{split.legacy_id}</button><span className="disp">{split.disposition}</span></div>
         <MarkdownContent value={split.reason} onEntity={onEntity} onSource={onSource} />
@@ -957,8 +981,8 @@ export function App() {
       const response = await fetch("/api/ticket/ready", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ticketId: ticket.id }) });
       const result = await response.json() as { ok?: boolean; errors?: Array<{ code?: string; message?: string }> };
       if (!response.ok || result.ok === false) {
-        const issues = (result.errors ?? []).map((e) => ({ field: e.code || "ready", text: e.message || e.code || "Ready validation failed." }));
-        setValidated((v) => ({ ...v, [ticket.id]: { status: "fail", issues: issues.length ? issues : [{ field: "ready", text: "Ready validation failed." }] } }));
+        const issues = (result.errors ?? []).map((e) => ({ field: e.code || "ready", text: e.message || e.code || "Definition check failed." }));
+        setValidated((v) => ({ ...v, [ticket.id]: { status: "fail", issues: issues.length ? issues : [{ field: "ready", text: "Definition check failed." }] } }));
       } else setValidated((v) => ({ ...v, [ticket.id]: { status: "ok" } }));
     } catch (reason) {
       setValidated((v) => ({ ...v, [ticket.id]: { status: "fail", issues: [{ field: "error", text: reason instanceof Error ? reason.message : String(reason) }] } }));

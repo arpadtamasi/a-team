@@ -39,3 +39,4 @@ None.
 - F-011-task-detail-drawer-is-a-flat-wall-large-entities-need-hierar
 - F-013-bare-ids-in-agent-text-surfaces-cli-output-index-commits-cha
 - F-014-a-team-ui-does-not-open-the-browser-auto-open-the-served-url
+- F-015-a-team-s-default-framing-is-waterfall-ish-make-discovery-fir

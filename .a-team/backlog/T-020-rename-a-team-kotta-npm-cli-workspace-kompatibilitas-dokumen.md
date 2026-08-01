@@ -8,7 +8,7 @@ types:
 profiles: []
 priority: medium
 risk: medium
-package: null
+package: P-004
 depends_on: []
 blocks: []
 branch: null

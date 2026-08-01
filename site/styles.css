@@ -85,10 +85,7 @@ code { font-family: var(--mono); }
   display: inline-flex; align-items: center; gap: 10px;
   color: var(--ink); text-decoration: none;
 }
-.wordmark-badge {
-  display: grid; place-items: center; width: 30px; height: 30px;
-  background: var(--ink); color: var(--bg); font-weight: 800; font-size: 15px;
-}
+.wordmark-mark { display: block; width: 30px; height: 30px; flex: none; }
 .wordmark-text {
   font-weight: 800; font-size: 17px; letter-spacing: -0.01em;
   text-transform: uppercase;

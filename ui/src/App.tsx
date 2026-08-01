@@ -188,6 +188,20 @@ function Eid({ id, onClick, dark, label }: { id: string; onClick?: () => void; d
 }
 
 /* ══ Stage rail ═════════════════════════════════════════ */
+/* The mark is a staff: three rules, one red head standing on the middle one.
+   Reversed here — the rail is ink, so the ground is paper. See assets/brand. */
+function BrandMark() {
+  return <svg className="rail__mark" viewBox="0 0 30 30" aria-hidden="true" focusable="false">
+    <rect width="30" height="30" fill="#f3f2f2" />
+    <g fill="#201e1d">
+      <rect y="8" width="30" height="2" />
+      <rect y="14" width="30" height="2" />
+      <rect y="20" width="30" height="2" />
+    </g>
+    <rect x="16" y="12" width="6" height="6" fill="#ec3013" />
+  </svg>;
+}
+
 function Rail({ project, stage, counts, onStage, onShortcuts, refreshed }: {
   project: string; stage: Stage; counts: Record<Stage, number>; onStage: (s: Stage) => void; onShortcuts: () => void; refreshed: number;
 }) {
@@ -200,6 +214,7 @@ function Rail({ project, stage, counts, onStage, onShortcuts, refreshed }: {
   ];
   return <nav className="rail">
     <div className="rail__head">
+      <div className="rail__brand"><BrandMark /><span className="rail__brand-name">Kotta</span></div>
       <div className="kicker">workspace</div>
       <div className="rail__ws">{project}</div>
     </div>

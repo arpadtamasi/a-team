@@ -150,9 +150,6 @@ button.eid:hover { filter: brightness(1.12); }
 
 /* ── Stage rail ──────────────────────────────────────── */
 .rail { background: var(--rail); color: var(--rail-fg); display: flex; flex-direction: column; overflow: hidden; }
-.rail__brand { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 2px solid rgba(243,242,242,.25); }
-.rail__mark { display: block; width: 26px; height: 26px; flex: none; }
-.rail__brand-text { font-size: 14px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }
 .rail__head { padding: 14px 14px 12px; border-bottom: 2px solid rgba(243,242,242,.25); }
 .rail__head .kicker { color: rgba(243,242,242,.55); margin-bottom: 3px; }
 .rail__brand { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }

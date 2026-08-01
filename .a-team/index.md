@@ -49,3 +49,4 @@ None.
 - F-022-state-gates-are-bypassable-because-the-store-is-the-filesyst
 - F-023-the-cli-is-not-reachable-where-the-work-happens-and-the-skil
 - F-024-the-operator-works-in-sweeps-and-batch-decisions-the-tool-is
+- F-025-progos-as-first-kotta-publisher-mcp-kottas-for-standard-sme-

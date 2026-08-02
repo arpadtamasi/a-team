@@ -216,6 +216,41 @@ export function closeTicket(id: string, approved: boolean) {
   return { ok: true, command: "ticket close", data: { id, resolution: "completed" } };
 }
 
+const CANCEL_RESOLUTIONS = ["duplicate", "obsolete", "cancelled"] as const;
+
+export function cancelTicket(id: string, resolution: string, approved: boolean, repositoryRoot?: string) {
+  const root = repositoryRoot ?? findRepositoryRoot();
+  if (!CANCEL_RESOLUTIONS.includes(resolution as (typeof CANCEL_RESOLUTIONS)[number])) throw new Error(`Cancel resolution must be one of ${CANCEL_RESOLUTIONS.join(", ")}; got '${resolution}'.`);
+  const ticket = findTicket(root, id);
+  if (!["backlog", "ready"].includes(ticket.state)) throw new Error(`Ticket ${id} can only be cancelled from backlog or ready; ${ticket.state} tickets exit through reopen/close.`);
+  if (!approved) throw new Error("Human cancel approval is required. Re-run with --approve after confirming the ticket should be retired.");
+  const claimPath = join(root, ".a-team/claims", `${id}.yaml`);
+  if (existsSync(claimPath)) throw new Error(`Ticket ${id} has a claim; a claimed ticket cannot be cancelled.`);
+  assertClean(root);
+  const entity = parseMarkdown(readFileSync(ticket.path, "utf8"));
+  entity.data.status = "done";
+  entity.data.resolution = resolution;
+  entity.data.updated_at = new Date().toISOString().slice(0, 10);
+  const doneDirectory = join(root, ".a-team/done");
+  mkdirSync(doneDirectory, { recursive: true });
+  const destination = join(doneDirectory, ticket.filename);
+  const candidate = `${destination}.cancel-${process.pid}.tmp`;
+  writeFileSync(candidate, renderMarkdown(entity.data, entity.content));
+  try {
+    assertValid(validateTicketFile(candidate, "done"));
+    renameSync(candidate, destination);
+  } catch (error) {
+    if (existsSync(candidate)) unlinkSync(candidate);
+    throw error;
+  }
+  unlinkSync(ticket.path);
+  updateContainingPackage(root, id);
+  regenerateIndex(root);
+  git(root, ["add", ".a-team"]);
+  git(root, ["commit", "-m", `chore(a-team): cancel ${id} (${resolution})`]);
+  return { ok: true, command: "ticket cancel", data: { id, resolution, path: destination } };
+}
+
 export function reopenTicket(id: string, approved: boolean) {
   const root = findRepositoryRoot();
   const ticket = findTicket(root, id);

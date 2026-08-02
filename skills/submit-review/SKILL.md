@@ -15,7 +15,7 @@ Use `kotta contract review` for the lifecycle mutation. Do not move the contract
 6. Add the review evidence required by the CLI: acceptance mapping, verification performed, deviations, observations created, and known concerns.
 7. Run `kotta contract review <contract-id>` with supported evidence and pull-request options; use `--json` for automation.
 
-You have a declaration duty for deviations. The CLI never asserts "None." on your behalf: if you omit `--deviations`, the contract records "Not declared.", which is an incomplete review, not a clean one. Compare the implementation against the contract contract and pass `--deviations` with an honest statement — every deviation listed explicitly, or exactly "None." only when you verified there are none. The same duty applies to `--observations-created` and `--known-concerns`.
+You have a declaration duty for deviations. The CLI never asserts "None." on your behalf: if you omit `--deviations`, the contract records "Not declared.", which is an incomplete review, not a clean one. Compare the implementation against the contract and pass `--deviations` with an honest statement — every deviation listed explicitly, or exactly "None." only when you verified there are none. The same duty applies to `--observations-created` and `--known-concerns`.
 8. Verify that the contract is in review and the claim remains in place.
 
 Do not claim acceptance or integration. If checks fail or evidence is incomplete, keep the contract active and report the corrective action.

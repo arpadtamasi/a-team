@@ -125,7 +125,10 @@ contract
   .option("--json")
   .action((id: string, options: { from: string; json?: boolean }) => print(defineContract(id, options.from), Boolean(options.json)));
 contract
+  // `define` writes the contract; `sign` is the human gate that makes it binding and moves it to
+  // `defined`. Two different acts, so two different verbs (D-01kz240dn155hb97h6px6n2p85).
   .command("sign <id>")
+  .description("Human gate: sign a validated backlog contract, moving it to defined")
   .option("--approve")
   .option("--json")
   .action((id: string, options: { approve?: boolean; json?: boolean }) => print(signContract(id, Boolean(options.approve)), Boolean(options.json)));
@@ -150,7 +153,7 @@ contract
   .command("review <id>")
   .requiredOption("--evidence <evidence>")
   .option("--pull-request <identifier>")
-  .option("--deviations <text>", "Declared deviations from the contract contract; omitted means 'Not declared.'")
+  .option("--deviations <text>", "Declared deviations from the contract; omitted means 'Not declared.'")
   .option("--observations-created <text>", "Observations created during execution; omitted means 'Not declared.'")
   .option("--known-concerns <text>", "Known concerns left open; omitted means 'Not declared.'")
   .option("--json")
@@ -248,6 +251,7 @@ batchCommand
   .action((id: string, options: { json?: boolean }) => print(validateBatch(id), Boolean(options.json)));
 batchCommand
   .command("sign <id>")
+  .description("Human gate: sign a validated backlog batch, moving it to defined")
   .option("--approve")
   .option("--json")
   .action((id: string, options: { approve?: boolean; json?: boolean }) => print(signBatch(id, Boolean(options.approve)), Boolean(options.json)));

@@ -8,6 +8,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **The vocabulary is now observation / contract / batch, and one command carries any workspace
+  across (D-01kz240dn155hb97h6px6n2p85).** `finding` → **observation**, `ticket` → **contract**,
+  `package` → **batch**, and the previously decided `ready` → `defined` rides along. Every layer moves
+  together: CLI verbs (`kotta observation`, `kotta contract`, `kotta batch`), stored state directories
+  (`defined/`, `observations/`, `batches/`), frontmatter fields (`package` → `batch`,
+  `source_finding` → `source_observation`, a batch's `tickets` → `contracts`, `finding_type` →
+  `observation_type`, a claim's `ticket` → `contract`), the config file (`packages:` → `batches:`,
+  `version: 2`), the JSON schemas, the API routes, the bundled skills and the documentation. The
+  promotion verb needed a new name, because `define` already means writing the contract: a contract
+  becomes binding when it is **signed**, so `kotta contract sign <id> --approve` and
+  `kotta batch sign <id> --approve` produce the `defined` state.
+
+- **`kind` is gone from batches.** With the entity called a batch, `kind: batch` was a tautology and
+  `sprint`/`milestone`/`mission` never carried meaning — all 21 batches in the largest workspace were
+  `kind: batch`. `batch new` no longer accepts `--kind`, the field is out of the schema, and a batch
+  file that still carries it loads with a warning naming `kotta migrate`.
+
+- **Identifiers do not move (D-010).** No id, no filename and no reference *value* changes: this is
+  vocabulary, not identity. `kotta migrate` compares the id set before and after and refuses to lose
+  one.
+
+### Added
+
+- **`kotta migrate`** — one command that takes a workspace from any older shape to the current one:
+  the workspace directory (`.a-team` → `.kotta`), the entity directories, the stored statuses, the
+  frontmatter field names and the config. `--dry-run` reports exactly what it would change and writes
+  nothing; running it twice reports "already on the current shape"; an interrupted run is finished by
+  running it again, because every step is derived from what is on disk rather than from a progress
+  marker. It is the only reader of the old shape — every other command refuses a pre-vocabulary
+  workspace with an error that names it. This repository's own workspace was migrated by running it.
+
+- **The board explains an empty page instead of showing one.** The board reads a stable base ref, not
+  the working tree, so a migration that has not reached that ref yet leaves the header path right and
+  the content gone. `kotta migrate` says so in its output, and `/api/workspace` now carries `notices`
+  that the board renders above everything else — naming which side it read, how many entities the
+  other side has, and what closes the gap.
+
+### Changed (earlier in this release)
+
 - **The product is renamed A-Team → Kotta (D-005, D-006, D-007), and the rename costs an existing
   workspace nothing.** The npm package is now `kotta` (0.3.0) and the old `@arpadtamasi/a-team` is
   deprecated in favour of it; the CLI binary is `kotta`, with `a-team` installed as an alias of the same

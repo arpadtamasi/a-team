@@ -1,6 +1,6 @@
 ---
 name: define-contract
-description: Turn a raw request or backlog item into a concise, evidence-grounded Kotta contract. Use when a user asks to define, refine, clarify, create, update, or make a Kotta contract defined for execution.
+description: Turn a raw request or backlog item into a concise, evidence-grounded Kotta contract. Use when a user asks to define, refine, clarify, create, update, or sign a Kotta contract off for execution.
 ---
 
 # Define a contract

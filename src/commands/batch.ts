@@ -90,7 +90,7 @@ export function newBatch(options: { title: string; goal?: string; parallelism?: 
     authority: { create_observations: true, create_subcontracts: false, reorder_independent_contracts: false, change_scope: false },
     created_at: now, updated_at: now,
   };
-  const content = `# ${id} — ${title}\n\n## Goal\n\n${options.goal?.trim() || "Describe the shared outcome."}\n\n## Completion\n\nAll member contracts satisfy their acceptance contracts.\n\n## Execution notes\n\nMembership and ordering are coordinated by a human.\n`;
+  const content = `# ${id} — ${title}\n\n## Goal\n\n${options.goal?.trim() || "Describe the shared outcome."}\n\n## Completion\n\nAll member contracts satisfy their acceptance conditions.\n\n## Execution notes\n\nMembership and ordering are coordinated by a human.\n`;
   const path = join(directory, filename);
   writeFileSync(path, renderMarkdown(data, content));
   regenerateIndex(root);

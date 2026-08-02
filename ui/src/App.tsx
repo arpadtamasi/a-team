@@ -51,7 +51,7 @@ export type View = "home" | "observations" | "contracts" | "batches" | "decision
 const BUG_REPORT_URL = "https://github.com/arpadtamasi/kotta/issues/new?template=bug.yml";
 /* The one request the board makes. Named so a test can assert nothing else is ever called. */
 export const WORKSPACE_ENDPOINT = "/api/workspace";
-/* Stored state is `defined`; the board says `defined`, as the design does. Renaming the stored value is P-004. */
+/* The stored state and the board's word for it are the same again since T-023: `defined` on disk. */
 const DEFINED: Status = "defined";
 const CONTRACT_STATES: Status[] = ["backlog", "defined", "active", "review", "done"];
 
@@ -271,8 +271,8 @@ export function readBoard(workspace: Workspace): Board {
 }
 
 /* ── Small presentational bits ───────────────────────── */
-/* Display label only — the stored status stays `defined` until the rename contract lands. */
-export const stateLabel = (s: string) => (s === "defined" ? "defined" : s);
+/* The stored status is the label: the vocabulary rename removed the translation layer (T-023). */
+export const stateLabel = (s: string) => s;
 function StateTag({ state }: { state: string }) {
   return <span className={`tag state state-${state}`}>{stateLabel(state)}</span>;
 }
@@ -327,7 +327,7 @@ export function Rail({ view, onView, board, running, onWatch, refreshed }: {
 }) {
   const chain: Array<{ id: View; step: string; label: string; sub: string; count: number | null }> = [
     { id: "observations", step: "01", label: "Observations", sub: "new information", count: board ? board.undisposed.length : null },
-    { id: "contracts", step: "02", label: "Contracts", sub: "contracts", count: board ? board.contracts.length : null },
+    { id: "contracts", step: "02", label: "Contracts", sub: "agreements", count: board ? board.contracts.length : null },
     { id: "batches", step: "03", label: "Batches", sub: "sequencing", count: board ? board.batches.length : null },
   ];
   const runningCount = board ? board.running.length : 0;
@@ -564,7 +564,7 @@ export function ObservationsView({ board, filter, onFilter, onOpen }: {
         <h2>Observations</h2>
         <p>What was noticed, from outside or from inside a run. Each one waits for one yes/no — and stales.</p>
       </div>
-      <div className="view__note">stored as <b>observation</b> on disk<br />rename → observation is a migration</div>
+      <div className="view__note">stored as <b>observation</b> on disk<br />one word, on screen and in the file</div>
     </div>
     <div className="filters">
       <span className="filters__label">disposition</span>
@@ -607,7 +607,7 @@ export function ContractsView({ board, filter, onFilter, query, onQuery, onOpen 
   return <div className="view">
     <div className="view__head">
       <div>
-        <div className="view__step">02 · contracts</div>
+        <div className="view__step">02 · agreements</div>
         <h2>Contracts</h2>
         <p>One entity, five states. Done is a filter value here, not a place of its own.</p>
       </div>

@@ -6,7 +6,7 @@
 // contract is a menu item under "What runs next?", never a queue item under "Waiting on you".
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { HomeView, readBoard } from "../../ui/src/App";
+import { HomeView, WorkspaceNotices, readBoard } from "../../ui/src/App";
 import { observation, batch, contract, workspace } from "./fixtures";
 
 afterEach(cleanup);
@@ -139,5 +139,22 @@ describe("Doesn't add up", () => {
     const contradictions = band("Doesn't add up");
     expect(within(contradictions).getByText("membership")).toBeDefined();
     expect(within(contradictions).getByText("The contract claims a batch that does not list it")).toBeDefined();
+  });
+});
+
+/**
+ * An empty board is ambiguous: an empty workspace and a workspace whose files have not reached the
+ * base ref look identical. The server distinguishes them (F-01kz25qf318bmn1t860n2rjcpt); the page
+ * has to print the answer rather than render nothing and let the operator guess.
+ */
+describe("Notices", () => {
+  it("says the board is not reading what the operator is editing", () => {
+    render(<WorkspaceNotices notices={[
+      "The board reads .kotta/ from the 'main' ref, not from the working tree.",
+      "Commit it and merge it into 'main'.",
+    ]} />);
+    expect(screen.getByText("The board is not reading what you are editing.")).toBeDefined();
+    expect(screen.getByText(/not from the working tree/)).toBeDefined();
+    expect(screen.getByText(/merge it into 'main'/)).toBeDefined();
   });
 });

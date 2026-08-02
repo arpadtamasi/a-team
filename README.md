@@ -83,8 +83,14 @@ decision).
 
 ### Migrating a workspace
 
-Renaming the directory is a two-command commit, and it is what this repository did to its own
-workspace:
+**One command does it: `kotta migrate`.** It carries a workspace from any older shape to the current
+one — the workspace directory, the entity directories, the stored statuses, the frontmatter field
+names and the config file — and it is the only reader of the old shape. See
+[Migrating the vocabulary](#migrating-the-vocabulary) below; the directory rename is one of the steps
+it performs.
+
+Doing the directory move by hand is still possible, and it is what this repository did before the
+command existed:
 
 ```bash
 git mv .a-team .kotta
@@ -109,6 +115,44 @@ they break visibly.
 If both names are real directories — two separate workspaces, not a bridge — the CLI uses `.kotta/`
 and prints a warning naming the directory it ignored. Merge them and replace the leftover with a
 symlink; the warning is not a state to live in.
+
+## Migrating the vocabulary
+
+The entities are **observation**, **contract** and **batch**, and the state between backlog and
+active is **defined** (D-01kz240dn155hb97h6px6n2p85). Workspaces written before that carry the older
+words — `findings/`, `ready/`, `packages/`, a `package:` field, a batch `kind` — and no command
+except one reads them:
+
+```bash
+kotta migrate --dry-run    # every change it would make; writes nothing
+kotta migrate              # the same list, applied
+```
+
+What moves:
+
+| Old | New |
+| --- | --- |
+| `.a-team/` | `.kotta/` |
+| `ready/`, `findings/`, `packages/` | `defined/`, `observations/`, `batches/` |
+| `status: ready` | `status: defined` |
+| a contract's `package:`, `source_finding:` | `batch:`, `source_observation:` |
+| a batch's `tickets:`, `kind:` | `contracts:`, removed |
+| an observation's `finding_type:`, `ticket:` | `observation_type:`, `contract:` |
+| a claim's `ticket:` | `contract:` |
+| `config.yaml` `packages:`, `version: 1` | `batches:`, `version: 2` |
+
+**Identifiers never move.** No id, no filename and no reference *value* changes — this is vocabulary,
+not identity (D-010). The command compares the id set before and after and refuses to lose one.
+
+It is idempotent and safe to interrupt: every step is derived from what is on disk rather than from a
+progress marker, so a second run reports "already on the current shape" and a partial run is finished
+by running the command again. Every other command refuses a pre-vocabulary workspace with an error
+that names `kotta migrate`; there is no compatibility layer behind that refusal on purpose.
+
+**Commit the migration before you read the board.** `kotta ui` reads the workspace from the configured
+base ref through Git plumbing, not from the working tree, so a migration that has not reached that ref
+yet shows the right header path above no content at all. The command says so when it finishes, and the
+board carries the same notice until the gap closes.
 
 ## How it works
 
@@ -232,6 +276,8 @@ contract by itself.
 
 ```bash
 kotta init
+kotta migrate --dry-run
+kotta migrate
 kotta validate
 kotta status
 

@@ -206,7 +206,7 @@ Chat is a global surface, not a drawer feature. One dock, three context levels:
 
 1. **Workspace thread** — PM-level: "what should I do next", "summarize state",
    "draft a observation". No entity attached.
-2. **Contract threads** — the current per-contract chat (context: contract contract +
+2. **Contract threads** — the current per-contract chat (context: the contract +
    repo). Reached from any contract row's "Discuss/Shape" verb, or from the dock's
    thread list.
 3. **Batch threads** — coordinator-level: composition ("what belongs

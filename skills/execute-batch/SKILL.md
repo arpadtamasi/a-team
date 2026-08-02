@@ -1,6 +1,6 @@
 ---
 name: execute-batch
-description: Coordinate a Kotta sprint, milestone, batch, or mission with validated contracts, dependency-aware ordering, bounded parallelism, and isolated worktrees. Use when a user asks to start or execute a batch of contracts.
+description: Coordinate a Kotta batch of validated contracts, dependency-aware ordering, bounded parallelism, and isolated worktrees. Use when a user asks to start or execute a batch of contracts.
 ---
 
 # Execute a batch

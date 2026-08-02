@@ -41,7 +41,7 @@ describe("Rail", () => {
   it("draws the derivation chain with its numbers and subtitles", () => {
     renderRail();
     expect(screen.getByText("derivation chain")).toBeDefined();
-    for (const [step, label, sub] of [["01", "Observations", "new information"], ["02", "Contracts", "contracts"], ["03", "Batches", "sequencing"]]) {
+    for (const [step, label, sub] of [["01", "Observations", "new information"], ["02", "Contracts", "agreements"], ["03", "Batches", "sequencing"]]) {
       const entry = screen.getByRole("button", { name: new RegExp(`${step}.*${label}.*${sub}`) });
       expect(entry).toBeDefined();
     }

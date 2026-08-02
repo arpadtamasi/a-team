@@ -58,7 +58,7 @@ describe("Contracts", () => {
 
   it("treats done as a filter value, not a place", () => {
     contracts();
-    expect(screen.getByText("02 · contracts")).toBeDefined();
+    expect(screen.getByText("02 · agreements")).toBeDefined();
     expect(screen.getByText("One entity, five states. Done is a filter value here, not a place of its own.")).toBeDefined();
     const states = ["all", "backlog", "defined", "active", "review", "done"];
     for (const state of states) expect(screen.getByRole("button", { name: new RegExp(`^${state}`) })).toBeDefined();

@@ -1,6 +1,6 @@
 ---
 name: execute-contract
-description: Implement and verify one active Kotta contract within its approved contract and isolated Git context. Use when an agent is asked to carry out, continue, or finish implementation for an active contract.
+description: Implement and verify one active Kotta contract within its approved scope and isolated Git context. Use when an agent is asked to carry out, continue, or finish implementation for an active contract.
 ---
 
 # Execute a contract

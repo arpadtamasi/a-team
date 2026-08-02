@@ -3,13 +3,16 @@ id: F-031
 title: >-
   Harom lezart ticket hordozza az F-019 mintat sajat magaban: T-026, T-029,
   T-030 Deviations mezoje None, a prozajuk DEVIACIO-t sorol
-status: new
+status: resolved
 origin: agent
 finding_type: process
 confidence: high
 severity: medium
 discovered_during: T-032
 created_at: '2026-08-02'
+disposition: create-ticket
+resolved_at: '2026-08-02T09:55:59.258Z'
+ticket: T-033
 ---
 # F-031 — Harom lezart ticket hordozza az F-019 mintat sajat magaban: T-026, T-029, T-030 Deviations mezoje None, a prozajuk DEVIACIO-t sorol
 

@@ -17,11 +17,11 @@ None.
 
 ## Active tickets
 
-- decision-create-fails-in-a-fresh-worktree-when-a-team-decisi-44x6rke4
+None.
 
 ## Review
 
-None.
+- decision-create-fails-in-a-fresh-worktree-when-a-team-decisi-44x6rke4
 
 ## Blocked
 

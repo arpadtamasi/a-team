@@ -12,11 +12,11 @@ None.
 
 ## Ready tickets
 
-- a-board-atallitasa-a-kotta-console-v2-tervre-a0bv0fcq
+None.
 
 ## Active tickets
 
-None.
+- a-board-atallitasa-a-kotta-console-v2-tervre-a0bv0fcq
 
 ## Review
 

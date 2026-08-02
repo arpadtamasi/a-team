@@ -2,13 +2,13 @@
 
 Kotta is a repository-native operating system for human–AI development teams.
 
-It provides executable tickets, type-specific requirements, coordinated work packages, and strict Git isolation for coding agents—all stored as plain files in your repository.
+It provides executable contracts, type-specific requirements, coordinated work batches, and strict Git isolation for coding agents—all stored as plain files in your repository.
 
 > Humans own intent. Agents investigate and execute. Git isolates the work. The repository keeps the shared truth.
 
 [See why Kotta exists and follow the visual onboarding guide.](https://arpadtamasi.github.io/kotta/)
 
-## Install and create your first ticket
+## Install and create your first contract
 
 Prerequisites: Node.js 20 or newer, Git, and a coding-agent host supported by
 `skills@1.5.20`. The guided slash-command path is verified with Codex; other hosts reported
@@ -35,15 +35,15 @@ Then open an existing Git repository in the supported host and run:
 
 ```text
 /setup-kotta
-/define-ticket
+/define-contract
 ```
 
 `/setup-kotta` invokes the canonical `kotta init` operation and creates the local
-`.kotta/` workspace. `/define-ticket` guides you through an executable work contract. Finish
-by checking the generated ticket and workspace:
+`.kotta/` workspace. `/define-contract` guides you through an executable work contract. Finish
+by checking the generated contract and workspace:
 
 ```bash
-kotta ticket validate <ticket-id>
+kotta contract validate <contract-id>
 kotta validate
 kotta status
 ```
@@ -59,8 +59,8 @@ minutes; the release canary records the measured result.
 
 If `kotta` is not found, inspect `npm prefix --global`, ensure its `bin` directory is on
 `PATH`, and reopen the terminal. If validation fails, read the reported missing section or
-profile requirement, update the ticket through `/define-ticket`, and rerun both validation
-commands. The CLI never treats a validation failure as a ready ticket.
+profile requirement, update the contract through `/define-contract`, and rerun both validation
+commands. The CLI never treats a validation failure as a defined contract.
 
 ## Renamed from A-Team
 
@@ -112,17 +112,17 @@ symlink; the warning is not a state to live in.
 
 ## How it works
 
-The repository filesystem is the source of truth. Tickets move through a deliberately small lifecycle:
+The repository filesystem is the source of truth. Contracts move through a deliberately small lifecycle:
 
 ```text
-backlog → ready → active → review → done
+backlog → defined → active → review → done
 ```
 
-- Tickets define an observable outcome, bounded scope, acceptance conditions, and verification.
+- Contracts define an observable outcome, bounded scope, acceptance conditions, and verification.
 - Profiles add work-specific requirements for bugs, UI, performance, workflows, metrics, refactors, and discovery.
-- Packages coordinate sprints, milestones, batches, or missions with sequential, parallel, or dependency-aware execution.
-- Findings capture possible bugs and technical debt without silently expanding active work.
-- Claims connect each active ticket to one agent, one feature branch, and one isolated execution context.
+- Batches coordinate sprints, milestones, batches, or missions with sequential, parallel, or dependency-aware execution.
+- Observations capture possible bugs and technical debt without silently expanding active work.
+- Claims connect each active contract to one agent, one feature branch, and one isolated execution context.
 
 All mutations go through the `kotta` CLI. Skills, automation, and a future local UI share the same command and validation services; none implements a competing workflow.
 
@@ -145,38 +145,38 @@ prints it without opening, and `--json` never opens anything because that mode i
 automation. A browser that refuses to open is a warning, never a startup failure — the board
 keeps serving.
 
-## Package coordinator branches
+## Batch coordinator branches
 
-`kotta package start` runs a package on a deterministic coordinator branch, `coord/<package-id>`.
+`kotta batch start` runs a batch on a deterministic coordinator branch, `coord/<batch-id>`.
 Started from the configured base branch it creates and checks out that branch and records the
-branch, the base branch, and the base commit in the package file. Starting again on the recorded
+branch, the base branch, and the base commit in the batch file. Starting again on the recorded
 branch is a safe no-op; starting from an unrelated branch is refused rather than guessed.
 
-Completing the last ticket does **not** delete the coordinator branch — its final commit is what
-gets integrated. `kotta package status <id>` reports where the package stands: `active`,
+Completing the last contract does **not** delete the coordinator branch — its final commit is what
+gets integrated. `kotta batch status <id>` reports where the batch stands: `active`,
 `done-unintegrated`, `cleanup-pending`, `blocked-*`, or `cleaned`.
 
-Completing the last member ticket also completes the package itself, whether or not the package was
-ever started — a package whose tickets ran one by one through `kotta ticket execute` is finished by
-the last `ticket close` or `ticket cancel`, not left in `backlog`. `kotta package close <id> --approve`
-is the explicit path for a package whose tickets reached `done` some other way: it moves the package to
-`packages/done` from any state, refuses while a member ticket is not `done` and names it, never touches
-a ticket, and is a no-op on an already finished package.
+Completing the last member contract also completes the batch itself, whether or not the batch was
+ever started — a batch whose contracts ran one by one through `kotta contract execute` is finished by
+the last `contract close` or `contract cancel`, not left in `backlog`. `kotta batch close <id> --approve`
+is the explicit path for a batch whose contracts reached `done` some other way: it moves the batch to
+`batches/done` from any state, refuses while a member contract is not `done` and names it, never touches
+a contract, and is a no-op on an already finished batch.
 
-Once the branch is merged, `kotta package finalize <id>` performs the cleanup, and only what it
+Once the branch is merged, `kotta batch finalize <id>` performs the cleanup, and only what it
 can prove is safe: it verifies by Git ancestry that the coordinator head is contained in the base
 branch or its remote-tracking ref, switches to the base, fast-forwards it when needed, and deletes
-the merged local branch with `git branch -d`. A dirty worktree, an active claim, a linked ticket
+the merged local branch with `git branch -d`. A dirty worktree, an active claim, a linked contract
 worktree, a branch held by another worktree, or a diverged base each stop it with an explanation
 and change nothing. It never forces, resets, rebases, or deletes a remote branch, and re-running it
 after success is a no-op.
 
 ## Core safety rules
 
-- A backlog item is not executable until it is valid and explicitly ready.
-- A finding is not automatically a ticket.
+- A backlog item is not executable until it is valid and explicitly defined.
+- A observation is not automatically a contract.
 - Agents do not invent missing product intent or accepted trade-offs.
-- Every active ticket has at most one claim and one feature branch.
+- Every active contract has at most one claim and one feature branch.
 - Parallel execution uses separate Git worktrees.
 - Execution never edits a protected branch.
 - Review requires acceptance-to-evidence mapping.
@@ -187,13 +187,13 @@ after success is a no-op.
 
 - `explore-workspace` — answer cross-workspace questions about themes, related work, overlaps, decisions, and backlog structure without changing PM state.
 - `setup-kotta` — initialize a project workspace.
-- `define-ticket` — investigate and formalize work.
-- `validate-finding` — verify and disposition discovered work.
-- `start-ticket` — safely claim and isolate a ready ticket.
-- `execute-ticket` — implement one bounded ticket.
-- `execute-package` — coordinate a package of tickets.
+- `define-contract` — investigate and formalize work.
+- `validate-observation` — verify and disposition discovered work.
+- `start-contract` — safely claim and isolate a defined contract.
+- `execute-contract` — implement one bounded contract.
+- `execute-batch` — coordinate a batch of contracts.
 - `submit-review` — submit implementation with evidence.
-- `close-ticket` — verify completion and safely release resources.
+- `close-contract` — verify completion and safely release resources.
 - `report-kotta-bug` — prepare and, after explicit approval, submit a Kotta defect report as a GitHub Issue.
 
 ## Report a bug
@@ -220,13 +220,13 @@ credential, and reporting never mutates your `.kotta` workspace.
 Maintainers capture an incoming issue as evidence, not as scheduled work:
 
 ```bash
-kotta finding new --title "<issue title>" --type bug \
+kotta observation new --title "<issue title>" --type bug \
   --evidence "https://github.com/arpadtamasi/kotta/issues/<n> — <reported facts>"
 ```
 
-The finding stays open until `kotta finding validate` and a human-approved
-`kotta finding resolve --disposition <disposition> --approve`. A GitHub Issue never creates a
-ticket by itself.
+The observation stays open until `kotta observation validate` and a human-approved
+`kotta observation resolve --disposition <disposition> --approve`. A GitHub Issue never creates a
+contract by itself.
 
 ## CLI overview
 
@@ -235,26 +235,26 @@ kotta init
 kotta validate
 kotta status
 
-kotta ticket new --title "Add filtered export" --type feature --profile ui workflow
-kotta ticket define T-014 --from /tmp/T-014-definition.md
-kotta ticket validate T-014
-kotta ticket ready T-014 --approve
-kotta ticket start T-014 --agent codex
-kotta ticket brief T-014 --out /tmp/T-014-brief.md
-kotta ticket execute T-014 --agent claude
-kotta ticket execute T-014 --resume
-kotta ticket review T-014 --evidence "Acceptance tests and visual evidence passed" --pull-request PR-123
-kotta ticket close T-014 --approve
+kotta contract new --title "Add filtered export" --type feature --profile ui workflow
+kotta contract define T-014 --from /tmp/T-014-definition.md
+kotta contract validate T-014
+kotta contract sign T-014 --approve
+kotta contract start T-014 --agent codex
+kotta contract brief T-014 --out /tmp/T-014-brief.md
+kotta contract execute T-014 --agent claude
+kotta contract execute T-014 --resume
+kotta contract review T-014 --evidence "Acceptance tests and visual evidence passed" --pull-request PR-123
+kotta contract close T-014 --approve
 
-kotta package validate P-012
-kotta package ready P-012 --approve
-kotta package start P-012 --agent codex
-kotta package status P-012
-kotta package close P-012 --approve
+kotta batch validate P-012
+kotta batch sign P-012 --approve
+kotta batch start P-012 --agent codex
+kotta batch status P-012
+kotta batch close P-012 --approve
 
-kotta finding new --title "Divergent permission checks" --type inconsistency --evidence "src/a.ts and src/b.ts differ"
-kotta finding validate F-032
-kotta finding resolve F-032 --disposition create-ticket --approve
+kotta observation new --title "Divergent permission checks" --type inconsistency --evidence "src/a.ts and src/b.ts differ"
+kotta observation validate F-032
+kotta observation resolve F-032 --disposition create-contract --approve
 
 kotta decision create --from /tmp/cutover-decision.md --approve
 
@@ -264,11 +264,11 @@ kotta claim release T-014 --force
 
 Every command supports `--json`. Mutations validate before writing and report both the violated rule and corrective action when rejected.
 
-**Small contexts by default.** Each ticket executes in a fresh agent context whose intent input is `kotta ticket brief <id>` — the ticket body, its referenced decisions, its profiles and its claim, nothing else. The brief is deterministic and reports an approximate token count; above a threshold (`--warn-tokens`, default 12000) it warns that the ticket is probably too large or under-referenced. This is a quality gauge, not a thrift trick: if a ticket cannot be executed from its brief plus the code in the worktree, the contract is incomplete — record the gap instead of widening the context.
+**Small contexts by default.** Each contract executes in a fresh agent context whose intent input is `kotta contract brief <id>` — the contract body, its referenced decisions, its profiles and its claim, nothing else. The brief is deterministic and reports an approximate token count; above a threshold (`--warn-tokens`, default 12000) it warns that the contract is probably too large or under-referenced. This is a quality gauge, not a thrift trick: if a contract cannot be executed from its brief plus the code in the worktree, the contract is incomplete — record the gap instead of widening the context.
 
-**`ticket execute` is the command that makes that the default (D-009).** `kotta ticket execute <id> --agent <agent>` does the start, assembles the brief and launches the agent with the brief as its only input — the caller's context never reaches it. It refuses before creating anything when the ticket is not ready, a claim or execution context already exists, the repository is dirty, or the agent command is missing, so a missing binary can never leave a half-built worktree. The output — human and `--json` — names the brief's token count, the agent, the branch and the worktree; record the token count per ticket in the run log.
+**`contract execute` is the command that makes that the default (D-009).** `kotta contract execute <id> --agent <agent>` does the start, assembles the brief and launches the agent with the brief as its only input — the caller's context never reaches it. It refuses before creating anything when the contract is not defined, a claim or execution context already exists, the repository is dirty, or the agent command is missing, so a missing binary can never leave a half-built worktree. The output — human and `--json` — names the brief's token count, the agent, the branch and the worktree; record the token count per contract in the run log.
 
-A non-zero exit or an empty result is `agent-failed`: the claim and worktree are kept for inspection and the ticket does not move to review. An interrupt terminates the agent, keeps the claim and worktree, and names what to decide by hand. Retry with `kotta ticket execute <id> --resume`, which reuses the existing execution context (and is also how a context created by `ticket start` gets its agent) — a second plain `execute` always refuses rather than starting a second agent. Context carry-over is an explicit, logged exception: `--inherit-context "<reason>"` requires a reason, appends it to the prompt as a declared deviation and reports it in the output.
+A non-zero exit or an empty result is `agent-failed`: the claim and worktree are kept for inspection and the contract does not move to review. An interrupt terminates the agent, keeps the claim and worktree, and names what to decide by hand. Retry with `kotta contract execute <id> --resume`, which reuses the existing execution context (and is also how a context created by `contract start` gets its agent) — a second plain `execute` always refuses rather than starting a second agent. Context carry-over is an explicit, logged exception: `--inherit-context "<reason>"` requires a reason, appends it to the prompt as a declared deviation and reports it in the output.
 
 The agent binary is resolved from `--agent` (`claude`, `codex`, or any command on `PATH`); `KOTTA_AGENT_COMMAND` overrides the executable, which is how the test suite drives a deterministic script double instead of a real agent. Review, merge and close stay separate human gates — `execute` never enters them.
 
@@ -303,7 +303,7 @@ allowlist, and exercises a clean install before publishing.
 
 ### The first release under the name `kotta`
 
-The package name changed with 0.3.0, and a name that does not exist yet on the registry has no
+The batch name changed with 0.3.0, and a name that does not exist yet on the registry has no
 trusted publisher configured — so the **first** `kotta` release is published by a maintainer by
 hand, from a clean `main` checkout at the release commit:
 
@@ -312,7 +312,7 @@ npm run verify:pack                  # build, pack, inspect the allowlist
 npm publish --access public          # first publish of the name `kotta`
 ```
 
-Then point the old package at the new one, once:
+Then point the old batch at the new one, once:
 
 ```bash
 npm deprecate @arpadtamasi/a-team "Renamed to 'kotta'. Install with: npm i -g kotta"

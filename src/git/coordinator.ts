@@ -7,9 +7,9 @@ export interface CoordinatorMetadata {
   cleaned_at?: string | null;
 }
 
-/** Every package coordinates on a deterministic branch name; nothing infers a different one. */
-export function coordinatorBranchName(packageId: string): string {
-  return `coord/${packageId}`;
+/** Every batch coordinates on a deterministic branch name; nothing infers a different one. */
+export function coordinatorBranchName(batchId: string): string {
+  return `coord/${batchId}`;
 }
 
 export type IntegrationEvidence =

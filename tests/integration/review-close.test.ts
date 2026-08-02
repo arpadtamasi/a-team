@@ -21,28 +21,28 @@ describe("review and close", () => {
     writeFileSync(join(root, "README.md"), "fixture\n");
     git(root, "add", "."); git(root, "commit", "-m", "initial");
     run(root, ["init"]);
-    const created = (run(root, ["ticket", "new", "--title", "Document flow", "--type", "documentation"]) as { data: { id: string; path: string } }).data;
+    const created = (run(root, ["contract", "new", "--title", "Document flow", "--type", "documentation"]) as { data: { id: string; path: string } }).data;
     const id = created.id;
     const filename = basename(created.path);
     const path = created.path;
     writeFileSync(path, readFileSync(path, "utf8").replace("Describe the observable outcome.", "The flow is documented.").replace("- Define an observable condition.", "- Documentation describes the flow.").replace("- Explain how acceptance will be checked.", "- Read the rendered documentation."));
-    run(root, ["ticket", "ready", id, "--approve"]);
-    git(root, "add", "."); git(root, "commit", "-m", "ready ticket");
-    run(root, ["ticket", "start", id, "--agent", "codex"]);
+    run(root, ["contract", "sign", id, "--approve"]);
+    git(root, "add", "."); git(root, "commit", "-m", "defined contract");
+    run(root, ["contract", "start", id, "--agent", "codex"]);
     const worktree = join(root, ".worktrees", id);
     writeFileSync(join(worktree, "flow.md"), "# Flow\n");
     git(worktree, "add", "."); git(worktree, "commit", "-m", "docs: document flow");
 
-    expect(run(worktree, ["ticket", "review", id, "--evidence", "flow.md renders and was inspected", "--pull-request", "PR-1"])).toMatchObject({ ok: true, command: "ticket review" });
-    git(root, "merge", "--no-ff", `docs/${id}-document-flow`, "-m", "merge ticket");
+    expect(run(worktree, ["contract", "review", id, "--evidence", "flow.md renders and was inspected", "--pull-request", "PR-1"])).toMatchObject({ ok: true, command: "contract review" });
+    git(root, "merge", "--no-ff", `docs/${id}-document-flow`, "-m", "merge contract");
     const pending = join(worktree, "pending.txt");
     writeFileSync(pending, "uncommitted\n");
-    const refused = spawnSync("node", [cli, "ticket", "close", id, "--approve", "--json"], { cwd: root, encoding: "utf8" });
+    const refused = spawnSync("node", [cli, "contract", "close", id, "--approve", "--json"], { cwd: root, encoding: "utf8" });
     expect(refused.status).toBe(1);
     expect(existsSync(join(root, ".kotta/review", filename))).toBe(true);
     expect(existsSync(join(root, ".kotta/claims", `${id}.yaml`))).toBe(true);
     unlinkSync(pending);
-    expect(run(root, ["ticket", "close", id, "--approve"])).toMatchObject({ ok: true, command: "ticket close" });
+    expect(run(root, ["contract", "close", id, "--approve"])).toMatchObject({ ok: true, command: "contract close" });
 
     expect(existsSync(join(root, ".kotta/done", filename))).toBe(true);
     expect(existsSync(join(root, ".kotta/claims", `${id}.yaml`))).toBe(false);

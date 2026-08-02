@@ -12,5 +12,5 @@ export function statusCommand() {
   };
   // The discovered workspace path is part of the answer: with two directory names in play, "which
   // directory did you read?" must be visible without guessing (D-007).
-  return { ok: true, command: "status", data: { workspace: workspacePath(root), readyTickets: byDirectory("ready"), activeTickets: byDirectory("active"), reviewTickets: byDirectory("review"), newFindings: byDirectory("findings/new"), allTickets: listIds(root, "ticket") } };
+  return { ok: true, command: "status", data: { workspace: workspacePath(root), definedContracts: byDirectory("defined"), activeContracts: byDirectory("active"), reviewContracts: byDirectory("review"), newObservations: byDirectory("observations/new"), allContracts: listIds(root, "contract") } };
 }

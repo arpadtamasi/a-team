@@ -49,18 +49,18 @@ function completeTemplate(path: string): void {
     .replace("- Explain how acceptance will be checked.", "- Run the integration test."));
 }
 
-/** backlog → ready, the shortest path that reads, writes, moves files and regenerates the index. */
-function ticketRoundTrip(root: string, directory: string): { id: string; path: string } {
-  const created = run(root, ["ticket", "new", "--title", "Compatibility ticket", "--type", "feature"]).data as { id: string; path: string };
+/** backlog → defined, the shortest path that reads, writes, moves files and regenerates the index. */
+function contractRoundTrip(root: string, directory: string): { id: string; path: string } {
+  const created = run(root, ["contract", "new", "--title", "Compatibility contract", "--type", "feature"]).data as { id: string; path: string };
   expect(created.path).toContain(`${directory}/backlog`);
   completeTemplate(created.path);
-  run(root, ["ticket", "ready", created.id, "--approve"]);
-  expect(existsSync(join(root, directory, "ready", basename(created.path)))).toBe(true);
+  run(root, ["contract", "sign", created.id, "--approve"]);
+  expect(existsSync(join(root, directory, "defined", basename(created.path)))).toBe(true);
   expect(readFileSync(join(root, directory, "index.md"), "utf8")).toContain(basename(created.path).replace(/\.md$/, ""));
-  const status = run(root, ["status"]).data as { readyTickets: string[] };
-  expect(status.readyTickets).toContain(created.id);
+  const status = run(root, ["status"]).data as { definedContracts: string[] };
+  expect(status.definedContracts).toContain(created.id);
   expect(run(root, ["validate"])).toMatchObject({ ok: true });
-  return { id: created.id, path: join(root, directory, "ready", basename(created.path)) };
+  return { id: created.id, path: join(root, directory, "defined", basename(created.path)) };
 }
 
 describe("both binary names", () => {
@@ -98,21 +98,21 @@ describe("init creates the new workspace directory", () => {
 });
 
 describe("an existing .a-team workspace keeps working untouched", () => {
-  test("the full backlog → ready round trip runs inside .a-team and creates no .kotta", () => {
+  test("the full backlog → defined round trip runs inside .a-team and creates no .kotta", () => {
     const root = repository("legacy", ".a-team");
-    ticketRoundTrip(root, ".a-team");
+    contractRoundTrip(root, ".a-team");
     expect(existsSync(join(root, ".kotta"))).toBe(false);
     expect(workspaceDirectoryName(root)).toBe(".a-team");
   });
 
   test("the board reads a .a-team workspace through git", () => {
     const root = repository("legacy-ui", ".a-team");
-    const created = run(root, ["ticket", "new", "--title", "Board ticket", "--type", "feature"]).data as { id: string };
+    const created = run(root, ["contract", "new", "--title", "Board contract", "--type", "feature"]).data as { id: string };
     git(root, "add", ".");
-    git(root, "commit", "-m", "ticket");
+    git(root, "commit", "-m", "contract");
     const board = readWorkspace(root);
     expect(board.workspace).toBe(join(root, ".a-team"));
-    expect(board.tickets.map((ticket) => ticket.id)).toContain(created.id);
+    expect(board.contracts.map((contract) => contract.id)).toContain(created.id);
   });
 });
 
@@ -121,37 +121,37 @@ describe("a symlink bridges the two directory names", () => {
     const root = repository("link-new-to-old", ".a-team");
     symlinkSync(".a-team", join(root, ".kotta"));
 
-    const ticket = ticketRoundTrip(root, ".a-team");
+    const contract = contractRoundTrip(root, ".a-team");
     // The link is a link, not a copy: nothing was migrated behind the operator's back.
     expect(lstatSync(join(root, ".kotta")).isSymbolicLink()).toBe(true);
-    expect(readdirSync(join(root, ".kotta/ready"))).toEqual(readdirSync(join(root, ".a-team/ready")));
+    expect(readdirSync(join(root, ".kotta/defined"))).toEqual(readdirSync(join(root, ".a-team/defined")));
 
     git(root, "add", ".");
-    git(root, "commit", "-m", "ticket");
+    git(root, "commit", "-m", "contract");
     // Git plumbing sees `.kotta` as a link entry, so the board must resolve to the real tree.
     // Deleting the file from the working tree proves which side answered: only the ref-side read —
     // `git archive` of the resolved directory, which a symlink entry could not have produced — survives it.
-    rmSync(ticket.path);
+    rmSync(contract.path);
     const board = readWorkspace(root);
     expect(board.workspace).toBe(join(root, ".a-team"));
-    expect(board.tickets).toHaveLength(1);
-    expect(readWorkspace(join(root, ".kotta")).tickets).toHaveLength(1);
+    expect(board.contracts).toHaveLength(1);
+    expect(readWorkspace(join(root, ".kotta")).contracts).toHaveLength(1);
   });
 
   test(".a-team → .kotta: pre-rename scripts and paths keep resolving after a project moves over", () => {
     const root = repository("link-old-to-new");
     symlinkSync(".kotta", join(root, ".a-team"));
 
-    ticketRoundTrip(root, ".kotta");
+    contractRoundTrip(root, ".kotta");
     expect(lstatSync(join(root, ".a-team")).isSymbolicLink()).toBe(true);
-    expect(readdirSync(join(root, ".a-team/ready"))).toEqual(readdirSync(join(root, ".kotta/ready")));
+    expect(readdirSync(join(root, ".a-team/defined"))).toEqual(readdirSync(join(root, ".kotta/defined")));
 
     git(root, "add", ".");
-    git(root, "commit", "-m", "ticket");
+    git(root, "commit", "-m", "contract");
     const board = readWorkspace(root);
     expect(board.workspace).toBe(join(root, ".kotta"));
-    expect(board.tickets).toHaveLength(1);
-    expect(readWorkspace(join(root, ".a-team")).tickets).toHaveLength(1);
+    expect(board.contracts).toHaveLength(1);
+    expect(readWorkspace(join(root, ".a-team")).contracts).toHaveLength(1);
   });
 
   test("two real directories resolve to .kotta, and the CLI says so on stderr", () => {

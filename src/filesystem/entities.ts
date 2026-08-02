@@ -1,13 +1,13 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { parseMarkdown } from "../core/markdown.js";
-import { TICKET_ID, filenameMatchesId } from "../core/identity.js";
+import { CONTRACT_ID, filenameMatchesId } from "../core/identity.js";
 import { workspacePath } from "./workspace.js";
 
-export const TICKET_STATES = ["backlog", "ready", "active", "review", "done"] as const;
-export const PACKAGE_STATES = ["backlog", "ready", "active", "done"] as const;
+export const CONTRACT_STATES = ["backlog", "defined", "active", "review", "done"] as const;
+export const BATCH_STATES = ["backlog", "defined", "active", "done"] as const;
 
-export type EntityKind = "ticket" | "package";
+export type EntityKind = "contract" | "batch";
 
 export interface EntityCopy {
   state: string;
@@ -17,9 +17,9 @@ export interface EntityCopy {
 
 /** State directories of an entity kind, in lifecycle order — the later entry is the further-advanced state. */
 export function stateDirectories(kind: EntityKind): Array<{ state: string; directory: string }> {
-  return kind === "ticket"
-    ? TICKET_STATES.map((state) => ({ state, directory: state }))
-    : PACKAGE_STATES.map((state) => ({ state, directory: `packages/${state}` }));
+  return kind === "contract"
+    ? CONTRACT_STATES.map((state) => ({ state, directory: state }))
+    : BATCH_STATES.map((state) => ({ state, directory: `batches/${state}` }));
 }
 
 /**
@@ -39,15 +39,15 @@ export function entityCopies(root: string, kind: EntityKind, id: string): Entity
   return copies;
 }
 
-export interface TicketLocation {
+export interface ContractLocation {
   path: string;
   state: string;
   filename: string;
 }
 
-export interface EffectiveTicket<T> {
+export interface EffectiveContract<T> {
   value: T;
-  location: TicketLocation;
+  location: ContractLocation;
   worktree?: string;
   fallback?: { worktree: string; reason: string };
 }
@@ -68,23 +68,23 @@ export function idFromEntityFile(path: string, filename: string): string | null 
   return idFromFilename(filename);
 }
 
-export function findTicket(root: string, id: string): TicketLocation {
-  for (const state of TICKET_STATES) {
+export function findContract(root: string, id: string): ContractLocation {
+  for (const state of CONTRACT_STATES) {
     const directory = workspacePath(root, state);
     if (!existsSync(directory)) continue;
     const filename = readdirSync(directory).find((name) => name.endsWith(".md") && filenameMatchesId(name, id));
     if (filename) return { path: join(directory, filename), state, filename };
   }
-  throw new Error(`Ticket ${id} was not found.`);
+  throw new Error(`Contract ${id} was not found.`);
 }
 
-export function resolveEffectiveTicket<T>(root: string, id: string, read: (ticket: TicketLocation) => T): EffectiveTicket<T> {
-  if (!TICKET_ID.test(id)) throw new Error(`Invalid ticket id: ${id}`);
-  const coordinator = findTicket(root, id);
+export function resolveEffectiveContract<T>(root: string, id: string, read: (contract: ContractLocation) => T): EffectiveContract<T> {
+  if (!CONTRACT_ID.test(id)) throw new Error(`Invalid contract id: ${id}`);
+  const coordinator = findContract(root, id);
   const worktree = join(root, ".worktrees", id);
   if (existsSync(worktree)) {
     try {
-      const location = findTicket(worktree, id);
+      const location = findContract(worktree, id);
       return { value: read(location), location, worktree };
     } catch (error) {
       return {
@@ -97,11 +97,11 @@ export function resolveEffectiveTicket<T>(root: string, id: string, read: (ticke
   return { value: read(coordinator), location: coordinator };
 }
 
-export function listIds(root: string, entity: "ticket" | "finding" | "package"): string[] {
+export function listIds(root: string, entity: "contract" | "observation" | "batch"): string[] {
   const workspace = workspacePath(root);
-  const directories = entity === "ticket"
-    ? TICKET_STATES.map(String)
-    : entity === "finding" ? ["findings/new", "findings/resolved"] : ["packages/backlog", "packages/ready", "packages/active", "packages/done"];
+  const directories = entity === "contract"
+    ? CONTRACT_STATES.map(String)
+    : entity === "observation" ? ["observations/new", "observations/resolved"] : ["batches/backlog", "batches/defined", "batches/active", "batches/done"];
   return directories.flatMap((directory) => {
     const path = join(workspace, directory);
     if (!existsSync(path)) return [];

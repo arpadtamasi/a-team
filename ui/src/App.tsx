@@ -9,7 +9,7 @@ import remarkGfm from "remark-gfm";
    every colour, space and radius comes from the Modernist tokens in styles.css. */
 
 /* ── Types ───────────────────────────────────────────── */
-type Status = "backlog" | "ready" | "active" | "review" | "done";
+type Status = "backlog" | "defined" | "active" | "review" | "done";
 type Migration = {
   project: string;
   legacy_ticket_count: number;
@@ -18,28 +18,28 @@ type Migration = {
   package_count: number;
   split_audit: Array<{ legacy_id: string; disposition: string; reason: string; targets: string[] }>;
 };
-type Ticket = {
+type Contract = {
   id: string; title: string; status: Status; types: string[]; profiles: string[]; priority: string; risk: string;
-  package: string | null; depends_on: string[]; blocks?: string[]; blocked?: boolean; resolution?: string;
-  source_finding?: string | null; assigned_agent?: string | null; worktree?: string | null;
+  batch: string | null; depends_on: string[]; blocks?: string[]; blocked?: boolean; resolution?: string;
+  source_observation?: string | null; assigned_agent?: string | null; worktree?: string | null;
   branch?: string | null; pull_request?: string | null; created_at?: string | null; updated_at?: string | null; sections: Record<string, string>;
   migration?: { legacy_id: string; legacy_title: string; lane: string; legacy_status: string; backlog_section: string; story_points: number | null; ready_candidate: boolean; split: boolean; status_correction?: string | null; source_file: string } | null;
 };
-type Package = {
-  id: string; title: string; status: string; kind: string; tickets: string[]; sections: Record<string, string>;
+type Batch = {
+  id: string; title: string; status: string; kind: string; contracts: string[]; sections: Record<string, string>;
   created_at?: string | null; updated_at?: string | null;
   execution?: { mode?: string; parallelism?: number; stop_on_failure?: boolean };
   coordinator?: { branch?: string; base_branch?: string; base_commit?: string; cleaned_at?: string | null } | null;
 };
-type Finding = {
-  id: string; title: string; status: "new" | "resolved"; finding_type: string; severity: string; confidence: string;
+type Observation = {
+  id: string; title: string; status: "new" | "resolved"; observation_type: string; severity: string; confidence: string;
   discovered_during?: string | null; created_at?: string | null; resolution?: string; became?: string | null; sections: Record<string, string>;
 };
 type Decision = { id: string; title: string; date: string | null; sections: Record<string, string> };
 type Diagnostic = { entity: string; id: string; worktree: string; message: string };
 export type Workspace = {
   project: string; workspace?: string; migration: Migration | null;
-  tickets: Ticket[]; packages: Package[]; findings: Finding[]; decisions?: Decision[]; diagnostics?: Diagnostic[];
+  contracts: Contract[]; batches: Batch[]; observations: Observation[]; decisions?: Decision[]; diagnostics?: Diagnostic[];
 };
 
 /** The rail's five destinations. `running` is an overlay over any of them, not a sixth destination. */
@@ -49,9 +49,9 @@ export type View = "home" | "observations" | "contracts" | "batches" | "decision
 const BUG_REPORT_URL = "https://github.com/arpadtamasi/kotta/issues/new?template=bug.yml";
 /* The one request the board makes. Named so a test can assert nothing else is ever called. */
 export const WORKSPACE_ENDPOINT = "/api/workspace";
-/* Stored state is `ready`; the board says `defined`, as the design does. Renaming the stored value is P-004. */
-const DEFINED: Status = "ready";
-const CONTRACT_STATES: Status[] = ["backlog", "ready", "active", "review", "done"];
+/* Stored state is `defined`; the board says `defined`, as the design does. Renaming the stored value is P-004. */
+const DEFINED: Status = "defined";
+const CONTRACT_STATES: Status[] = ["backlog", "defined", "active", "review", "done"];
 
 /* Identity is mixed for good (D-010): sequential ids stay, minted ones are `<type>-<26 char ULID>`. */
 const MINTED_BODY = "[0-9a-hjkmnp-tv-z]{26}";
@@ -157,35 +157,35 @@ export type Contradiction = {
 export type MenuItem = { id: string; title: string; batch: string | null; why: string; command: string };
 
 export type Board = {
-  tickets: Ticket[]; packages: Package[]; findings: Finding[]; decisions: Decision[];
-  ticketById: Map<string, Ticket>; packageById: Map<string, Package>; findingById: Map<string, Finding>;
-  undisposed: Finding[]; inReview: Ticket[]; closable: Package[]; defined: Ticket[]; running: Ticket[]; activeBatches: Package[];
+  contracts: Contract[]; batches: Batch[]; observations: Observation[]; decisions: Decision[];
+  contractById: Map<string, Contract>; batchById: Map<string, Batch>; observationById: Map<string, Observation>;
+  undisposed: Observation[]; inReview: Contract[]; closable: Batch[]; defined: Contract[]; running: Contract[]; activeBatches: Batch[];
   queues: Queue[]; queueTotal: number; contradictions: Contradiction[]; menu: MenuItem[];
 };
 
-const isDone = (t?: Ticket) => t?.status === "done";
+const isDone = (t?: Contract) => t?.status === "done";
 
 /** Everything the three bands, the rail counts and the header stats are derived from. */
 export function readBoard(workspace: Workspace): Board {
-  const tickets = workspace.tickets ?? [];
-  const packages = workspace.packages ?? [];
-  const findings = workspace.findings ?? [];
+  const contracts = workspace.contracts ?? [];
+  const batches = workspace.batches ?? [];
+  const observations = workspace.observations ?? [];
   const decisions = workspace.decisions ?? [];
-  const ticketById = new Map(tickets.map((t) => [t.id, t]));
-  const packageById = new Map(packages.map((p) => [p.id, p]));
-  const findingById = new Map(findings.map((f) => [f.id, f]));
+  const contractById = new Map(contracts.map((t) => [t.id, t]));
+  const batchById = new Map(batches.map((p) => [p.id, p]));
+  const observationById = new Map(observations.map((f) => [f.id, f]));
   // Every surface names an entity by its title, so the title index is part of reading the board.
   entityTitles.clear();
-  for (const entity of [...tickets, ...packages, ...findings, ...decisions]) entityTitles.set(entity.id, entity.title);
+  for (const entity of [...contracts, ...batches, ...observations, ...decisions]) entityTitles.set(entity.id, entity.title);
 
   // The three queues are exactly where the CLI refuses without --approve.
-  const undisposed = findings.filter((f) => f.status === "new");
-  const inReview = tickets.filter((t) => t.status === "review");
-  const closable = packages.filter((p) => p.status !== "done" && p.tickets.length > 0 && p.tickets.every((id) => isDone(ticketById.get(id))));
+  const undisposed = observations.filter((f) => f.status === "new");
+  const inReview = contracts.filter((t) => t.status === "review");
+  const closable = batches.filter((p) => p.status !== "done" && p.contracts.length > 0 && p.contracts.every((id) => isDone(contractById.get(id))));
   // The backlog menu is deliberately NOT a queue: a defined contract is an option, not a debt.
-  const defined = tickets.filter((t) => t.status === DEFINED);
-  const running = tickets.filter((t) => t.status === "active");
-  const activeBatches = packages.filter((p) => p.status === "active" || p.tickets.some((id) => ticketById.get(id)?.status === "active"));
+  const defined = contracts.filter((t) => t.status === DEFINED);
+  const running = contracts.filter((t) => t.status === "active");
+  const activeBatches = batches.filter((p) => p.status === "active" || p.contracts.some((id) => contractById.get(id)?.status === "active"));
 
   const oldest = (values: Array<string | null | undefined>) => values.reduce<number | null>((max, value) => {
     const age = daysSince(value);
@@ -202,11 +202,11 @@ export function readBoard(workspace: Workspace): Board {
   const contradictions: Contradiction[] = [];
   // 1. Files and git disagree about the same contract — the board shows both and picks neither.
   for (const diagnostic of workspace.diagnostics ?? []) {
-    const ticket = ticketById.get(diagnostic.id);
+    const contract = contractById.get(diagnostic.id);
     contradictions.push({
       key: `drift:${diagnostic.id}`, kind: "state drift", subject: label(diagnostic.id), subjectId: diagnostic.id,
       title: "A live worktree disagrees with the committed contract",
-      leftLabel: "files say", left: [`state: ${stateLabel(ticket?.status ?? "unknown")}`, `.kotta/${ticket?.status ?? "?"}/`],
+      leftLabel: "files say", left: [`state: ${stateLabel(contract?.status ?? "unknown")}`, `.kotta/${contract?.status ?? "?"}/`],
       rightLabel: "git says", right: [diagnostic.worktree, diagnostic.message],
       command: "kotta validate", action: "Open contract", view: "contracts",
     });
@@ -219,58 +219,58 @@ export function readBoard(workspace: Workspace): Board {
     rightLabel: "disk says", right: ["no such file", "the link is recorded, the entity is gone"],
     command: "kotta validate", action: "Open contract", view: "contracts",
   });
-  for (const ticket of tickets) {
-    if (ticket.source_finding && !findingById.has(ticket.source_finding)) dangling(ticket.id, "source_finding", ticket.source_finding, "an observation");
-    if (ticket.package && !packageById.has(ticket.package)) dangling(ticket.id, "package", ticket.package, "a batch");
+  for (const contract of contracts) {
+    if (contract.source_observation && !observationById.has(contract.source_observation)) dangling(contract.id, "source_observation", contract.source_observation, "an observation");
+    if (contract.batch && !batchById.has(contract.batch)) dangling(contract.id, "batch", contract.batch, "a batch");
     for (const field of ["depends_on", "blocks"] as const) {
-      for (const reference of ticket[field] ?? []) if (!ticketById.has(reference)) dangling(ticket.id, field, reference, "a contract");
+      for (const reference of contract[field] ?? []) if (!contractById.has(reference)) dangling(contract.id, field, reference, "a contract");
     }
   }
-  for (const pkg of packages) for (const member of pkg.tickets) if (!ticketById.has(member)) dangling(pkg.id, "tickets", member, "a contract");
-  for (const finding of findings) if (finding.became && !ticketById.has(finding.became)) dangling(finding.id, "became", finding.became, "a contract");
+  for (const batch of batches) for (const member of batch.contracts) if (!contractById.has(member)) dangling(batch.id, "contracts", member, "a contract");
+  for (const observation of observations) if (observation.became && !contractById.has(observation.became)) dangling(observation.id, "became", observation.became, "a contract");
   // 3. Membership recorded on one side only: two files describe the same relationship differently.
-  for (const ticket of tickets) {
-    const pkg = ticket.package ? packageById.get(ticket.package) : null;
-    if (pkg && !pkg.tickets.includes(ticket.id)) contradictions.push({
-      key: `member:${ticket.id}`, kind: "membership", subject: label(ticket.id), subjectId: ticket.id,
+  for (const contract of contracts) {
+    const batch = contract.batch ? batchById.get(contract.batch) : null;
+    if (batch && !batch.contracts.includes(contract.id)) contradictions.push({
+      key: `member:${contract.id}`, kind: "membership", subject: label(contract.id), subjectId: contract.id,
       title: "The contract claims a batch that does not list it",
-      leftLabel: "the contract says", left: [`package: ${pkg.id}`],
-      rightLabel: "the batch says", right: [`tickets: ${pkg.tickets.length ? pkg.tickets.map(displayId).join(", ") : "—"}`],
-      command: `kotta package validate ${pkg.id}`, action: "See batches", view: "batches",
+      leftLabel: "the contract says", left: [`batch: ${batch.id}`],
+      rightLabel: "the batch says", right: [`contracts: ${batch.contracts.length ? batch.contracts.map(displayId).join(", ") : "—"}`],
+      command: `kotta batch validate ${batch.id}`, action: "See batches", view: "batches",
     });
   }
-  for (const pkg of packages) for (const member of pkg.tickets) {
-    const ticket = ticketById.get(member);
-    if (ticket && ticket.package !== pkg.id) contradictions.push({
-      key: `member:${pkg.id}:${member}`, kind: "membership", subject: label(pkg.id), subjectId: pkg.id,
+  for (const batch of batches) for (const member of batch.contracts) {
+    const contract = contractById.get(member);
+    if (contract && contract.batch !== batch.id) contradictions.push({
+      key: `member:${batch.id}:${member}`, kind: "membership", subject: label(batch.id), subjectId: batch.id,
       title: "The batch lists a contract that belongs elsewhere",
-      leftLabel: "the batch says", left: [`tickets: … ${displayId(member)}`],
-      rightLabel: "the contract says", right: [`package: ${ticket.package ?? "null"}`],
-      command: `kotta package validate ${pkg.id}`, action: "See batches", view: "batches",
+      leftLabel: "the batch says", left: [`contracts: … ${displayId(member)}`],
+      rightLabel: "the contract says", right: [`batch: ${contract.batch ?? "null"}`],
+      command: `kotta batch validate ${batch.id}`, action: "See batches", view: "batches",
     });
   }
 
-  const menu: MenuItem[] = defined.map((ticket) => {
-    const waiting = (ticket.depends_on ?? []).filter((id) => !isDone(ticketById.get(id)));
-    const unblocks = (ticket.blocks ?? []).length;
+  const menu: MenuItem[] = defined.map((contract) => {
+    const waiting = (contract.depends_on ?? []).filter((id) => !isDone(contractById.get(id)));
+    const unblocks = (contract.blocks ?? []).length;
     return {
-      id: ticket.id, title: ticket.title, batch: ticket.package,
+      id: contract.id, title: contract.title, batch: contract.batch,
       why: waiting.length ? `waits on ${waiting.map((id) => titleOf(id) ?? displayId(id)).join(", ")}`
         : unblocks ? `unblocks ${unblocks} other${unblocks === 1 ? "" : "s"}` : "no blockers",
-      command: `kotta ticket execute ${ticket.id} --agent codex`,
+      command: `kotta contract execute ${contract.id} --agent codex`,
     };
   });
 
   return {
-    tickets, packages, findings, decisions, ticketById, packageById, findingById,
+    contracts, batches, observations, decisions, contractById, batchById, observationById,
     undisposed, inReview, closable, defined, running, activeBatches,
     queues, queueTotal: undisposed.length + inReview.length + closable.length, contradictions, menu,
   };
 }
 
 /* ── Small presentational bits ───────────────────────── */
-/* Display label only — the stored status stays `ready` until the rename ticket lands. */
-export const stateLabel = (s: string) => (s === "ready" ? "defined" : s);
+/* Display label only — the stored status stays `defined` until the rename contract lands. */
+export const stateLabel = (s: string) => (s === "defined" ? "defined" : s);
 function StateTag({ state }: { state: string }) {
   return <span className={`tag state state-${state}`}>{stateLabel(state)}</span>;
 }
@@ -325,8 +325,8 @@ export function Rail({ view, onView, board, running, onWatch, refreshed }: {
 }) {
   const chain: Array<{ id: View; step: string; label: string; sub: string; count: number | null }> = [
     { id: "observations", step: "01", label: "Observations", sub: "new information", count: board ? board.undisposed.length : null },
-    { id: "contracts", step: "02", label: "Contracts", sub: "tickets", count: board ? board.tickets.length : null },
-    { id: "batches", step: "03", label: "Batches", sub: "sequencing", count: board ? board.packages.length : null },
+    { id: "contracts", step: "02", label: "Contracts", sub: "contracts", count: board ? board.contracts.length : null },
+    { id: "batches", step: "03", label: "Batches", sub: "sequencing", count: board ? board.batches.length : null },
   ];
   const runningCount = board ? board.running.length : 0;
   const batchCount = board ? board.activeBatches.length : 0;
@@ -388,7 +388,7 @@ export function TopBar({ workspace, board, onHelp, onRefresh, refreshed }: {
   const stats: Array<{ label: string; value: string; hot?: boolean }> = [
     { label: "waiting on you", value: board ? String(board.queueTotal) : "—", hot: Boolean(board?.queueTotal) },
     { label: "running", value: board ? `${board.running.length} in ${board.activeBatches.length} batch${board.activeBatches.length === 1 ? "" : "es"}` : "—" },
-    { label: "defined and ready", value: board ? String(board.defined.length) : "—" },
+    { label: "defined and defined", value: board ? String(board.defined.length) : "—" },
     { label: "contradictions", value: board ? String(board.contradictions.length) : "—", hot: Boolean(board?.contradictions.length) },
   ];
   return <header className="top">
@@ -418,10 +418,10 @@ function RunningStrip({ board, onWatch, onOpen }: { board: Board; onWatch: () =>
   return <section className="live" aria-label="Running now">
     <div className="live__label"><span className="pulse is-live" aria-hidden="true" /> Running</div>
     <div className="live__items scroll" tabIndex={0} role="group" aria-label="Contracts running now">
-      {board.running.map((ticket) => <EntityButton key={ticket.id} id={ticket.id} className="live__item" onOpen={onOpen}>
-        <span className="live__item-title">{ticket.title}</span>
-        <Tail id={ticket.id} />
-        <span className="live__item-meta">{ticket.assigned_agent ?? "no claim"} · {relativeTime(ticket.updated_at)}</span>
+      {board.running.map((contract) => <EntityButton key={contract.id} id={contract.id} className="live__item" onOpen={onOpen}>
+        <span className="live__item-title">{contract.title}</span>
+        <Tail id={contract.id} />
+        <span className="live__item-meta">{contract.assigned_agent ?? "no claim"} · {relativeTime(contract.updated_at)}</span>
       </EntityButton>)}
     </div>
     <button type="button" className="live__watch" onClick={onWatch}>Watch →</button>
@@ -441,7 +441,7 @@ export function HomeView({ workspace, board, error, onView, onOpen, onRetry }: {
   onView: (view: View, filter?: Status) => void; onOpen: (id: string) => void; onRetry: () => void;
 }) {
   const loading = !board && !error;
-  const emptyWorkspace = Boolean(board && !board.tickets.length && !board.findings.length && !board.packages.length);
+  const emptyWorkspace = Boolean(board && !board.contracts.length && !board.observations.length && !board.batches.length);
   return <div className="home">
     <section className="band" aria-labelledby="band-waiting">
       <BandHead id="band-waiting" title="Waiting on you">
@@ -512,7 +512,7 @@ export function HomeView({ workspace, board, error, onView, onOpen, onRetry }: {
           Nothing defined to run. {emptyWorkspace
             ? "This workspace is empty — write the first contract with the CLI:"
             : "Shape a backlog contract until it validates, then define it:"}
-          <br /><code>{emptyWorkspace ? 'kotta ticket new --title "…" --type feature' : "kotta ticket ready <id> --approve"}</code>
+          <br /><code>{emptyWorkspace ? 'kotta contract new --title "…" --type feature' : "kotta contract sign <id> --approve"}</code>
         </p>}
         {board?.menu.map((item, index) => <div key={item.id} className={`menu ${index === 0 ? "is-first" : ""}`}>
           <div className="menu__top">
@@ -549,11 +549,11 @@ export function ObservationsView({ board, filter, onFilter, onOpen }: {
   board: Board; filter: ObsFilter; onFilter: (f: ObsFilter) => void; onOpen: (id: string) => void;
 }) {
   const waiting = board.undisposed;
-  const rows = board.findings.filter((f) => (filter === "all" ? true : filter === "waiting" ? f.status === "new" : f.status === "resolved"));
+  const rows = board.observations.filter((f) => (filter === "all" ? true : filter === "waiting" ? f.status === "new" : f.status === "resolved"));
   const filters: Array<{ key: ObsFilter; label: string; count: number }> = [
     { key: "waiting", label: "waiting", count: waiting.length },
-    { key: "dispositioned", label: "dispositioned", count: board.findings.length - waiting.length },
-    { key: "all", label: "all", count: board.findings.length },
+    { key: "dispositioned", label: "dispositioned", count: board.observations.length - waiting.length },
+    { key: "all", label: "all", count: board.observations.length },
   ];
   return <div className="view">
     <div className="view__head">
@@ -562,26 +562,26 @@ export function ObservationsView({ board, filter, onFilter, onOpen }: {
         <h2>Observations</h2>
         <p>What was noticed, from outside or from inside a run. Each one waits for one yes/no — and stales.</p>
       </div>
-      <div className="view__note">stored as <b>finding</b> on disk<br />rename → observation is a migration</div>
+      <div className="view__note">stored as <b>observation</b> on disk<br />rename → observation is a migration</div>
     </div>
     <div className="filters">
       <span className="filters__label">disposition</span>
       {filters.map((f) => <button key={f.key} type="button" className={`filter ${filter === f.key ? "is-active" : ""}`}
         aria-pressed={filter === f.key} onClick={() => onFilter(f.key)}>{f.label}<span>{f.count}</span></button>)}
-      <span className="filters__path">.kotta/findings/</span>
+      <span className="filters__path">.kotta/observations/</span>
     </div>
     {rows.length === 0 && <p className="view__empty">Nothing here — the {filter} list is empty.</p>}
-    {rows.map((finding) => {
-      const age = daysSince(finding.created_at);
-      return <EntityButton key={finding.id} id={finding.id} className={`obs ${age !== null && age > 30 ? "is-stale" : ""}`} onOpen={onOpen}>
-        <span className="obs__title">{finding.title}</span>
+    {rows.map((observation) => {
+      const age = daysSince(observation.created_at);
+      return <EntityButton key={observation.id} id={observation.id} className={`obs ${age !== null && age > 30 ? "is-stale" : ""}`} onOpen={onOpen}>
+        <span className="obs__title">{observation.title}</span>
         <span className="obs__meta">
-          <Tail id={finding.id} />
-          <span className="tag tag-neutral">{finding.finding_type}</span>
-          <span className={`tag sev-${finding.severity}`}>sev {finding.severity}</span>
-          {finding.discovered_during && <span className="obs__during">seen during {titleOf(finding.discovered_during) ?? displayId(finding.discovered_during)}</span>}
+          <Tail id={observation.id} />
+          <span className="tag tag-neutral">{observation.observation_type}</span>
+          <span className={`tag sev-${observation.severity}`}>sev {observation.severity}</span>
+          {observation.discovered_during && <span className="obs__during">seen during {titleOf(observation.discovered_during) ?? displayId(observation.discovered_during)}</span>}
           <span className={`obs__age ${age !== null && age > 30 ? "is-hot" : ""}`}>{age === null ? "no date" : `${age} days old`}</span>
-          {finding.became && <span className="obs__became">→ {titleOf(finding.became) ?? displayId(finding.became)}</span>}
+          {observation.became && <span className="obs__became">→ {titleOf(observation.became) ?? displayId(observation.became)}</span>}
         </span>
       </EntityButton>;
     })}
@@ -594,18 +594,18 @@ export function ContractsView({ board, filter, onFilter, query, onQuery, onOpen 
   board: Board; filter: Status | "all"; onFilter: (f: Status | "all") => void; query: string; onQuery: (q: string) => void; onOpen: (id: string) => void;
 }) {
   const needle = query.trim().toLowerCase();
-  const rows = board.tickets
+  const rows = board.contracts
     .filter((t) => (filter === "all" ? true : t.status === filter))
     .filter((t) => !needle || `${t.id} ${t.title}`.toLowerCase().includes(needle));
-  const count = (state: Status) => board.tickets.filter((t) => t.status === state).length;
+  const count = (state: Status) => board.contracts.filter((t) => t.status === state).length;
   const filters: Array<{ key: Status | "all"; label: string; count: number }> = [
-    { key: "all", label: "all", count: board.tickets.length },
+    { key: "all", label: "all", count: board.contracts.length },
     ...CONTRACT_STATES.map((state) => ({ key: state, label: stateLabel(state), count: count(state) })),
   ];
   return <div className="view">
     <div className="view__head">
       <div>
-        <div className="view__step">02 · tickets</div>
+        <div className="view__step">02 · contracts</div>
         <h2>Contracts</h2>
         <p>One entity, five states. Done is a filter value here, not a place of its own.</p>
       </div>
@@ -622,14 +622,14 @@ export function ContractsView({ board, filter, onFilter, query, onQuery, onOpen 
     </div>
     <div className="ctr__head" aria-hidden="true"><span>contract</span><span>state</span><span>came from</span><span>batch</span><span>claim</span></div>
     {rows.length === 0 && <p className="view__empty">No contract matches this filter{needle ? " and search" : ""}.</p>}
-    {rows.map((ticket) => <EntityButton key={ticket.id} id={ticket.id} className="ctr" onOpen={onOpen}>
-      <span className="ctr__title">{ticket.title}<Tail id={ticket.id} /></span>
-      <span><StateTag state={ticket.blocked ? "blocked" : ticket.status} /></span>
-      <span className="ctr__from">{ticket.source_finding ? titleOf(ticket.source_finding) ?? displayId(ticket.source_finding) : "—"}</span>
-      <span className="ctr__batch">{ticket.package ? titleOf(ticket.package) ?? displayId(ticket.package) : "—"}</span>
-      <span className="ctr__claim"><ClaimDot agent={ticket.assigned_agent} />{ticket.assigned_agent ?? "—"}</span>
+    {rows.map((contract) => <EntityButton key={contract.id} id={contract.id} className="ctr" onOpen={onOpen}>
+      <span className="ctr__title">{contract.title}<Tail id={contract.id} /></span>
+      <span><StateTag state={contract.blocked ? "blocked" : contract.status} /></span>
+      <span className="ctr__from">{contract.source_observation ? titleOf(contract.source_observation) ?? displayId(contract.source_observation) : "—"}</span>
+      <span className="ctr__batch">{contract.batch ? titleOf(contract.batch) ?? displayId(contract.batch) : "—"}</span>
+      <span className="ctr__claim"><ClaimDot agent={contract.assigned_agent} />{contract.assigned_agent ?? "—"}</span>
     </EntityButton>)}
-    <p className="view__foot">Showing {rows.length} of {board.tickets.length} · state comes from the directory the file lives in.</p>
+    <p className="view__foot">Showing {rows.length} of {board.contracts.length} · state comes from the directory the file lives in.</p>
   </div>;
 }
 
@@ -642,23 +642,23 @@ export function BatchesView({ board, onOpen }: { board: Board; onOpen: (id: stri
         <h2>Batches</h2>
         <p>Things that must be solved together — a module, or a clean-up. Reason, not calendar.</p>
       </div>
-      <div className="view__note">{board.packages.length} batches · {board.activeBatches.length} active<br />grouped by reason, not by calendar</div>
+      <div className="view__note">{board.batches.length} batches · {board.activeBatches.length} active<br />grouped by reason, not by calendar</div>
     </div>
-    {board.packages.length === 0 && <p className="view__empty">No batch on disk. A batch is written with <code>kotta package new</code>.</p>}
+    {board.batches.length === 0 && <p className="view__empty">No batch on disk. A batch is written with <code>kotta batch new</code>.</p>}
     <div className="cards">
-      {board.packages.map((pkg) => {
-        const members = pkg.tickets.map((id) => board.ticketById.get(id)).filter((t): t is Ticket => Boolean(t));
+      {board.batches.map((batch) => {
+        const members = batch.contracts.map((id) => board.contractById.get(id)).filter((t): t is Contract => Boolean(t));
         const done = members.filter((t) => t.status === "done").length;
-        const total = pkg.tickets.length;
-        return <EntityButton key={pkg.id} id={pkg.id} className={`card-batch ${pkg.status === "active" ? "is-active" : ""}`} onOpen={onOpen}>
+        const total = batch.contracts.length;
+        return <EntityButton key={batch.id} id={batch.id} className={`card-batch ${batch.status === "active" ? "is-active" : ""}`} onOpen={onOpen}>
           <span className="card-batch__top">
-            <StateTag state={pkg.status} />
+            <StateTag state={batch.status} />
             <span className="card-batch__frac">{done}/{total}</span>
           </span>
-          <span className="card-batch__title">{pkg.title}<Tail id={pkg.id} /></span>
+          <span className="card-batch__title">{batch.title}<Tail id={batch.id} /></span>
           <span className="bar"><span style={{ width: `${total ? (done / total) * 100 : 0}%` }} /></span>
-          <span className="card-batch__why">{firstLine(pkg.sections.goal) || "No goal recorded."}</span>
-          <span className="card-batch__mode">{pkg.execution?.mode ?? "dependency-aware"} · parallelism {pkg.execution?.parallelism ?? 2}</span>
+          <span className="card-batch__why">{firstLine(batch.sections.goal) || "No goal recorded."}</span>
+          <span className="card-batch__mode">{batch.execution?.mode ?? "dependency-aware"} · parallelism {batch.execution?.parallelism ?? 2}</span>
         </EntityButton>;
       })}
     </div>
@@ -713,69 +713,69 @@ function LinkRow({ link, onOpen }: { link: Link; onOpen: (id: string) => void })
 }
 
 export function DerivationPanel({ id, board, onOpen }: { id: string; board: Board; onOpen: (id: string) => void }) {
-  const ticket = board.ticketById.get(id);
-  const pkg = board.packageById.get(id);
-  const finding = board.findingById.get(id);
+  const contract = board.contractById.get(id);
+  const batch = board.batchById.get(id);
+  const observation = board.observationById.get(id);
 
   // came from
   let came: ReactNode = <p className="deriv__none">Nothing records where this came from.</p>;
-  if (ticket) {
-    const source = ticket.source_finding;
+  if (contract) {
+    const source = contract.source_observation;
     came = !source
-      ? <p className="deriv__none">No <code>source_finding</code> recorded — written straight as a contract.</p>
-      : board.findingById.has(source)
-        ? <LinkRow link={{ id: source, title: titleOf(source), note: `disposition: contract · ${board.findingById.get(source)?.finding_type}` }} onOpen={onOpen} />
-        : <Dangling field="source_finding" id={source} />;
-  } else if (finding) {
-    const during = finding.discovered_during;
+      ? <p className="deriv__none">No <code>source_observation</code> recorded — written straight as a contract.</p>
+      : board.observationById.has(source)
+        ? <LinkRow link={{ id: source, title: titleOf(source), note: `disposition: contract · ${board.observationById.get(source)?.observation_type}` }} onOpen={onOpen} />
+        : <Dangling field="source_observation" id={source} />;
+  } else if (observation) {
+    const during = observation.discovered_during;
     came = !during
       ? <p className="deriv__none">Not discovered during a contract — reported straight into the queue.</p>
-      : board.ticketById.has(during)
+      : board.contractById.has(during)
         ? <LinkRow link={{ id: during, title: titleOf(during), note: "seen during this contract" }} onOpen={onOpen} />
         : <Dangling field="discovered_during" id={during} />;
-  } else if (pkg) {
+  } else if (batch) {
     came = <p className="deriv__none">A batch is written, not derived — it groups contracts by reason.</p>;
   }
 
   // goes with
   let goes: ReactNode = <p className="deriv__none">Nothing else goes with this.</p>;
-  if (ticket) {
-    const batch = ticket.package;
-    const target = batch ? board.packageById.get(batch) : null;
-    goes = !batch
+  if (contract) {
+    const batchId = contract.batch;
+    const target = batchId ? board.batchById.get(batchId) : null;
+    goes = !batchId
       ? <p className="deriv__none">Not in a batch — nothing else has to be solved together with it.</p>
       : !target
-        ? <Dangling field="package" id={batch} />
+        ? <Dangling field="batch" id={batchId} />
         : <>
           <LinkRow link={{ id: target.id, title: target.title, note: firstLine(target.sections.goal) }} onOpen={onOpen} />
           <div className="deriv__siblings">
-            {target.tickets.filter((member) => member !== ticket.id).map((member) => {
-              const sibling = board.ticketById.get(member);
+            {target.contracts.filter((member) => member !== contract.id).map((member) => {
+              const sibling = board.contractById.get(member);
               return sibling
                 ? <EntityButton key={member} id={member} className="deriv__sibling" onOpen={onOpen}>
                   <span>{sibling.title}</span><StateTag state={sibling.status} />
                 </EntityButton>
-                : <div key={member} className="deriv__sibling"><Dangling field="tickets" id={member} /></div>;
+                : <div key={member} className="deriv__sibling"><Dangling field="contracts" id={member} /></div>;
             })}
           </div>
         </>;
-  } else if (finding) {
-    const became = finding.became;
+  } else if (observation) {
+    const became = observation.became;
     goes = !became
       ? <p className="deriv__none">No contract was written from this yet.</p>
-      : board.ticketById.has(became)
+      : board.contractById.has(became)
         ? <LinkRow link={{ id: became, title: titleOf(became), note: "became this contract" }} onOpen={onOpen} />
         : <Dangling field="became" id={became} />;
-  } else if (pkg) {
+  } else if (batch) {
     goes = <div className="deriv__siblings">
-      {pkg.tickets.length === 0 && <p className="deriv__none">No member contracts.</p>}
-      {pkg.tickets.map((member) => {
-        const sibling = board.ticketById.get(member);
+      {batch.contracts.length === 0 && <p className="deriv__none">No member contracts.</p>}
+      {batch.contracts.map((member) => {
+        const sibling = board.contractById.get(member);
         return sibling
           ? <EntityButton key={member} id={member} className="deriv__sibling" onOpen={onOpen}>
             <span>{sibling.title}</span><StateTag state={sibling.status} />
           </EntityButton>
-          : <div key={member} className="deriv__sibling"><Dangling field="tickets" id={member} /></div>;
+          : <div key={member} className="deriv__sibling"><Dangling field="contracts" id={member} /></div>;
       })}
     </div>;
   }
@@ -829,27 +829,27 @@ export function EntityDrawer({ id, workspace, board, onClose, onOpen }: {
   id: string; workspace: Workspace; board: Board; onClose: () => void; onOpen: (id: string) => void;
 }) {
   const ref = useDialog(onClose);
-  const ticket = board.ticketById.get(id);
-  const pkg = board.packageById.get(id);
-  const finding = board.findingById.get(id);
+  const contract = board.contractById.get(id);
+  const batch = board.batchById.get(id);
+  const observation = board.observationById.get(id);
   const decision = board.decisions.find((d) => d.id === id);
-  const entity = ticket ?? pkg ?? finding ?? decision;
-  const kind = ticket ? "contract" : pkg ? "batch" : finding ? "observation" : decision ? "decision" : "entity";
+  const entity = contract ?? batch ?? observation ?? decision;
+  const kind = contract ? "contract" : batch ? "batch" : observation ? "observation" : decision ? "decision" : "entity";
   const drift = (workspace.diagnostics ?? []).filter((d) => d.id === id);
 
   const fields: Array<[string, string]> = [];
-  if (ticket) {
-    fields.push(["state", stateLabel(ticket.status)], ["source_finding", ticket.source_finding ?? "—"], ["package", ticket.package ?? "—"],
-      ["claim", ticket.assigned_agent ?? "—"], ["branch", ticket.branch ?? "—"], ["priority", ticket.priority], ["risk", ticket.risk]);
-    if (ticket.depends_on?.length) fields.push(["depends_on", ticket.depends_on.join(" ")]);
-    if (ticket.resolution) fields.push(["resolution", ticket.resolution]);
-    if (ticket.migration?.legacy_id) fields.push(["legacy id", ticket.migration.legacy_id]);
-  } else if (finding) {
-    fields.push(["state", finding.status], ["type", finding.finding_type], ["severity", finding.severity], ["confidence", finding.confidence],
-      ["discovered_during", finding.discovered_during ?? "—"], ["became", finding.became ?? "—"], ["created", finding.created_at ?? "—"]);
-  } else if (pkg) {
-    fields.push(["state", pkg.status], ["kind", pkg.kind], ["members", String(pkg.tickets.length)],
-      ["mode", pkg.execution?.mode ?? "dependency-aware"], ["parallelism", String(pkg.execution?.parallelism ?? 2)]);
+  if (contract) {
+    fields.push(["state", stateLabel(contract.status)], ["source_observation", contract.source_observation ?? "—"], ["batch", contract.batch ?? "—"],
+      ["claim", contract.assigned_agent ?? "—"], ["branch", contract.branch ?? "—"], ["priority", contract.priority], ["risk", contract.risk]);
+    if (contract.depends_on?.length) fields.push(["depends_on", contract.depends_on.join(" ")]);
+    if (contract.resolution) fields.push(["resolution", contract.resolution]);
+    if (contract.migration?.legacy_id) fields.push(["legacy id", contract.migration.legacy_id]);
+  } else if (observation) {
+    fields.push(["state", observation.status], ["type", observation.observation_type], ["severity", observation.severity], ["confidence", observation.confidence],
+      ["discovered_during", observation.discovered_during ?? "—"], ["became", observation.became ?? "—"], ["created", observation.created_at ?? "—"]);
+  } else if (batch) {
+    fields.push(["state", batch.status], ["kind", batch.kind], ["members", String(batch.contracts.length)],
+      ["mode", batch.execution?.mode ?? "dependency-aware"], ["parallelism", String(batch.execution?.parallelism ?? 2)]);
   } else if (decision) {
     fields.push(["date", decision.date ?? "—"]);
   }
@@ -890,7 +890,7 @@ export function EntityDrawer({ id, workspace, board, onClose, onOpen }: {
 /* ══ The run ═══════════════════════════════════════════ */
 export function RunOverlay({ board, onClose, onOpen }: { board: Board; onClose: () => void; onOpen: (id: string) => void }) {
   const ref = useDialog(onClose);
-  const recent = [...board.tickets]
+  const recent = [...board.contracts]
     .filter((t) => t.updated_at)
     .sort((a, b) => (parseDate(b.updated_at) ?? 0) - (parseDate(a.updated_at) ?? 0))
     .slice(0, 12);
@@ -903,33 +903,33 @@ export function RunOverlay({ board, onClose, onOpen }: { board: Board; onClose: 
     </div>
     <div className="run__body">
       <div className="run__batches scroll">
-        {board.activeBatches.length === 0 && board.running.length === 0 && <p className="run__empty">Nothing is running. A batch starts with <code>kotta package start &lt;id&gt;</code>, a single contract with <code>kotta ticket execute &lt;id&gt; --agent codex</code>.</p>}
-        {board.activeBatches.map((pkg) => {
-          const members = pkg.tickets.map((id) => board.ticketById.get(id)).filter((t): t is Ticket => Boolean(t));
+        {board.activeBatches.length === 0 && board.running.length === 0 && <p className="run__empty">Nothing is running. A batch starts with <code>kotta batch start &lt;id&gt;</code>, a single contract with <code>kotta contract execute &lt;id&gt; --agent codex</code>.</p>}
+        {board.activeBatches.map((batch) => {
+          const members = batch.contracts.map((id) => board.contractById.get(id)).filter((t): t is Contract => Boolean(t));
           const done = members.filter((t) => t.status === "done").length;
           const rows = members.filter((t) => t.status === "active" || t.status === "review");
-          return <section key={pkg.id} className="run__batch">
+          return <section key={batch.id} className="run__batch">
             <div className="run__batch-head">
-              <h3>{pkg.title}</h3>
-              <Tail id={pkg.id} />
-              <span className="run__progress">{done}/{pkg.tickets.length}</span>
-              <span className="bar bar--dark"><span style={{ width: `${pkg.tickets.length ? (done / pkg.tickets.length) * 100 : 0}%` }} /></span>
+              <h3>{batch.title}</h3>
+              <Tail id={batch.id} />
+              <span className="run__progress">{done}/{batch.contracts.length}</span>
+              <span className="bar bar--dark"><span style={{ width: `${batch.contracts.length ? (done / batch.contracts.length) * 100 : 0}%` }} /></span>
             </div>
-            {rows.map((ticket) => <EntityButton key={ticket.id} id={ticket.id} className="run__row" onOpen={onOpen}>
-              <span className="run__row-title">{ticket.title}</span>
-              <StateTag state={ticket.status} />
-              <span className="run__row-claim"><ClaimDot agent={ticket.assigned_agent} />{ticket.assigned_agent ?? "no claim"} · {ticket.branch ?? "no branch"}</span>
-              <span className="run__row-act">{relativeTime(ticket.updated_at)}</span>
+            {rows.map((contract) => <EntityButton key={contract.id} id={contract.id} className="run__row" onOpen={onOpen}>
+              <span className="run__row-title">{contract.title}</span>
+              <StateTag state={contract.status} />
+              <span className="run__row-claim"><ClaimDot agent={contract.assigned_agent} />{contract.assigned_agent ?? "no claim"} · {contract.branch ?? "no branch"}</span>
+              <span className="run__row-act">{relativeTime(contract.updated_at)}</span>
             </EntityButton>)}
           </section>;
         })}
-        {board.running.filter((t) => !t.package).length > 0 && <section className="run__batch">
+        {board.running.filter((t) => !t.batch).length > 0 && <section className="run__batch">
           <div className="run__batch-head"><h3>Outside every batch</h3></div>
-          {board.running.filter((t) => !t.package).map((ticket) => <EntityButton key={ticket.id} id={ticket.id} className="run__row" onOpen={onOpen}>
-            <span className="run__row-title">{ticket.title}</span>
-            <StateTag state={ticket.status} />
-            <span className="run__row-claim"><ClaimDot agent={ticket.assigned_agent} />{ticket.assigned_agent ?? "no claim"} · {ticket.branch ?? "no branch"}</span>
-            <span className="run__row-act">{relativeTime(ticket.updated_at)}</span>
+          {board.running.filter((t) => !t.batch).map((contract) => <EntityButton key={contract.id} id={contract.id} className="run__row" onOpen={onOpen}>
+            <span className="run__row-title">{contract.title}</span>
+            <StateTag state={contract.status} />
+            <span className="run__row-claim"><ClaimDot agent={contract.assigned_agent} />{contract.assigned_agent ?? "no claim"} · {contract.branch ?? "no branch"}</span>
+            <span className="run__row-act">{relativeTime(contract.updated_at)}</span>
           </EntityButton>)}
         </section>}
         <p className="run__foot">Nothing on this screen can be edited. Planning happens on the other side — home, the chain, the menu.</p>
@@ -937,9 +937,9 @@ export function RunOverlay({ board, onClose, onOpen }: { board: Board; onClose: 
       <div className="run__side">
         <div className="run__side-head">Latest movements</div>
         <div className="run__ticker scroll">
-          {recent.map((ticket) => <div key={ticket.id} className="run__tick">
-            <span className="run__tick-time">{relativeTime(ticket.updated_at)}</span>
-            <span className="run__tick-text">{stateLabel(ticket.status)} · {ticket.title}</span>
+          {recent.map((contract) => <div key={contract.id} className="run__tick">
+            <span className="run__tick-time">{relativeTime(contract.updated_at)}</span>
+            <span className="run__tick-text">{stateLabel(contract.status)} · {contract.title}</span>
           </div>)}
           {recent.length === 0 && <p className="run__empty">No dated movement on record.</p>}
           <p className="run__side-note">Derived from <code>updated_at</code> in the frontmatter — the board reads state, not an event stream.</p>
@@ -954,17 +954,17 @@ export function CliSheet({ onClose }: { onClose: () => void }) {
   const ref = useDialog(onClose);
   const groups: Array<{ label: string; rows: Array<[string, string]> }> = [
     { label: "observations", rows: [
-      ["kotta finding new --title … --type …", "record what was noticed"],
-      ["kotta finding resolve <id> --disposition … --approve", "reject it, or turn it into a contract"],
+      ["kotta observation new --title … --type …", "record what was noticed"],
+      ["kotta observation resolve <id> --disposition … --approve", "reject it, or turn it into a contract"],
     ] },
     { label: "contracts", rows: [
-      ["kotta ticket ready <id> --approve", "backlog → defined; validates the contract"],
-      ["kotta ticket execute <id> --agent codex", "run a defined contract in a fresh context"],
-      ["kotta ticket close <id> --approve", "review → done"],
+      ["kotta contract sign <id> --approve", "backlog → defined; validates the contract"],
+      ["kotta contract execute <id> --agent codex", "run a defined contract in a fresh context"],
+      ["kotta contract close <id> --approve", "review → done"],
     ] },
     { label: "batches", rows: [
-      ["kotta package start <id>", "start it; claims and worktrees per member"],
-      ["kotta package close <id> --approve", "every member is done"],
+      ["kotta batch start <id>", "start it; claims and worktrees per member"],
+      ["kotta batch close <id> --approve", "every member is done"],
     ] },
     { label: "decisions and checks", rows: [
       ["kotta decision create --from <file> --approve", "record one; it gets quoted where referenced"],

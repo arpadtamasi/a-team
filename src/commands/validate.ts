@@ -2,9 +2,9 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
 import { WORKSPACE_DIRECTORY_LABEL, findRepositoryRoot, hasWorkspace, workspacePath } from "../filesystem/workspace.js";
-import { PACKAGE_STATES, TICKET_STATES, idFromEntityFile } from "../filesystem/entities.js";
-import { validateTicketFile } from "../core/validation.js";
-import { validatePackage } from "./package.js";
+import { BATCH_STATES, CONTRACT_STATES, idFromEntityFile } from "../filesystem/entities.js";
+import { validateContractFile } from "../core/validation.js";
+import { validateBatch } from "./batch.js";
 import { validateClaim } from "../core/claim.js";
 import { parseMarkdown } from "../core/markdown.js";
 import { validateDecisionFile } from "../core/decision.js";
@@ -16,7 +16,7 @@ interface Located { state: string; path: string }
  * single state directory, and one entity that a merge left in several state directories. Only the
  * second has a deterministic resolution, so it is reported as its own case naming every place.
  */
-function duplicateIssues(located: Map<string, Located[]>, kind: "ticket" | "package"): Array<{ code: string; message: string; path: string }> {
+function duplicateIssues(located: Map<string, Located[]>, kind: "contract" | "batch"): Array<{ code: string; message: string; path: string }> {
   const issues: Array<{ code: string; message: string; path: string }> = [];
   for (const [id, copies] of located) {
     if (copies.length < 2) continue;
@@ -41,16 +41,16 @@ export function validateWorkspace() {
   const root = findRepositoryRoot();
   const errors: Array<{ code: string; message: string; path?: string }> = [];
   if (!existsSync(workspacePath(root))) {
-    return { ok: false, command: "validate", data: { tickets: 0 }, errors: [{ code: "WORKSPACE_NOT_FOUND", message: `No ${WORKSPACE_DIRECTORY_LABEL} workspace exists at ${root}. Run kotta init first.`, path: root }] };
+    return { ok: false, command: "validate", data: { contracts: 0 }, errors: [{ code: "WORKSPACE_NOT_FOUND", message: `No ${WORKSPACE_DIRECTORY_LABEL} workspace exists at ${root}. Run kotta init first.`, path: root }] };
   }
   const seen = new Map<string, Located[]>();
   const references: Array<{ id: string; field: "depends_on" | "blocks"; reference: string; path: string }> = [];
-  for (const state of TICKET_STATES) {
+  for (const state of CONTRACT_STATES) {
     const directory = workspacePath(root, state);
     if (!existsSync(directory)) continue;
     for (const filename of readdirSync(directory).filter((name) => name.endsWith(".md"))) {
       const path = join(directory, filename);
-      const report = validateTicketFile(path);
+      const report = validateContractFile(path);
       errors.push(...report.errors);
       // The frontmatter carries identity; a minted entity's filename holds only its short suffix.
       const id = idFromEntityFile(path, filename) ?? filename.replace(/\.md$/, "");
@@ -62,11 +62,11 @@ export function validateWorkspace() {
           for (const reference of values) references.push({ id, field, reference, path });
         }
       } catch {
-        // validateTicketFile already reports malformed frontmatter for this path.
+        // validateContractFile already reports malformed frontmatter for this path.
       }
       if (state === "active") {
         const claimPath = workspacePath(root, "claims", `${id}.yaml`);
-        if (!existsSync(claimPath)) errors.push({ code: "MISSING_CLAIM", message: `Active ticket ${id} has no claim.`, path });
+        if (!existsSync(claimPath)) errors.push({ code: "MISSING_CLAIM", message: `Active contract ${id} has no claim.`, path });
         else {
           const claimErrors = validateClaim(parse(readFileSync(claimPath, "utf8")) as Record<string, unknown>);
           for (const message of claimErrors) errors.push({ code: "INVALID_CLAIM", message: `Claim ${id}: ${message}.`, path: claimPath });
@@ -74,33 +74,33 @@ export function validateWorkspace() {
       }
     }
   }
-  errors.push(...duplicateIssues(seen, "ticket"));
+  errors.push(...duplicateIssues(seen, "contract"));
   for (const reference of references) {
     if (!seen.has(reference.reference)) {
       errors.push({
         code: "DANGLING_REFERENCE",
-        message: `${reference.id} ${reference.field} references missing ticket ${reference.reference}.`,
+        message: `${reference.id} ${reference.field} references missing contract ${reference.reference}.`,
         path: reference.path,
       });
     }
   }
-  const seenPackages = new Map<string, Located[]>();
-  for (const state of PACKAGE_STATES) {
-    const directory = workspacePath(root, "packages", state);
+  const seenBatches = new Map<string, Located[]>();
+  for (const state of BATCH_STATES) {
+    const directory = workspacePath(root, "batches", state);
     if (!existsSync(directory)) continue;
     for (const filename of readdirSync(directory).filter((name) => name.endsWith(".md"))) {
       const path = join(directory, filename);
       const id = idFromEntityFile(path, filename);
       if (!id) {
-        errors.push({ code: "MISSING_PACKAGE_ID", message: `${path} has no package id in its frontmatter.`, path });
+        errors.push({ code: "MISSING_BATCH_ID", message: `${path} has no batch id in its frontmatter.`, path });
         continue;
       }
-      seenPackages.set(id, [...(seenPackages.get(id) ?? []), { state, path }]);
-      const report = validatePackage(id);
+      seenBatches.set(id, [...(seenBatches.get(id) ?? []), { state, path }]);
+      const report = validateBatch(id);
       if (!report.ok) errors.push(...report.errors.map((error) => ({ ...error, path })));
     }
   }
-  errors.push(...duplicateIssues(seenPackages, "package"));
+  errors.push(...duplicateIssues(seenBatches, "batch"));
   const decisionsDirectory = workspacePath(root, "decisions");
   const decisions = existsSync(decisionsDirectory)
     ? readdirSync(decisionsDirectory).filter((name) => name.endsWith(".md"))
@@ -115,5 +115,5 @@ export function validateWorkspace() {
     if (previous) errors.push({ code: "DUPLICATE_DECISION_ID", message: `${id} appears in both ${previous} and ${path}.`, path });
     else seenDecisions.set(id, path);
   }
-  return { ok: errors.length === 0, command: "validate", data: { tickets: seen.size, decisions: decisions.length }, errors };
+  return { ok: errors.length === 0, command: "validate", data: { contracts: seen.size, decisions: decisions.length }, errors };
 }

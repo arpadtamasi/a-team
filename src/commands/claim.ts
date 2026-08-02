@@ -27,7 +27,7 @@ export function listClaims() {
 export function releaseClaim(id: string, force: boolean) {
   if (!force) throw new Error("Claim release is a recovery operation. Re-run with --force after checking the worktree.");
   const root = findRepositoryRoot();
-  const located = claims(root).find(({ data }) => String(data.ticket) === id);
+  const located = claims(root).find(({ data }) => String(data.contract) === id);
   if (!located) throw new Error(`Claim for ${id} was not found.`);
   const errors = validateClaim(located.data);
   if (errors.length) throw new Error(`Claim for ${id} is invalid: ${errors.join(", ")}. Repair it before release.`);

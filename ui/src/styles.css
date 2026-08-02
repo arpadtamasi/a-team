@@ -352,7 +352,7 @@ code { font-family: var(--font-mono); }
 .dot-none { background: transparent; border: 1px solid var(--line-soft); }
 .state { border: 1px solid transparent; }
 .state-backlog { background: var(--color-surface); color: var(--color-neutral-800); border-color: var(--line-soft); }
-.state-ready { background: var(--color-accent-200); color: var(--color-accent-800); }
+.state-defined { background: var(--color-accent-200); color: var(--color-accent-800); }
 .state-active { background: var(--accent-fill); color: var(--color-bg); }
 .state-review { background: var(--color-text); color: var(--color-bg); }
 .state-done { background: var(--color-surface); color: var(--color-neutral-700); }

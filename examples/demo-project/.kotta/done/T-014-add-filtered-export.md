@@ -3,20 +3,25 @@ id: T-014
 title: Add filtered course export
 status: done
 origin: human
-types: [feature, ui, workflow]
-profiles: [ui, workflow]
+types:
+  - feature
+  - ui
+  - workflow
+profiles:
+  - ui
+  - workflow
 priority: high
 risk: medium
-package: P-012
+batch: P-012
 depends_on: []
-blocks: [T-018]
+blocks:
+  - T-018
 branch: null
-pull_request: https://example.invalid/pull/14
+pull_request: 'https://example.invalid/pull/14'
 resolution: completed
-created_at: 2026-07-21
-updated_at: 2026-07-21
+created_at: '2026-07-21'
+updated_at: '2026-07-21'
 ---
-
 # T-014 — Add filtered course export
 
 ## Outcome

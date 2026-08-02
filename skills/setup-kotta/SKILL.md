@@ -1,6 +1,6 @@
 ---
 name: setup-kotta
-description: Initialize Kotta's repository-native ticket workspace in a Git repository. Use when a user asks to install, set up, bootstrap, or initialize Kotta for a project.
+description: Initialize Kotta's repository-native contract workspace in a Git repository. Use when a user asks to install, set up, bootstrap, or initialize Kotta for a project.
 ---
 
 # Set up Kotta
@@ -12,6 +12,6 @@ Use the `kotta` CLI as the canonical mutation interface. Do not create or edit `
 3. Run `kotta init` from the repository root. Add `--json` when structured output is useful.
 4. Run `kotta validate` and report actionable validation failures.
 5. Summarize the created workspace and configuration, including the base branch and worktree policy.
-6. Tell the user that `/define-ticket` creates the first executable work contract and `kotta status` shows current state.
+6. Tell the user that `/define-contract` creates the first executable work contract and `kotta status` shows current state.
 
 The filesystem under `.kotta/` is canonical, but all workflow mutations must pass through the CLI so validation, index generation, and transaction safety stay consistent.

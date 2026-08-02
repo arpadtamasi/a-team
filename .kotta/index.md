@@ -46,6 +46,7 @@ None.
 - a-kiadatlan-changelog-bejegyzes-a-regi-binaris-nevet-hasznal-m4m7q531
 - a-markdown-h1-a-teljes-azonositot-hordozza-igy-a-mintazott-u-rb71ckkr
 - a-ticket-brief-nem-szedi-fel-a-mintazott-azonositoju-dontese-phd95n90
+- a-vitest-a-worktrees-ala-is-benez-egy-elo-ticket-worktree-me-cahhcmt5
 - a-workspace-konyvtar-atnevezese-uressen-mutatja-a-boardot-am-0n2rjcpt
 - gray-matter-memoizes-frontmatter-so-every-writer-mutates-a-s-s8j3h62g
 - migration-json-keeps-the-pre-vocabulary-words-and-nothing-de-3hcysj58

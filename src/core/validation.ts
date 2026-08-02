@@ -1,12 +1,18 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { PROFILE_REQUIREMENTS } from "./profiles.js";
-import { parseMarkdown, sections } from "./markdown.js";
+import { parseMarkdown, sections, subsections } from "./markdown.js";
 
 export interface ValidationIssue { code: string; message: string; path?: string }
 export interface ValidationReport { valid: boolean; errors: ValidationIssue[] }
 
 const COMMON_SECTIONS = ["Outcome", "Scope", "Non-goals", "Acceptance", "Verification", "Constraints", "Open decisions", "Execution notes"];
+
+// F-019: the structured Deviations field stays "None."/"Not declared." while the narrative names deviations.
+const UNDECLARED_DEVIATIONS = /^(?:none|not declared)\.?$/i;
+const DEVIATION_MARKER = /devi[áa]ci|deviation/i;
+// A narrative that denies deviations agrees with the field; drop those phrases before looking for a mention.
+const DENIED_DEVIATION = /\b(?:no|zero|without(?: any)?)\s+deviations?\b|(?:nincs(?:enek)?|nem\s+volt(?:ak)?)\s+(?:\S+\s+){0,2}devi[áa]ci\w*|devi[áa]ci\w*\s+(?:nincs(?:enek)?|nem\s+volt(?:ak)?)/gi;
 
 function values(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String) : value ? [String(value)] : [];
@@ -48,6 +54,13 @@ function validateTicket(path: string, expectedState?: string, requireDefinition 
   const cancelled = state === "done" && ["cancelled", "duplicate", "obsolete"].includes(String(entity.data.resolution));
   if (["review", "done"].includes(state) && !cancelled && !bodySections.get("review evidence")?.trim()) errors.push({ code: "MISSING_REVIEW_EVIDENCE", message: `${state} ticket requires review evidence.`, path });
   if (state === "done" && !["completed", "cancelled", "duplicate", "obsolete"].includes(String(entity.data.resolution))) errors.push({ code: "MISSING_RESOLUTION", message: "Done ticket requires a final resolution.", path });
+  if (state === "done" && !cancelled) {
+    const declarations = subsections(bodySections.get("review evidence") ?? "");
+    if (UNDECLARED_DEVIATIONS.test((declarations.get("deviations") ?? "").trim())) {
+      const quoted = (declarations.get("verification performed") ?? "").split(/\r?\n/).find((line) => DEVIATION_MARKER.test(line.replace(DENIED_DEVIATION, "")));
+      if (quoted) errors.push({ code: "DEVIATION_MISMATCH", message: `${id} declares no deviations while the verification narrative names one: "${quoted.trim().slice(0, 120)}".`, path });
+    }
+  }
   return { valid: errors.length === 0, errors };
 }
 

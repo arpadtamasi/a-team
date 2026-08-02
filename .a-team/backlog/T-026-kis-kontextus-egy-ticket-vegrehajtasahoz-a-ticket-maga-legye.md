@@ -14,7 +14,7 @@ blocks: []
 branch: null
 pull_request: null
 created_at: '2026-08-01'
-updated_at: '2026-08-01'
+updated_at: '2026-08-02'
 ---
 # T-026 — Kis kontextus: egy ticket végrehajtásához a ticket maga legyen elég
 
@@ -29,7 +29,7 @@ Az operátor mért használati adata (2026-08-01): a fogyasztás 88%-a 150k fele
 ## Scope
 
 - **`kotta brief <id>`** — összeállítja egy ticket minimális végrehajtási kontextusát: ticket-törzs, hivatkozott D-döntések, profil-követelmények, claim/branch-információ. Kimenete fájlba is kérhető, tokenbecsléssel.
-- **A brief a hivatalos átadási forma:** az execute-flow (skill és package-futtatás) a friss ágensnek a briefet adja, nem a workspace-t. A worktree-ben a kód ott van — a brief a *szándék*-kontextust szűkíti.
+- **Friss kontextus ticketenként, alapértelmezetten (D-009):** az execute-flow minden tickethez ÚJ ágenst indít a brieffel — a koordinátor kontextusa nem öröklődik. A kontextus-továbbvitel explicit flag és naplózott kivétel. A worktree-ben a kód ott van — a brief a *szándék*-kontextust szűkíti.
 - **Mérés és jelzés:** a brief tokenbecslése a riportban; küszöb fölött (konfigurálható) a CLI figyelmeztet: a ticket valószínűleg túl nagy vagy alul-hivatkozott — bontani vagy élesíteni kell.
 - **Függőség-határ:** a brief kimondja, mit NEM tartalmaz (más ticketek törzse, findingok) — ha a végrehajtónak mégis kellene, az explicit kérés és naplózott jel, nem csendes odaadás.
 
@@ -44,7 +44,7 @@ Az operátor mért használati adata (2026-08-01): a fogyasztás 88%-a 150k fele
 1. `kotta brief T-xxx` a ticket + hivatkozott döntések + profil tartalmát adja, semmi mást; tokenbecsléssel zár.
 2. Egy valós ticketen (pl. crm-kit T-002) a brief önmagában elég egy friss ágensnek a munka elkezdéséhez — próbafutással igazolva, a hiányzó információk jegyzőkönyvezve.
 3. Küszöb fölötti briefnél a CLI kimondott figyelmeztetést ad, és megnevezi a legnagyobb tételt.
-4. Az execute-package flow a briefet adja át a ticket-ágensnek; a futam jegyzőkönyvében látszik a brief mérete ticketenként.
+4. Az execute-package flow minden tickethez friss ágenst indít a brieffel — alapértelmezetten, flag nélkül; a futam jegyzőkönyvében látszik a brief mérete és az ágens-kontextus különállása ticketenként. Kontextus-öröklés csak explicit flaggel, és a jegyzőkönyv jelöli.
 5. A dokumentáció kimondja az elvet: a kis kontextus minőségi mérce, nem takarékossági trükk.
 
 ## Constraints

@@ -1,7 +1,7 @@
 ---
 id: T-01kz1nzpnafm6n5t0fz43g7nwh
 title: Component-test harness for the React board
-status: backlog
+status: ready
 origin: finding
 types:
   - feature

@@ -6,7 +6,7 @@ import { initCommand } from "../commands/init.js";
 import { briefTicket, cancelTicket, closeTicket, defineTicket, newTicket, readyTicket, reopenTicket, reviewTicket, startTicket, validateTicket } from "../commands/ticket.js";
 import { statusCommand } from "../commands/status.js";
 import { newFinding, resolveFinding, validateFinding } from "../commands/finding.js";
-import { newPackage, packageStatus, readyPackage, startPackage, updatePackageTickets, validatePackage } from "../commands/package.js";
+import { finalizePackage, newPackage, packageStatus, readyPackage, startPackage, updatePackageTickets, validatePackage } from "../commands/package.js";
 import { validateWorkspace } from "../commands/validate.js";
 import { listClaims, releaseClaim } from "../commands/claim.js";
 import { uiCommand } from "../commands/ui.js";
@@ -188,6 +188,11 @@ packageCommand
   .command("status <id>")
   .option("--json")
   .action((id: string, options: { json?: boolean }) => print(packageStatus(id), Boolean(options.json)));
+packageCommand
+  .command("finalize <id>")
+  .description("Clean up the coordinator branch of a done package after its integration is proven")
+  .option("--json")
+  .action((id: string, options: { json?: boolean }) => print(finalizePackage(id), Boolean(options.json)));
 
 const claim = program.command("claim").description("Inspect and recover execution claims");
 claim

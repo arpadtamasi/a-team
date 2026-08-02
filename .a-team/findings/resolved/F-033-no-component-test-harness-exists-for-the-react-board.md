@@ -1,13 +1,16 @@
 ---
 id: F-033
 title: No component-test harness exists for the React board
-status: new
+status: resolved
 origin: agent
 finding_type: process
 confidence: high
 severity: medium
 discovered_during: T-013
 created_at: '2026-08-02'
+disposition: create-ticket
+resolved_at: '2026-08-02T16:47:46.869Z'
+ticket: T-01kz1nzpnafm6n5t0fz43g7nwh
 ---
 # F-033 — No component-test harness exists for the React board
 

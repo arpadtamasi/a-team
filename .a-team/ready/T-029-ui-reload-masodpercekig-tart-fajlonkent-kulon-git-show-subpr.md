@@ -3,7 +3,7 @@ id: T-029
 title: >-
   UI reload masodpercekig tart — fajlonkent kulon git show subprocess, cache
   nelkul
-status: backlog
+status: ready
 origin: finding
 types:
   - feature

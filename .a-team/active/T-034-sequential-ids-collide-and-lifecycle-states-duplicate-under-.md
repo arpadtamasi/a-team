@@ -1,7 +1,7 @@
 ---
 id: T-034
 title: 'Koordinacio-mentes entitas-azonosito, hogy ket ag ne tudjon utkozni'
-status: ready
+status: active
 origin: finding
 types:
   - bug
@@ -12,11 +12,12 @@ package: P-005
 depends_on: []
 blocks:
   - T-035
-branch: null
+branch: fix/T-034-koordinacio-mentes-entitas-azonosito-hogy-ket-ag-ne-tudjon-u
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
 source_finding: F-008
+assigned_agent: claude
 ---
 # T-034 — Koordináció-mentes entitás-azonosító, hogy két ág ne tudjon ütközni
 

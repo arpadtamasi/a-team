@@ -8,24 +8,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- **The product is renamed A-Team → Kotta (D-005, D-006), and the rename costs an existing workspace
-  nothing.** The npm package is now `kotta` (0.3.0) and the old `@arpadtamasi/a-team` is deprecated in
-  favour of it; the CLI binary is `kotta`, with `a-team` installed as an alias of the same entrypoint
-  reporting the same version. Workspace discovery is `.kotta/` first, `.a-team/` otherwise, so every
-  existing `.a-team/` workspace keeps working untouched and unmigrated — a symlink in either direction
-  (`ln -s .a-team .kotta` or `ln -s .kotta .a-team`) bridges the two names, and the board resolves to
-  whichever is the real directory so Git plumbing keeps reading it. `kotta init` creates `.kotta/` and
-  refuses to add a second workspace beside an existing one under either name. Environment overrides
-  are `KOTTA_*`, with the `A_TEAM_*` names still read. Documentation, the site (now published at
-  `arpadtamasi.github.io/kotta/`), the schemas and the skills carry the new name; `/setup-a-team` and
-  `/report-a-team-bug` are now `/setup-kotta` and `/report-kotta-bug`. Behaviour is otherwise unchanged:
-  this release renames, it does not change what any command does.
+- **The product is renamed A-Team → Kotta (D-005, D-006, D-007), and the rename costs an existing
+  workspace nothing.** The npm package is now `kotta` (0.3.0) and the old `@arpadtamasi/a-team` is
+  deprecated in favour of it; the CLI binary is `kotta`, with `a-team` installed as an alias of the same
+  entrypoint reporting the same version. `.kotta/` is the workspace directory: `kotta init` creates it,
+  discovery finds it first, and it is what the status output and the board header show. A workspace
+  under the pre-rename name is still discovered and used as-is, so no repository has to migrate; when
+  one wants to, `git mv` plus a backwards symlink keeps history and old scripts intact, and a symlinked
+  name always loses to a real sibling so Git plumbing keeps reading the tracked tree. Two real
+  directories are the one ambiguous case: the CLI uses `.kotta/` and prints a warning naming the
+  directory it ignored. `init` refuses to add a second workspace beside an existing one under either
+  name. Environment overrides are `KOTTA_*`, with the `A_TEAM_*` names still read. Documentation, the
+  site (now published at `arpadtamasi.github.io/kotta/`), the schemas and the skills carry the new name;
+  `/setup-a-team` and `/report-a-team-bug` are now `/setup-kotta` and `/report-kotta-bug`. The README
+  section "Renamed from A-Team" is the single description of the compatibility. Behaviour is otherwise
+  unchanged: this release renames, it does not change what any command does.
+
+- This repository migrated its own workspace to `.kotta/` (T-021) with `git mv` and a committed
+  `.a-team → .kotta` symlink — the first instance of the documented migration, and the model the
+  remaining Kotta-using projects follow. All 118 workspace files moved with their history; the
+  `index.md merge=union` attribute moved with them.
 
 - Entity identifiers are minted without coordination (T-034, D-003 narrowed by D-010): `ticket new`,
   `finding new`, `package new` and `decision create` produce `<type>-<ULID>` instead of scanning the
   branch for `max + 1`, so two agents on two branches can no longer be handed the same id. New entity
-  files are named `slug-<short id>.md`; `.a-team/index.md` is merged with Git's `union` driver, which
-  `a-team init` now records in `.gitattributes`. Existing sequential identifiers, filenames and
+  files are named `slug-<short id>.md`; the generated `index.md` is merged with Git's `union` driver,
+  which `kotta init` now records in `.gitattributes` for the workspace directory it created. Existing sequential identifiers, filenames and
   references are untouched and stay valid indefinitely — `validate` accepts both forms and reports
   `DUPLICATE_ID` if two entities ever share one.
 
@@ -59,7 +67,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - `decision create` no longer fails with `ENOENT` in a freshly created worktree (T-01kz1g2vra99x0xhw144x6rke4). Git does not
-  carry the empty `.a-team/decisions` directory into a linked worktree, so the writer now creates it
+  carry the empty `decisions/` workspace directory into a linked worktree, so the writer now creates it
   before reading, the way every other writer already does. Nothing about a decision's content or id
   derivation changes.
 

@@ -16,11 +16,11 @@ None.
 
 ## Active tickets
 
-- T-035-a-friss-kontextusu-ticket-vegrehajtas-nincs-parancsban-es-a-
+None.
 
 ## Review
 
-None.
+- T-035-a-friss-kontextusu-ticket-vegrehajtas-nincs-parancsban-es-a-
 
 ## Blocked
 

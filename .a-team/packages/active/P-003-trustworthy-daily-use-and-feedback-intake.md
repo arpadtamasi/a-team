@@ -20,7 +20,7 @@ authority:
   reorder_independent_tickets: false
   change_scope: false
 created_at: '2026-07-23'
-updated_at: '2026-07-23'
+updated_at: '2026-08-02'
 ---
 # P-003 — Trustworthy daily use and feedback intake
 

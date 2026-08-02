@@ -3,7 +3,7 @@ id: T-033
 title: >-
   Harom lezart ticket Deviations mezojenek kibekitese a sajat prozajaval (T-026,
   T-029, T-030)
-status: active
+status: review
 origin: finding
 types:
   - bug
@@ -69,3 +69,25 @@ None.
 ## Execution notes
 
 Három fájl a `.a-team/done/` alatt. A prózában a `DEVIACIO` / `DEVIACIOK` jelölés után álló felsorolás az átemelendő tartalom.
+
+## Review evidence
+
+| Acceptance condition | Evidence |
+|---|---|
+| Ticket acceptance criteria | Acc1: a T-026, T-029 es T-030 '### Deviations' szakasza a sajat prozajukban nevesitett deviaciokat sorolja; 'None.' egyikben sem maradt (grep -c '^None\.' a harom fajl Deviations szakaszara: 0). T-026: DEVIACIO-1 (friss-agens probafutas a crm-kit buildben esedekes) es DEVIACIO-2 (gepi kikenyszerites skill-szerzodesben, nem kodban). T-029: DEVIACIOK (a) on-base +1 git status, (b) archive valasztasa ls-tree+cat-file helyett, (c) +1 fallback-teszt, plusz az elmaradt interaktiv bongeszos fusteszt. T-030: DEVIACIOK +1 orszem-teszt, assertClean+commit konvenciokovetes, vedekezo claim-guard. Acc2: 'node dist/cli/index.js validate --json' -> ok: true, DEVIATION_MISMATCH nulla (elotte harom). Acc3: 'git diff --stat' 3 fajl / 3 insertion / 3 deletion; a -U0 diff mindharom fajlnal egyetlen sort erint, a '### Deviations' szakaszon belul — evidencia-tablazat, Verification performed, frontmatter, resolution valtozatlan. Acc4: 'npx vitest run' 18 fajl / 55 passed / 1 skipped; 'npm run build:cli' zold. Commit: 465be0f. |
+
+### Verification performed
+
+Acc1: a T-026, T-029 es T-030 '### Deviations' szakasza a sajat prozajukban nevesitett deviaciokat sorolja; 'None.' egyikben sem maradt (grep -c '^None\.' a harom fajl Deviations szakaszara: 0). T-026: DEVIACIO-1 (friss-agens probafutas a crm-kit buildben esedekes) es DEVIACIO-2 (gepi kikenyszerites skill-szerzodesben, nem kodban). T-029: DEVIACIOK (a) on-base +1 git status, (b) archive valasztasa ls-tree+cat-file helyett, (c) +1 fallback-teszt, plusz az elmaradt interaktiv bongeszos fusteszt. T-030: DEVIACIOK +1 orszem-teszt, assertClean+commit konvenciokovetes, vedekezo claim-guard. Acc2: 'node dist/cli/index.js validate --json' -> ok: true, DEVIATION_MISMATCH nulla (elotte harom). Acc3: 'git diff --stat' 3 fajl / 3 insertion / 3 deletion; a -U0 diff mindharom fajlnal egyetlen sort erint, a '### Deviations' szakaszon belul — evidencia-tablazat, Verification performed, frontmatter, resolution valtozatlan. Acc4: 'npx vitest run' 18 fajl / 55 passed / 1 skipped; 'npm run build:cli' zold. Commit: 465be0f.
+
+### Deviations
+
+Egy szerzodesen tuli tetel: a T-029-nel a DEVIACIOK felsorolas mellett atemeltem a proza masik, DEVIACIO-jelolo nelkuli deviacios mondatat is ('interaktiv bongeszos fusteszt nem futott'). A Scope a 'nevesitett deviaciok' atemeleset kerte, ez a mondat viszont jelolo nelkul all — deviacionak olvasva emeltem be, mert egy el nem vegzett verifikaciot mond ki. Uj itelet nem kerult egyik szakaszba sem; minden mondat forrasa az adott ticket sajat prozaja.
+
+### Findings created
+
+None.
+
+### Known concerns
+
+A javitas harom lezart ticket szoveget irta at allapotatmenet nelkul, mert a CLI-nek nincs parancsa lezart ticket szovegenek javitasara — ezt a Constraints elore rogzitette, de a hianyzo CLI-ut maga is nyitott kerdes (rokon az F-022 'a store a fajlrendszer' findinggal). A oneanda workspace 14 hasonlo ticketje erintetlen: mas repo, kulon dontes.

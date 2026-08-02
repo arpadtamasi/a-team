@@ -19,11 +19,11 @@ None.
 
 ## Active tickets
 
-- T-033-harom-lezart-ticket-hordozza-az-f-019-mintat-sajat-magaban-t
+None.
 
 ## Review
 
-None.
+- T-033-harom-lezart-ticket-hordozza-az-f-019-mintat-sajat-magaban-t
 
 ## Blocked
 

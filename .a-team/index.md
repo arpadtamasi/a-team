@@ -18,11 +18,11 @@ None.
 
 ## Active tickets
 
-- T-012-make-the-ui-workspace-argument-contract-explicit
+None.
 
 ## Review
 
-None.
+- T-012-make-the-ui-workspace-argument-contract-explicit
 
 ## Blocked
 

@@ -1,0 +1,5 @@
+ticket: T-035
+agent: claude
+branch: feat/T-035-ticket-execute-a-friss-kontextusu-vegrehajtas-legyen-parancs
+worktree: .worktrees/T-035
+started_at: 2026-08-02T14:29:53.821Z

@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-- no-component-test-harness-exists-for-the-react-board-z43g7nwh
+None.
 
 ## Blocked
 

@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-- a-board-atallitasa-a-kotta-console-v2-tervre-a0bv0fcq
+None.
 
 ## Blocked
 

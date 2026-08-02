@@ -1,7 +1,7 @@
 ---
 id: T-01kz1xrxw4aheeqv1ca0bv0fcq
 title: A board atallitasa a Kotta Console v2 tervre
-status: review
+status: done
 origin: human
 types:
   - feature
@@ -18,6 +18,7 @@ pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
 assigned_agent: claude
+resolution: completed
 ---
 # T-01kz1xrxw4aheeqv1ca0bv0fcq — A board átállítása a Kotta Console v2 tervre
 

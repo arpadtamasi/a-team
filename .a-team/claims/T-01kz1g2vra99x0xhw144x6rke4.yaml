@@ -1,0 +1,5 @@
+ticket: T-01kz1g2vra99x0xhw144x6rke4
+agent: claude
+branch: fix/T-01kz1g2vra99x0xhw144x6rke4-decision-create-fails-in-a-fresh-worktree-when-a-team-decisi
+worktree: .worktrees/T-01kz1g2vra99x0xhw144x6rke4
+started_at: 2026-08-02T15:51:49.641Z

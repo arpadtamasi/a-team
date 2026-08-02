@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-- T-036-merge-utan-ugyanaz-az-entitas-ket-allapot-konyvtarban-marad
+None.
 
 ## Blocked
 

@@ -1,7 +1,7 @@
 ---
 id: T-036
 title: Merge utan ugyanaz az entitas ket allapot-konyvtarban marad
-status: review
+status: done
 origin: finding
 types:
   - bug
@@ -17,6 +17,7 @@ created_at: '2026-08-02'
 updated_at: '2026-08-02'
 source_finding: F-008
 assigned_agent: claude
+resolution: completed
 ---
 # T-036 — Merge után ugyanaz az entitás két állapot-könyvtárban marad
 

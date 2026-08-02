@@ -12,7 +12,6 @@ package: P-005
 depends_on: []
 blocks:
   - T-035
-  - T-036
 branch: null
 pull_request: null
 created_at: '2026-08-02'

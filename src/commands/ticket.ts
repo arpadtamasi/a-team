@@ -151,7 +151,15 @@ export function startTicket(id: string, agent: string) {
   return { ok: true, command: "ticket start", data: { id, branch, worktree } };
 }
 
-export function reviewTicket(id: string, evidence: string, pullRequest?: string) {
+export interface ReviewDeclarations {
+  deviations?: string;
+  findingsCreated?: string;
+  knownConcerns?: string;
+}
+
+const NOT_DECLARED = "Not declared.";
+
+export function reviewTicket(id: string, evidence: string, pullRequest?: string, declarations: ReviewDeclarations = {}) {
   const root = findRepositoryRoot();
   const ticket = findTicket(root, id);
   if (ticket.state !== "active") throw new Error(`Ticket ${id} must be active before review.`);
@@ -170,7 +178,8 @@ export function reviewTicket(id: string, evidence: string, pullRequest?: string)
   const checks = [...acceptance, ...profileChecks];
   const safeEvidence = evidence.replaceAll("|", "\\|").replaceAll("\n", " ");
   const evidenceRows = (checks.length ? checks : ["Ticket acceptance criteria"]).map((check) => `| ${check.replaceAll("|", "\\|")} | ${safeEvidence} |`).join("\n");
-  const reviewEvidence = `\n\n## Review evidence\n\n| Acceptance condition | Evidence |\n|---|---|\n${evidenceRows}\n\n### Verification performed\n\n${evidence}\n\n### Deviations\n\nNone.\n\n### Findings created\n\nNone.\n\n### Known concerns\n\nNone.\n`;
+  const declared = (value: string | undefined) => (value !== undefined && value.trim() ? value.trim() : NOT_DECLARED);
+  const reviewEvidence = `\n\n## Review evidence\n\n| Acceptance condition | Evidence |\n|---|---|\n${evidenceRows}\n\n### Verification performed\n\n${evidence}\n\n### Deviations\n\n${declared(declarations.deviations)}\n\n### Findings created\n\n${declared(declarations.findingsCreated)}\n\n### Known concerns\n\n${declared(declarations.knownConcerns)}\n`;
   const destinationDirectory = join(root, ".a-team/review");
   mkdirSync(destinationDirectory, { recursive: true });
   const destination = join(destinationDirectory, ticket.filename);

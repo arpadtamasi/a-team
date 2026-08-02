@@ -2,7 +2,7 @@
 id: P-005
 kind: milestone
 title: 'Parhuzamos, friss-kontextusu vegrehajtas'
-status: backlog
+status: done
 tickets:
   - T-034
   - T-036

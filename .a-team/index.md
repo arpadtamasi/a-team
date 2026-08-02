@@ -17,11 +17,11 @@ None.
 
 ## Active tickets
 
-- T-014-ui-port-collision-returns-raw-eaddrinuse-without-recovery-gu
+None.
 
 ## Review
 
-None.
+- T-014-ui-port-collision-returns-raw-eaddrinuse-without-recovery-gu
 
 ## Blocked
 

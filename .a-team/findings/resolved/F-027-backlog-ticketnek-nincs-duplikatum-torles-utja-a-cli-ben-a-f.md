@@ -3,13 +3,16 @@ id: F-027
 title: >-
   Backlog-ticketnek nincs duplikatum/torles utja a CLI-ben — a finding resolve
   auto-ticketje utkozott a kezzel irt szerzodessel
-status: new
+status: resolved
 origin: agent
 finding_type: gap
 confidence: high
 severity: medium
 discovered_during: null
 created_at: '2026-08-02'
+disposition: create-ticket
+resolved_at: '2026-08-02T02:56:11.619Z'
+ticket: T-030
 ---
 # F-027 — Backlog-ticketnek nincs duplikatum/torles utja a CLI-ben — a finding resolve auto-ticketje utkozott a kezzel irt szerzodessel
 

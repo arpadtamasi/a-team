@@ -3,13 +3,16 @@ id: F-029
 title: >-
   UI reload masodpercekig tart — fajlonkent kulon git show subprocess, cache
   nelkul
-status: new
+status: resolved
 origin: agent
 finding_type: bug
 confidence: high
 severity: medium
 discovered_during: null
 created_at: '2026-08-02'
+disposition: create-ticket
+resolved_at: '2026-08-02T02:56:10.743Z'
+ticket: T-029
 ---
 # F-029 — UI reload masodpercekig tart — fajlonkent kulon git show subprocess, cache nelkul
 

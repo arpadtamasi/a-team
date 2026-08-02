@@ -151,7 +151,10 @@ export function startTicket(id: string, agent: string) {
   regenerateIndex(worktree);
   git(worktree, ["add", ".a-team"]);
   git(worktree, ["commit", "-m", `chore(a-team): start ${id}`]);
-  return { ok: true, command: "ticket start", data: { id, branch, worktree } };
+  // D-009: the execution context exists, but the ticket still has to run in a FRESH agent
+  // context. `ticket execute` is that path, so start names it instead of leaving it to discipline.
+  const nextStep = `a-team ticket execute ${id} --resume`;
+  return { ok: true, command: "ticket start", data: { id, branch, worktree, nextStep } };
 }
 
 export interface ReviewDeclarations {

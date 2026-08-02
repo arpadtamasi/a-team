@@ -9,6 +9,8 @@ Work only in the branch and worktree recorded by the ticket's claim. A-Team stat
 
 **Context contract (D-009):** execution starts in a FRESH agent context whose intent input is `a-team ticket brief <id>` — the ticket body, its referenced decisions, its profiles and its claim. The code lives in the worktree. If the brief plus the worktree is not enough to start, that gap is a contract defect: record it (finding or definition contradiction), do not silently pull in wider context.
 
+**Launching that context is a command, not a manual step.** A coordinator runs `a-team ticket execute <id> --agent <agent>`: it performs the start, assembles the brief and launches the ticket agent with the brief as its only input, then reports the brief's token count, the agent, the branch and the worktree. Never re-implement that sequence by hand and never implement a ticket in the coordinator's own context. Use `--resume` to retry inside an existing execution context (also after `agent-failed`, and for a context created by `ticket start`); a plain second `execute` refuses instead of starting a second agent. Carrying context beyond the brief requires `--inherit-context "<reason>"` and is logged. The steps below are the contract the launched ticket agent follows.
+
 1. Validate the active ticket, claim, branch, worktree, dependencies, and protected-branch safety before editing. Obtain the contract with `a-team ticket brief <id>`.
 2. Convert acceptance conditions and active-profile done checks into a concrete verification plan.
 3. Make the smallest implementation that produces the ticket outcome. Preserve non-goals and constraints.

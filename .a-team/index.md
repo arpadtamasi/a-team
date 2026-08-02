@@ -13,6 +13,7 @@ None.
 ## Ready tickets
 
 - T-035-a-friss-kontextusu-ticket-vegrehajtas-nincs-parancsban-es-a-
+- T-036-merge-utan-ugyanaz-az-entitas-ket-allapot-konyvtarban-marad
 
 ## Active tickets
 

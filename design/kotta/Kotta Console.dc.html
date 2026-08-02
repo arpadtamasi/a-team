@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/modernist-ede0f858-4f10-4cc2-a8d2-363abeaec614/styles.css">
+<script src="_ds/modernist-ede0f858-4f10-4cc2-a8d2-363abeaec614/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&display=swap">
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#f3f2f2}
+a{color:#ae1800;text-decoration:none;border-bottom:1px solid rgba(174,24,0,.35)}
+a:hover{color:#ec3013;border-bottom-color:#ec3013}
+button{font-family:inherit}
+.atx{scrollbar-width:thin}
+.atx::-webkit-scrollbar{width:10px;height:10px}
+.atx::-webkit-scrollbar-thumb{background:rgba(32,30,29,.28)}
+@keyframes atblink{0%,100%{opacity:1}50%{opacity:0}}
+</style>
+</helmet>
+
+<div style="display:grid;grid-template-columns:200px 1fr;height:100vh;font-family:'Archivo',system-ui,sans-serif;font-size:14px;color:#201e1d;background:#f3f2f2;overflow:hidden">
+
+  <!-- ══ stage rail ══ -->
+  <nav style="background:#201e1d;color:#f3f2f2;display:flex;flex-direction:column;overflow:hidden">
+    <div style="padding:12px 14px 11px;border-bottom:2px solid rgba(243,242,242,.25);display:flex;align-items:center;gap:9px">
+      <div style="width:24px;height:24px;background:#f3f2f2;position:relative;flex:none">
+        <div style="position:absolute;left:0;right:0;top:6px;bottom:6px;display:flex;flex-direction:column;justify-content:space-between">
+          <div style="height:2px;background:#201e1d"></div>
+          <div style="height:2px;background:#201e1d"></div>
+          <div style="height:2px;background:#201e1d"></div>
+        </div>
+        <div style="position:absolute;left:13px;top:9.5px;width:5px;height:5px;background:#ec3013"></div>
+      </div>
+      <span style="font-size:14px;font-weight:800;letter-spacing:.02em">KOTTA</span>
+    </div>
+
+    <div style="padding:14px 14px 12px;border-bottom:2px solid rgba(243,242,242,.25)">
+      <div style="font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:rgba(243,242,242,.55);margin-bottom:3px">workspace</div>
+      <div style="font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:600;letter-spacing:-.01em">~/dev/kotta</div>
+    </div>
+
+    <div style="padding:12px 14px 6px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:rgba(243,242,242,.45)">pipeline</div>
+    <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="4">
+      <button type="button" onClick="{{ item.go }}" style="all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:14px 1fr auto;align-items:center;gap:9px;padding:9px 14px;width:100%;border-top:1px solid rgba(243,242,242,.12);color:rgba(243,242,242,.72); {{ item.extra }}">
+        <span style="font-family:ui-monospace,Menlo,monospace;font-size:10px;opacity:.6">{{ item.step }}</span>
+        <span style="display:flex;flex-direction:column;gap:1px;min-width:0">
+          <span style="font-weight:800;font-size:13px;letter-spacing:.01em;text-transform:uppercase">{{ item.label }}</span>
+          <span style="font-size:10px;opacity:.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ item.sub }}</span>
+        </span>
+        <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;padding:1px 5px; {{ item.badge }}">{{ item.count }}</span>
+      </button>
+    </sc-for>
+
+    <div style="margin-top:auto;padding:12px 14px;border-top:2px solid rgba(243,242,242,.25);display:flex;flex-direction:column;gap:8px">
+      <button type="button" onClick="{{ toggleShortcuts }}" style="all:unset;cursor:pointer;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:rgba(243,242,242,.55);display:flex;gap:6px;align-items:center"><span style="font-family:ui-monospace,Menlo,monospace;border:1px solid rgba(243,242,242,.4);padding:0 4px">?</span> shortcuts</button>
+      <div style="display:flex;flex-direction:column;gap:5px;padding-bottom:4px;border-bottom:1px solid rgba(243,242,242,.2);margin-bottom:4px">
+        <div style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:rgba(243,242,242,.4)">entity stamps</div>
+        <div style="display:flex;align-items:center;gap:7px;font-family:ui-monospace,Menlo,monospace;font-size:10px">
+          <span style="border:1px solid oklch(.74 .13 70);color:oklch(.8 .12 70);padding:0 4px">F-###</span>
+          <span style="color:oklch(.82 .1 258);border-bottom:2px solid oklch(.7 .13 258)">T-###</span>
+          <span style="background:oklch(.62 .17 305);color:#f3f2f2;padding:0 4px">P-###</span>
+        </div>
+      </div>
+      <div style="font-size:10px;line-height:1.45;color:rgba(243,242,242,.45)">derived from filesystem<br>refreshed {{ refreshed }} ago · poll 1.5s</div>
+      <div style="font-family:ui-monospace,Menlo,monospace;font-size:9.5px;color:rgba(243,242,242,.3)">.kotta/</div>
+    </div>
+  </nav>
+
+  <!-- ══ content column ══ -->
+  <div style="display:flex;flex-direction:column;min-width:0;overflow:hidden">
+
+    <!-- needs-you strip -->
+    <div style="border-bottom:2px solid rgba(32,30,29,.4);background:#eae9e9;display:flex;align-items:stretch;min-height:52px">
+      <div style="flex:none;width:132px;padding:8px 12px;border-right:2px solid rgba(32,30,29,.4);display:flex;flex-direction:column;justify-content:center">
+        <div style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;opacity:.55">attention</div>
+        <div style="font-weight:800;font-size:14px;letter-spacing:.01em;text-transform:uppercase">Needs you</div>
+      </div>
+      <sc-if value="{{ needsEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;display:flex;align-items:center;gap:14px;padding:8px 16px">
+          <span style="font-weight:800;font-size:15px">Nothing needs you.</span>
+          <span style="opacity:.6;font-size:13px">2 tickets running · 2 ready to launch · last drift check clean</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{ needsShown }}" hint-placeholder-val="{{ true }}">
+        <div style="flex:1;display:flex;align-items:stretch;min-width:0">
+          <sc-for list="{{ needs }}" as="n" hint-placeholder-count="5">
+            <button type="button" onClick="{{ n.go }}" style="all:unset;box-sizing:border-box;cursor:pointer;flex:1 1 0;min-width:0;padding:7px 10px;border-right:1px solid rgba(32,30,29,.3);display:flex;align-items:center;gap:8px; {{ n.extra }}">
+              <span style="font-family:ui-monospace,Menlo,monospace;font-weight:600;font-size:21px;line-height:1;flex:none; {{ n.numExtra }}">{{ n.count }}</span>
+              <span style="display:flex;flex-direction:column;gap:1px;min-width:0">
+                <span style="font-weight:600;font-size:11.5px;letter-spacing:.01em;line-height:1.2">{{ n.label }}</span>
+                <span style="font-size:10px;opacity:.55;text-transform:uppercase;letter-spacing:.08em">→ {{ n.dest }}</span>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+      <button type="button" onClick="{{ toggleSearch }}" style="all:unset;cursor:pointer;flex:none;padding:0 14px;border-left:2px solid rgba(32,30,29,.4);display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.65">
+        <span style="font-family:ui-monospace,Menlo,monospace;border:1px solid rgba(32,30,29,.4);padding:0 5px">/</span> search
+      </button>
+    </div>
+
+    <!-- stage body -->
+    <main class="atx" style="flex:1;overflow-y:auto;overflow-x:auto;min-height:0">
+
+      <!-- ─── INBOX ─── -->
+      <sc-if value="{{ isInbox }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="display:flex;align-items:flex-end;gap:20px;padding:18px 22px 14px;border-bottom:2px solid rgba(32,30,29,.4)">
+            <div style="flex:1;min-width:0">
+              <h2 style="margin:0 0 2px;font-size:27px;letter-spacing:-.02em">Inbox</h2>
+              <div style="font-size:12.5px;opacity:.6">Observations awaiting human disposition — not tasks. Reject, or promote to a contract.</div>
+            </div>
+            <div style="display:flex;align-items:flex-end;gap:18px">
+              <div style="text-align:left">
+                <div style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;opacity:.5">intake health · 7d</div>
+                <div style="font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:600">12 dispositioned / 15 arrived</div>
+              </div>
+              <button type="button" class="btn btn-primary" onClick="{{ toggleCapture }}" style="letter-spacing:.04em;text-transform:uppercase">+ Capture finding</button>
+            </div>
+          </div>
+
+          <sc-if value="{{ captureOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:16px 22px;border-bottom:2px solid rgba(32,30,29,.4);background:#eae9e9;display:grid;grid-template-columns:1fr 200px;gap:16px">
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div class="field"><label>Title</label><input class="input" placeholder="One observation, stated plainly"></div>
+                <div class="field"><label>Evidence (markdown)</label><textarea class="input" style="min-height:74px" placeholder="What was observed, where, and how it was reproduced"></textarea></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div class="field"><label>Type</label>
+                  <div class="seg" style="display:grid;grid-template-columns:1fr 1fr">
+                    <label class="seg-opt"><input type="radio" name="ftype" checked><span>bug</span></label>
+                    <label class="seg-opt"><input type="radio" name="ftype"><span>feature</span></label>
+                  </div>
+                </div>
+                <div class="field"><label>Discovered during</label><input class="input" value="T-012"></div>
+                <button type="button" class="btn btn-primary" style="justify-content:flex-start;text-transform:uppercase;letter-spacing:.04em">Capture →</button>
+                <div style="font-size:10.5px;opacity:.5;line-height:1.4">POST /api/finding · writes .kotta/findings/new/</div>
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="padding:0 0 8px">
+            <div style="display:flex;align-items:baseline;gap:10px;padding:12px 22px 8px">
+              <span style="font-weight:800;font-size:12px;letter-spacing:.1em;text-transform:uppercase">Open observations</span>
+              <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#ec3013;color:#f3f2f2;padding:0 6px;font-weight:600">{{ openFindingCount }}</span>
+              <span style="margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;opacity:.45">.kotta/findings/new/</span>
+            </div>
+            <sc-for list="{{ newFindings }}" as="f" hint-placeholder-count="3">
+              <div style="border-top:1px solid rgba(32,30,29,.3); {{ f.rowExtra }}">
+                <div style="display:grid;grid-template-columns:76px 1fr auto;gap:14px;align-items:start;padding:11px 22px">
+                  <button type="button" onClick="{{ f.toggle }}" style="all:unset;cursor:pointer;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px">
+                    <span style="opacity:.5;font-size:9px">{{ f.caret }}</span><span style="border:1px solid oklch(.64 .14 66);color:oklch(.44 .12 66);background:oklch(.955 .035 66);padding:0 5px">{{ f.id }}</span>
+                  </button>
+                  <div style="min-width:0">
+                    <button type="button" onClick="{{ f.toggle }}" style="all:unset;cursor:pointer;display:block;font-weight:600;font-size:14.5px;line-height:1.3;margin-bottom:4px">{{ f.title }}</button>
+                    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:10.5px">
+                      <span class="tag tag-neutral" style="text-transform:uppercase;letter-spacing:.07em">{{ f.type }}</span>
+                      <span class="tag" style="text-transform:uppercase;letter-spacing:.07em;gap:4px; {{ f.sevExtra }}"><span>sev</span><span>{{ f.severity }}</span></span>
+                      <span style="font-family:ui-monospace,Menlo,monospace;opacity:.6;white-space:nowrap">conf {{ f.confidence }}</span>
+                      <span style="display:flex;align-items:center;gap:5px;white-space:nowrap"><span style="opacity:.6">during</span><a href="#" onClick="{{ f.goEntity }}" style="font-family:ui-monospace,Menlo,monospace">{{ f.during }}</a></span>
+                      <span style="font-family:ui-monospace,Menlo,monospace;opacity:.45;white-space:nowrap">{{ f.path }}</span>
+                    </div>
+                    <sc-if value="{{ f.open }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:10px;border-left:2px solid #ec3013;padding:8px 0 8px 12px;background:#eae9e9">
+                        <div style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;opacity:.5;margin-bottom:5px">evidence</div>
+                        <div style="font-size:12.5px;line-height:1.6;white-space:pre-wrap;max-width:74ch">{{ f.evidence }}</div>
+                      </div>
+                    </sc-if>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:7px">
+                    <button type="button" class="btn btn-secondary" style="text-transform:uppercase;letter-spacing:.05em;font-size:11.5px">Reject</button>
+                    <button type="button" class="btn btn-primary" style="text-transform:uppercase;letter-spacing:.05em;font-size:11.5px">Create ticket →</button>
+                    <button type="button" class="btn btn-secondary" onClick="{{ f.discuss }}" style="text-transform:uppercase;letter-spacing:.05em;font-size:11.5px">Discuss</button>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="border-top:2px solid rgba(32,30,29,.4)">
+            <button type="button" onClick="{{ toggleHistory }}" style="all:unset;cursor:pointer;width:100%;box-sizing:border-box;display:flex;align-items:center;gap:9px;padding:11px 22px;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:600">
+              <span style="opacity:.5;font-size:9px">{{ historyCaret }}</span> Dispositioned history
+              <span style="font-family:ui-monospace,Menlo,monospace;opacity:.5;letter-spacing:0">12</span>
+              <span style="margin-left:auto;font-family:ui-monospace,Menlo,monospace;opacity:.4;letter-spacing:0;text-transform:none">.kotta/findings/resolved/</span>
+            </button>
+            <sc-if value="{{ historyOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:0 22px 16px">
+                <table class="table" style="font-size:12.5px">
+                  <thead><tr><th style="width:76px">id</th><th>title</th><th style="width:110px">disposition</th><th style="width:120px">became</th><th style="width:90px">when</th></tr></thead>
+                  <tbody>
+                    <sc-for list="{{ resolvedFindings }}" as="r" hint-placeholder-count="4">
+                      <tr>
+                        <td style="font-family:ui-monospace,Menlo,monospace;font-weight:600"><span style="border:1px solid oklch(.64 .14 66);color:oklch(.44 .12 66);background:oklch(.955 .035 66);padding:0 5px">{{ r.id }}</span></td>
+                        <td>{{ r.title }}</td>
+                        <td><span class="tag" style="text-transform:uppercase;letter-spacing:.07em;font-size:10px; {{ r.dispExtra }}">{{ r.disposition }}</span></td>
+                        <td style="font-family:ui-monospace,Menlo,monospace"><span style="color:oklch(.45 .14 258);border-bottom:2px solid oklch(.55 .15 258)">{{ r.became }}</span></td>
+                        <td style="opacity:.55">{{ r.when }}</td>
+                      </tr>
+                    </sc-for>
+                  </tbody>
+                </table>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ─── SHAPE ─── -->
+      <sc-if value="{{ isShape }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;min-height:100%">
+          <div style="display:flex;align-items:flex-end;gap:20px;padding:18px 22px 14px;border-bottom:2px solid rgba(32,30,29,.4)">
+            <div style="flex:1">
+              <h2 style="margin:0 0 2px;font-size:27px;letter-spacing:-.02em">Shape</h2>
+              <div style="font-size:12.5px;opacity:.6">Turn items into executable contracts. Directory is the state — validation moves the file.</div>
+            </div>
+            <div style="font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.5">j / k to move · enter to open · v to validate</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;flex:1;min-height:0">
+
+            <div style="border-right:2px solid rgba(32,30,29,.4)">
+              <div style="display:flex;align-items:center;gap:9px;padding:10px 18px;border-bottom:2px solid rgba(32,30,29,.4);background:#eae9e9">
+                <span style="font-weight:800;font-size:13px;letter-spacing:.09em;text-transform:uppercase">Backlog</span>
+                <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;background:#201e1d;color:#f3f2f2;padding:0 6px">7</span>
+                <span style="font-size:11px;opacity:.55;font-style:italic">unshaped</span>
+                <span style="margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10px;opacity:.45">tickets/backlog/</span>
+              </div>
+              <sc-for list="{{ backlog }}" as="t" hint-placeholder-count="7">
+                <div style="border-bottom:1px solid rgba(32,30,29,.22);padding:9px 18px; {{ t.rowExtra }}">
+                  <div style="display:flex;align-items:baseline;gap:9px">
+                    <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;font-weight:600;flex:none;color:oklch(.45 .14 258);border-bottom:2px solid oklch(.55 .15 258)">{{ t.id }}</span>
+                    <span style="font-weight:600;font-size:13.5px;line-height:1.32;flex:1">{{ t.title }}</span>
+                  </div>
+                  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0 0 62px;font-size:10.5px">
+                    <span class="tag tag-neutral" style="text-transform:uppercase;letter-spacing:.07em">{{ t.type }}</span>
+                    <span style="font-family:ui-monospace,Menlo,monospace;opacity:.6">P{{ t.priority }} · risk {{ t.risk }}</span>
+                    <span class="tag" style="font-family:ui-monospace,Menlo,monospace; {{ t.pkgExtra }}">{{ t.pkgLabel }}</span>
+                    <span style="font-family:ui-monospace,Menlo,monospace;opacity:.55">{{ t.depends }}</span>
+                    <span style="margin-left:auto;display:flex;gap:6px">
+                      <button type="button" class="btn btn-secondary" onClick="{{ t.shape }}" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">Shape with agent</button>
+                      <button type="button" class="btn btn-primary" onClick="{{ t.validate }}" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">Validate → Ready</button>
+                    </span>
+                  </div>
+                  <sc-if value="{{ t.hasIssues }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin:8px 0 2px 62px;border-left:3px solid #ec3013;background:#fff2ef;padding:8px 12px">
+                      <div style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:#ae1800;font-weight:800;margin-bottom:4px">validation failed · POST /api/ticket/ready</div>
+                      <sc-for list="{{ t.issues }}" as="iss" hint-placeholder-count="2">
+                        <div style="font-size:12px;line-height:1.5;color:#7c1405;display:flex;gap:7px"><span style="font-family:ui-monospace,Menlo,monospace">{{ iss.field }}</span><span>{{ iss.text }}</span></div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ t.promoted }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin:8px 0 2px 62px;font-size:11.5px;font-family:ui-monospace,Menlo,monospace;color:#ae1800">✓ moved → tickets/ready/{{ t.id }}.md</div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+
+            <div>
+              <div style="display:flex;align-items:center;gap:9px;padding:10px 18px;border-bottom:2px solid rgba(32,30,29,.4);background:#eae9e9">
+                <span style="font-weight:800;font-size:13px;letter-spacing:.09em;text-transform:uppercase">Ready</span>
+                <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;background:#ec3013;color:#f3f2f2;padding:0 6px">{{ readyCount }}</span>
+                <span style="font-size:11px;opacity:.55;font-style:italic">executable · grouped by package</span>
+                <span style="margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10px;opacity:.45">tickets/ready/</span>
+              </div>
+              <sc-for list="{{ readyGroups }}" as="g" hint-placeholder-count="2">
+                <div style="border-bottom:2px solid rgba(32,30,29,.4)">
+                  <div style="display:flex;align-items:center;gap:9px;padding:8px 18px; {{ g.headExtra }}">
+                    <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;font-weight:600;padding:0 5px; {{ g.stampExtra }}">{{ g.id }}</span>
+                    <span style="font-size:12px;font-weight:600">{{ g.title }}</span>
+                    <span style="margin-left:auto;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em; {{ g.noteExtra }}">{{ g.note }}</span>
+                  </div>
+                  <sc-for list="{{ g.rows }}" as="t" hint-placeholder-count="2">
+                    <div style="border-top:1px solid rgba(32,30,29,.22);padding:9px 18px">
+                      <div style="display:flex;align-items:baseline;gap:9px">
+                        <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;font-weight:600;flex:none;color:oklch(.45 .14 258);border-bottom:2px solid oklch(.55 .15 258)">{{ t.id }}</span>
+                        <span style="font-weight:600;font-size:13.5px;line-height:1.32;flex:1">{{ t.title }}</span>
+                      </div>
+                      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0 0 62px;font-size:10.5px">
+                        <span class="tag tag-neutral" style="text-transform:uppercase;letter-spacing:.07em">{{ t.type }}</span>
+                        <span style="font-family:ui-monospace,Menlo,monospace;opacity:.6">P{{ t.priority }} · risk {{ t.risk }}</span>
+                        <span style="font-family:ui-monospace,Menlo,monospace;opacity:.55">{{ t.depends }}</span>
+                        <span style="margin-left:auto;display:flex;gap:6px">
+                          <button type="button" class="btn btn-secondary" onClick="{{ t.shape }}" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">Discuss</button>
+                          <button type="button" class="btn btn-secondary" onClick="{{ t.goPkg }}" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">{{ t.pkgVerb }}</button>
+                        </span>
+                      </div>
+                      <sc-if value="{{ t.drift }}" hint-placeholder-val="{{ false }}">
+                        <div style="margin:8px 0 2px 62px;border-left:3px solid #ec3013;background:#fff2ef;padding:7px 12px;display:flex;align-items:center;gap:10px">
+                          <span style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#ae1800">state drift</span>
+                          <span style="font-size:12px;color:#7c1405">directory says <b>ready</b>, but a worktree and claim exist for this ticket.</span>
+                          <button type="button" class="btn btn-secondary" onClick="{{ t.goDrift }}" style="margin-left:auto;font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-color:#ae1800;color:#ae1800">Inspect</button>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ─── PACKAGES ─── -->
+      <sc-if value="{{ isPackages }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:296px 1fr;min-height:100%">
+          <div style="border-right:2px solid rgba(32,30,29,.4)">
+            <div style="display:flex;align-items:center;gap:9px;padding:10px 16px;border-bottom:2px solid rgba(32,30,29,.4);background:#eae9e9">
+              <span style="font-weight:800;font-size:13px;letter-spacing:.09em;text-transform:uppercase">Packages</span>
+              <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;background:#201e1d;color:#f3f2f2;padding:0 6px">3</span>
+              <button type="button" class="btn btn-ghost" style="margin-left:auto;font-size:11px;text-transform:uppercase;letter-spacing:.05em">+ New</button>
+            </div>
+            <sc-for list="{{ packages }}" as="p" hint-placeholder-count="3">
+              <button type="button" onClick="{{ p.select }}" style="all:unset;box-sizing:border-box;cursor:pointer;display:block;width:100%;padding:11px 16px;border-bottom:1px solid rgba(32,30,29,.22); {{ p.extra }}">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                  <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;font-weight:600;background:oklch(.47 .16 305);color:#f3f2f2;padding:0 5px">{{ p.id }}</span>
+                  <span class="tag" style="font-size:10px;text-transform:uppercase;letter-spacing:.07em; {{ p.statusExtra }}">{{ p.status }}</span>
+                  <span style="margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;opacity:.6">{{ p.done }}/{{ p.total }}</span>
+                </div>
+                <div style="font-weight:800;font-size:13.5px;line-height:1.25;letter-spacing:-.005em;margin-bottom:5px">{{ p.title }}</div>
+                <div style="height:5px;background:rgba(32,30,29,.16);margin-bottom:6px"><div style="height:5px;background:#ec3013; {{ p.barExtra }}"></div></div>
+                <div style="font-family:ui-monospace,Menlo,monospace;font-size:10px;opacity:.6;line-height:1.4">{{ p.modeSummary }}</div>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="min-width:0">
+            <div style="padding:16px 22px 14px;border-bottom:2px solid rgba(32,30,29,.4)">
+              <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px">
+                <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;background:oklch(.47 .16 305);color:#f3f2f2;padding:1px 6px">{{ pkg.id }}</span>
+                <span class="tag" style="font-size:10.5px;text-transform:uppercase;letter-spacing:.07em; {{ pkg.statusExtra }}">{{ pkg.kind }} · {{ pkg.status }}</span>
+                <span style="margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;opacity:.5">{{ pkg.path }}</span>
+              </div>
+              <h2 style="margin:0 0 6px;font-size:26px;letter-spacing:-.02em;max-width:34ch">{{ pkg.title }}</h2>
+              <p style="margin:0;font-size:13px;line-height:1.55;max-width:82ch;opacity:.75">{{ pkg.goal }}</p>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 300px;min-height:0">
+              <div style="border-right:2px solid rgba(32,30,29,.4)">
+                <!-- dependency graph -->
+                <div style="padding:14px 22px 16px;border-bottom:2px solid rgba(32,30,29,.4)">
+                  <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">
+                    <span style="font-weight:800;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase">Execution order</span>
+                    <span style="font-size:11px;opacity:.55">derived from depends_on · columns run in parallel</span>
+                  </div>
+                  <div style="display:flex;align-items:stretch;gap:0;overflow-x:auto" class="atx">
+                    <sc-for list="{{ pkg.graph }}" as="col" hint-placeholder-count="3">
+                      <div style="display:flex;align-items:center">
+                        <div style="min-width:172px;display:flex;flex-direction:column;gap:6px">
+                          <div style="font-family:ui-monospace,Menlo,monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;opacity:.5">wave {{ col.wave }} · {{ col.n }} parallel</div>
+                          <sc-for list="{{ col.nodes }}" as="nd" hint-placeholder-count="2">
+                            <div style="border:1px solid rgba(32,30,29,.4);padding:6px 8px;background:#eae9e9;border-left-width:3px; {{ nd.extra }}">
+                              <div style="font-family:ui-monospace,Menlo,monospace;font-size:11px;font-weight:600;display:flex;gap:6px;align-items:center"><span style="color:oklch(.45 .14 258);border-bottom:2px solid oklch(.55 .15 258)">{{ nd.id }}</span><span style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;opacity:.7">{{ nd.state }}</span></div>
+                              <div style="font-size:11px;line-height:1.3;margin-top:2px;opacity:.8">{{ nd.short }}</div>
+                            </div>
+                          </sc-for>
+                        </div>
+                        <sc-if value="{{ col.arrow }}" hint-placeholder-val="{{ true }}">
+                          <div style="width:34px;text-align:center;font-family:ui-monospace,Menlo,monospace;font-size:16px;opacity:.45">→</div>
+                        </sc-if>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+
+                <!-- members -->
+                <div style="padding:14px 22px 20px">
+                  <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px">
+                    <span style="font-weight:800;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase">Members</span>
+                    <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.55">{{ pkg.total }} tickets</span>
+                    <button type="button" class="btn btn-secondary" style="margin-left:auto;font-size:11px;text-transform:uppercase;letter-spacing:.05em" disabled="{{ pkg.membershipLocked }}">Edit membership</button>
+                  </div>
+                  <sc-if value="{{ pkg.membershipLocked }}" hint-placeholder-val="{{ true }}">
+                    <div style="border-left:3px solid #ec3013;background:#fff2ef;padding:7px 12px;margin-bottom:10px;font-size:12px;color:#7c1405">
+                      <b style="letter-spacing:.06em;text-transform:uppercase;font-size:10.5px">Membership locked</b> — package is {{ pkg.status }}. Only backlog packages can add or remove tickets.
+                    </div>
+                  </sc-if>
+                  <table class="table" style="font-size:13px">
+                    <thead><tr><th style="width:70px">id</th><th>title</th><th style="width:84px">state</th><th style="width:96px">claim</th><th style="width:118px">depends on</th></tr></thead>
+                    <tbody>
+                      <sc-for list="{{ pkg.members }}" as="m" hint-placeholder-count="6">
+                        <tr>
+                          <td style="font-family:ui-monospace,Menlo,monospace;font-weight:600"><span style="color:oklch(.45 .14 258);border-bottom:2px solid oklch(.55 .15 258)">{{ m.id }}</span></td>
+                          <td style="line-height:1.3">{{ m.title }}</td>
+                          <td><span class="tag" style="font-size:10px;text-transform:uppercase;letter-spacing:.07em; {{ m.stateExtra }}">{{ m.state }}</span></td>
+                          <td style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;opacity:.7">{{ m.claim }}</td>
+                          <td style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;opacity:.7">{{ m.depends }}</td>
+                        </tr>
+                      </sc-for>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- execution settings + launch -->
+              <div style="display:flex;flex-direction:column">
+                <div style="padding:14px 18px 16px;border-bottom:2px solid rgba(32,30,29,.4)">
+                  <div style="font-weight:800;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:9px">Execution settings</div>
+                  <sc-for list="{{ pkg.settings }}" as="s" hint-placeholder-count="3">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:6px 0;border-bottom:1px solid rgba(32,30,29,.22)">
+                      <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.6">{{ s.key }}</span>
+                      <span style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px;font-weight:600">{{ s.value }}</span>
+                    </div>
+                  </sc-for>
+                  <div style="font-size:11px;opacity:.55;margin-top:8px;line-height:1.45">Read from package frontmatter. {{ pkg.settingsNote }}</div>
+                </div>
+
+                <div style="padding:14px 18px 18px;flex:1;display:flex;flex-direction:column;gap:10px">
+                  <div style="font-weight:800;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase">Launch</div>
+                  <sc-if value="{{ pkg.launchable }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;flex-direction:column;gap:9px">
+                      <div style="font-size:12px;line-height:1.5;opacity:.75">All {{ pkg.total }} members are ready and validated. Hand the batch to the machine.</div>
+                      <button type="button" class="btn btn-primary" onClick="{{ togglePreflight }}" style="justify-content:flex-start;font-size:14px;padding:11px 14px;text-transform:uppercase;letter-spacing:.06em">▶ Launch package</button>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ pkg.launchBlocked }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;flex-direction:column;gap:9px">
+                      <button type="button" class="btn btn-primary" style="justify-content:flex-start;font-size:14px;padding:11px 14px;text-transform:uppercase;letter-spacing:.06em" disabled>▶ Launch package</button>
+                      <div style="border-left:3px solid rgba(32,30,29,.4);padding:6px 10px;font-size:11.5px;line-height:1.45;opacity:.8">{{ pkg.launchReason }}</div>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ showGaps }}" hint-placeholder-val="{{ true }}">
+                    <div style="margin-top:auto;border:1px dashed #ae1800;padding:8px 10px">
+                      <div style="font-family:ui-monospace,Menlo,monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#ae1800;font-weight:600;margin-bottom:4px">[backend-gap]</div>
+                      <div style="font-size:11.5px;line-height:1.45;color:#7c1405">No launch endpoint yet. Pre-flight ends in a copy-paste command for an agent session, never a dead end.</div>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </div>
+
+            <!-- pre-flight -->
+            <sc-if value="{{ preflightOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="border-top:2px solid #ec3013;background:#eae9e9;padding:16px 22px 20px">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                  <span style="font-weight:800;font-size:14px;letter-spacing:.08em;text-transform:uppercase">Pre-flight · {{ pkg.id }}</span>
+                  <span style="font-family:ui-monospace,Menlo,monospace;font-size:10.5px;padding:1px 6px;border:1px dashed #ae1800;color:#ae1800">[backend-gap]</span>
+                  <button type="button" onClick="{{ togglePreflight }}" style="all:unset;cursor:pointer;margin-left:auto;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6">Close ✕</button>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+                  <div>
+                    <div style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;opacity:.5;margin-bottom:6px">what will run</div>
+                    <sc-for list="{{ preflightWaves }}" as="w" hint-placeholder-count="3">
+                      <div style="display:grid;grid-template-columns:74px 1fr;gap:10px;padding:6px 0;border-bottom:1px solid rgba(32,30,29,.22)">
+                        <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.6">wave {{ w.wave }}</span>
+                        <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600">{{ w.ids }}<span style="font-weight:400;opacity:.6"> · {{ w.note }}</span></span>
+                      </div>
+                    </sc-for>
+                    <div style="margin-top:10px;font-size:12px;line-height:1.5;opacity:.75">Each ticket gets an isolated git worktree and a feature branch; a claim file records the agent. {{ pkg.total }} branches, max {{ pkg.parallelism }} concurrent.</div>
+                  </div>
+                  <div>
+                    <div style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;opacity:.5;margin-bottom:6px">run this in an agent session</div>
+                    <div style="background:#201e1d;color:#f3f2f2;padding:12px 14px;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.7;white-space:pre-wrap">{{ launchCommand }}</div>
+                    <div style="display:flex;gap:8px;margin-top:10px">
+                      <button type="button" class="btn btn-primary" style="text-transform:uppercase;letter-spacing:.05em">Copy command</button>
+                      <button type="button" class="btn btn-secondary" onClick="{{ launchViaChat }}" style="text-transform:uppercase;letter-spacing:.05em">Send to package thread</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ─── RUN ─── -->
+      <sc-if value="{{ isRun }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:flex;align-items:flex-end;gap:20px;padding:18px 22px 14px;border-bottom:2px solid rgba(32,30,29,.4)">
+            <div style="flex:1">
+              <h2 style="margin:0 0 2px;font-size:27px;letter-spacing:-.02em">Run</h2>
+              <div style="font-size:12.5px;opacity:.6">What the machine is doing, by package run. Claims, branches and worktrees are read from git.</div>
+            </div>
+            <div style="display:flex;gap:16px;font-family:ui-monospace,Menlo,monospace;font-size:11px">
+              <span><b style="font-size:15px">2</b> active</span>
+              <span><b style="font-size:15px">1</b> review</span>
+              <span><b style="font-size:15px">1</b> blocked</span>
+              <span style="color:#ae1800"><b style="font-size:15px">1</b> drift</span>
+            </div>
+          </div>
+
+          <sc-if value="{{ driftShown }}" hint-placeholder-val="{{ true }}">
+            <div style="border-bottom:2px solid rgba(32,30,29,.4);background:#fff2ef;border-left:6px solid #ec3013">
+              <div style="display:flex;align-items:center;gap:12px;padding:11px 22px">
+                <span style="font-weight:800;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#ae1800">State drift · 1</span>
+                <span style="font-size:13px;color:#7c1405"><b style="font-family:ui-monospace,Menlo,monospace;border-bottom:2px solid currentColor">T-014</b> — directory says <b>ready</b>, but git holds a worktree and a claim for it.</span>
+                <span style="font-family:ui-monospace,Menlo,monospace;font-size:10px;padding:1px 6px;border:1px dashed #ae1800;color:#ae1800">[backend-gap] detection API</span>
+                <button type="button" class="btn btn-secondary" onClick="{{ toggleDrift }}" style="margin-left:auto;font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-color:#ae1800;color:#ae1800">{{ driftVerb }}</button>
+              </div>
+              <sc-if value="{{ driftOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:0 22px 16px">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;border:1px solid rgba(174,24,0,.4);background:#f3f2f2">
+                    <div style="padding:11px 14px;border-right:1px solid rgba(174,24,0,.4)">
+                      <div style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;opacity:.55;margin-bottom:6px">canonical files say</div>
+                      <sc-for list="{{ driftFiles }}" as="d" hint-placeholder-count="3">
+                        <div style="display:grid;grid-template-columns:96px 1fr;gap:8px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;padding:3px 0"><span style="opacity:.55">{{ d.k }}</span><span>{{ d.v }}</span></div>
+                      </sc-for>
+                    </div>
+                    <div style="padding:11px 14px">
+                      <div style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:#ae1800;font-weight:800;margin-bottom:6px">git says</div>
+                      <sc-for list="{{ driftGit }}" as="d" hint-placeholder-count="3">
+                        <div style="display:grid;grid-template-columns:96px 1fr;gap:8px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;padding:3px 0"><span style="opacity:.55">{{ d.k }}</span><span style="color:#7c1405">{{ d.v }}</span></div>
+                      </sc-for>
+                    </div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:9px;margin-top:10px">
+                    <span style="font-size:12px;opacity:.7">The UI will not pick a story. Reconcile with the CLI:</span>
+                    <code style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:#201e1d;color:#f3f2f2;padding:3px 8px">kotta ticket reconcile T-014</code>
+                    <button type="button" class="btn btn-secondary" onClick="{{ driftDiscuss }}" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">Discuss in thread</button>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-for list="{{ runs }}" as="r" hint-placeholder-count="1">
+            <div style="border-bottom:2px solid rgba(32,30,29,.4)">
+              <div style="display:flex;align-items:center;gap:12px;padding:11px 22px;background:#201e1d;color:#f3f2f2">
+                <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;background:oklch(.72 .15 305);color:oklch(.24 .09 305);padding:1px 6px">{{ r.id }}</span>
+                <span style="font-weight:800;font-size:14px;letter-spacing:.005em">{{ r.title }}</span>
+                <span style="font-family:ui-monospace,Menlo,monospace;font-size:10.5px;opacity:.65">{{ r.modeSummary }}</span>
+                <span style="margin-left:auto;display:flex;align-items:center;gap:12px">
+                  <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.8">{{ r.progress }}</span>
+                  <button type="button" onClick="{{ r.discuss }}" style="all:unset;cursor:pointer;font-size:11px;letter-spacing:.06em;text-transform:uppercase;border:1px solid rgba(243,242,242,.45);padding:4px 9px">Package thread</button>
+                  <button type="button" style="all:unset;cursor:pointer;font-size:11px;letter-spacing:.06em;text-transform:uppercase;border:1px solid rgba(243,242,242,.45);padding:4px 9px">Stop after current</button>
+                </span>
+              </div>
+              <div style="display:grid;grid-template-columns:64px minmax(230px,1fr) 84px 100px 120px 136px 84px;min-width:1100px;gap:0;padding:6px 22px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;opacity:.5;border-bottom:1px solid rgba(32,30,29,.3)">
+                <span>id</span><span>ticket</span><span>state</span><span>claim</span><span>branch</span><span>worktree</span><span>activity</span>
+              </div>
+              <sc-for list="{{ r.rows }}" as="t" hint-placeholder-count="4">
+                <div style="border-bottom:1px solid rgba(32,30,29,.22); {{ t.rowExtra }}">
+                  <button type="button" onClick="{{ t.toggle }}" style="all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:grid;grid-template-columns:64px minmax(230px,1fr) 84px 100px 120px 136px 84px;min-width:1100px;align-items:center;padding:9px 22px;font-size:12.5px">
+                    <span style="font-family:ui-monospace,Menlo,monospace;font-weight:600;display:flex;gap:5px;align-items:center"><span style="font-size:9px;opacity:.5">{{ t.caret }}</span><span style="border-bottom:2px solid currentColor">{{ t.id }}</span></span>
+                    <span style="font-weight:600;padding-right:14px;line-height:1.3;text-align:left">{{ t.title }}</span>
+                    <span><span class="tag" style="font-size:10px;text-transform:uppercase;letter-spacing:.07em; {{ t.stateExtra }}">{{ t.state }}</span></span>
+                    <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%; {{ t.dotExtra }}"></span>{{ t.claim }}</span>
+                    <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px">{{ t.branch }}</span>
+                    <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px">{{ t.worktree }}</span>
+                    <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.6">{{ t.activity }}</span>
+                  </button>
+                  <sc-if value="{{ t.open }}" hint-placeholder-val="{{ false }}">
+                    <div style="background:#eae9e9;border-top:1px solid rgba(32,30,29,.3);padding:14px 22px 16px">
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">
+                        <div>
+                          <div style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;opacity:.5;margin-bottom:7px">acceptance contract</div>
+                          <sc-for list="{{ t.acceptance }}" as="a" hint-placeholder-count="3">
+                            <div style="display:grid;grid-template-columns:16px 1fr;gap:8px;padding:4px 0;border-bottom:1px solid rgba(32,30,29,.16)">
+                              <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px; {{ a.markExtra }}">{{ a.mark }}</span>
+                              <span style="font-size:12.5px;line-height:1.45">{{ a.text }}</span>
+                            </div>
+                          </sc-for>
+                        </div>
+                        <div>
+                          <div style="font-size:9px;letter-spacing:.13em;text-transform:uppercase;opacity:.5;margin-bottom:7px">evidence returned</div>
+                          <div style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;line-height:1.7;background:#201e1d;color:#f3f2f2;padding:10px 12px;white-space:pre-wrap">{{ t.evidence }}</div>
+                          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px">
+                            <a href="#" style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px">{{ t.pr }}</a>
+                            <span style="opacity:.35">·</span>
+                            <button type="button" class="btn btn-secondary" onClick="{{ t.discuss }}" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">Open thread</button>
+                          </div>
+                        </div>
+                      </div>
+                      <sc-if value="{{ t.reviewable }}" hint-placeholder-val="{{ false }}">
+                        <div style="margin-top:14px;border-top:2px solid rgba(32,30,29,.4);padding-top:12px;display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+                          <button type="button" class="btn btn-primary" style="text-transform:uppercase;letter-spacing:.05em">Accept → done</button>
+                          <button type="button" class="btn btn-secondary" style="text-transform:uppercase;letter-spacing:.05em">Request changes</button>
+                          <span style="font-family:ui-monospace,Menlo,monospace;font-size:10px;padding:1px 6px;border:1px dashed #ae1800;color:#ae1800">[backend-gap]</span>
+                          <code style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:#201e1d;color:#f3f2f2;padding:3px 8px">kotta ticket accept T-013</code>
+                          <span style="font-size:11.5px;opacity:.6">— no review endpoint yet; the UI hands you the exact command.</span>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ t.blockedShown }}" hint-placeholder-val="{{ false }}">
+                        <div style="margin-top:14px;border-left:3px solid #ec3013;background:#fff2ef;padding:8px 12px;font-size:12.5px;color:#7c1405">
+                          <b style="text-transform:uppercase;letter-spacing:.07em;font-size:10.5px">Blocked</b> — {{ t.blockedReason }}
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 22px;background:#eae9e9;border-bottom:1px solid rgba(32,30,29,.3)">
+              <span style="font-weight:800;font-size:12px;letter-spacing:.1em;text-transform:uppercase">Loose work</span>
+              <span style="font-size:11.5px;opacity:.6">Active outside any package — no batch semantics, no stop-on-failure.</span>
+            </div>
+            <sc-for list="{{ loose }}" as="t" hint-placeholder-count="2">
+              <div style="border-bottom:1px solid rgba(32,30,29,.22); {{ t.rowExtra }}">
+                <button type="button" onClick="{{ t.toggle }}" style="all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:grid;grid-template-columns:64px minmax(230px,1fr) 84px 100px 120px 136px 84px;min-width:1100px;align-items:center;padding:9px 22px;font-size:12.5px">
+                  <span style="font-family:ui-monospace,Menlo,monospace;font-weight:600;display:flex;gap:5px;align-items:center"><span style="font-size:9px;opacity:.5">{{ t.caret }}</span><span style="border-bottom:2px solid currentColor">{{ t.id }}</span></span>
+                  <span style="font-weight:600;padding-right:14px;line-height:1.3;text-align:left">{{ t.title }}</span>
+                  <span><span class="tag" style="font-size:10px;text-transform:uppercase;letter-spacing:.07em; {{ t.stateExtra }}">{{ t.state }}</span></span>
+                  <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%; {{ t.dotExtra }}"></span>{{ t.claim }}</span>
+                  <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px">{{ t.branch }}</span>
+                  <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px">{{ t.worktree }}</span>
+                  <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.6">{{ t.activity }}</span>
+                </button>
+                <sc-if value="{{ t.open }}" hint-placeholder-val="{{ false }}">
+                  <div style="background:#eae9e9;border-top:1px solid rgba(32,30,29,.3);padding:12px 22px 14px">
+                    <div style="font-size:12.5px;line-height:1.5;max-width:80ch">{{ t.note }}</div>
+                    <sc-if value="{{ t.blockedShown }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:10px;border-left:3px solid #ec3013;background:#fff2ef;padding:8px 12px;font-size:12.5px;color:#7c1405">
+                        <b style="text-transform:uppercase;letter-spacing:.07em;font-size:10.5px">Blocked</b> — {{ t.blockedReason }}
+                      </div>
+                    </sc-if>
+                    <div style="display:flex;gap:8px;margin-top:10px">
+                      <button type="button" class="btn btn-secondary" onClick="{{ t.discuss }}" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">Open thread</button>
+                      <button type="button" class="btn btn-secondary" onClick="{{ t.goPkg }}" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">Add to package</button>
+                    </div>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ migrationShown }}" hint-placeholder-val="{{ true }}">
+            <div style="margin:0;border-top:2px solid rgba(32,30,29,.4);background:#eae9e9;padding:10px 22px;display:flex;align-items:center;gap:12px">
+              <span style="font-family:ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:.09em;text-transform:uppercase;background:#201e1d;color:#f3f2f2;padding:2px 7px">migration mode</span>
+              <span style="font-size:12px;opacity:.7">3 tickets carry a split stamp from the legacy lanes. Kept out of the default flow.</span>
+              <button type="button" class="btn btn-ghost" style="margin-left:auto;font-size:11px;text-transform:uppercase;letter-spacing:.05em">Open split-audit log →</button>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <!-- ─── DONE ─── -->
+      <sc-if value="{{ isDone }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:flex;align-items:flex-end;gap:20px;padding:18px 22px 14px;border-bottom:2px solid rgba(32,30,29,.4)">
+            <div style="flex:1">
+              <h2 style="margin:0 0 2px;font-size:27px;letter-spacing:-.02em">Done</h2>
+              <div style="font-size:12.5px;opacity:.6">Archive. Searchable, read-only, provenance intact.</div>
+            </div>
+            <input class="input" style="max-width:300px" placeholder="Search T-042, O-38, title…" value="{{ searchValue }}">
+          </div>
+          <div style="padding:14px 22px 24px">
+            <table class="table" style="font-size:13px">
+              <thead><tr><th style="width:70px">id</th><th>title</th><th style="width:88px">type</th><th style="width:80px">package</th><th style="width:150px">merged branch</th><th style="width:88px">closed</th><th style="width:110px">source</th></tr></thead>
+              <tbody>
+                <sc-for list="{{ doneRows }}" as="d" hint-placeholder-count="4">
+                  <tr>
+                    <td style="font-family:ui-monospace,Menlo,monospace;font-weight:600"><span style="color:oklch(.45 .14 258);border-bottom:2px solid oklch(.55 .15 258)">{{ d.id }}</span></td>
+                    <td style="line-height:1.3">{{ d.title }}</td>
+                    <td><span class="tag tag-neutral" style="font-size:10px;text-transform:uppercase;letter-spacing:.07em">{{ d.type }}</span></td>
+                    <td><span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:oklch(.47 .16 305);color:#f3f2f2;padding:0 5px">{{ d.pkg }}</span></td>
+                    <td style="font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.7">{{ d.branch }}</td>
+                    <td style="opacity:.6;font-size:12px">{{ d.closed }}</td>
+                    <td><a href="#" style="font-family:ui-monospace,Menlo,monospace;font-size:11px">view markdown</a></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </sc-if>
+    </main>
+
+    <!-- ══ chat dock ══ -->
+    <sc-if value="{{ dockCollapsed }}" hint-placeholder-val="{{ true }}">
+      <div style="border-top:2px solid rgba(32,30,29,.4);background:#201e1d;color:#f3f2f2;display:flex;align-items:center;gap:12px;padding:0 16px;height:42px;flex:none">
+        <button type="button" onClick="{{ openDock }}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;font-weight:800;font-size:12px;letter-spacing:.1em;text-transform:uppercase">
+          <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;opacity:.6">▲</span> Chat dock
+        </button>
+        <div style="display:flex;align-items:center;gap:7px;overflow-x:auto" class="atx">
+          <sc-for list="{{ threads }}" as="th" hint-placeholder-count="3">
+            <button type="button" onClick="{{ th.open }}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:6px;padding:3px 8px;border:1px solid rgba(243,242,242,.35);font-size:11px;white-space:nowrap; {{ th.pillExtra }}">
+              <span style="font-family:ui-monospace,Menlo,monospace;font-weight:600">{{ th.chip }}</span>
+              <span style="opacity:.65">{{ th.agent }}</span>
+              <span style="width:6px;height:6px;border-radius:50%; {{ th.dotExtra }}"></span>
+            </button>
+          </sc-for>
+        </div>
+        <span style="margin-left:auto;font-size:11px;opacity:.55">{{ dockStatus }}</span>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ dockOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="border-top:2px solid #ec3013;background:#f3f2f2;height:330px;flex:none;display:grid;grid-template-columns:224px 1fr;min-height:0">
+        <div style="border-right:2px solid rgba(32,30,29,.4);background:#eae9e9;display:flex;flex-direction:column;min-height:0">
+          <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:2px solid rgba(32,30,29,.4)">
+            <span style="font-weight:800;font-size:11px;letter-spacing:.1em;text-transform:uppercase">Threads</span>
+            <button type="button" onClick="{{ closeDock }}" style="all:unset;cursor:pointer;margin-left:auto;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6">Collapse ▼</button>
+          </div>
+          <div class="atx" style="overflow-y:auto;flex:1;min-height:0">
+            <sc-for list="{{ threads }}" as="th" hint-placeholder-count="3">
+              <button type="button" onClick="{{ th.open }}" style="all:unset;box-sizing:border-box;cursor:pointer;display:block;width:100%;padding:9px 12px;border-bottom:1px solid rgba(32,30,29,.22); {{ th.rowExtra }}">
+                <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">
+                  <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px;font-weight:600;padding:0 5px; {{ th.chipExtra }}">{{ th.chip }}</span>
+                  <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.6">{{ th.level }}</span>
+                  <span style="margin-left:auto;width:7px;height:7px;border-radius:50%; {{ th.dotExtra }}"></span>
+                </div>
+                <div style="font-size:12px;font-weight:600;line-height:1.3">{{ th.title }}</div>
+                <div style="font-size:10.5px;opacity:.55;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ th.preview }}</div>
+              </button>
+            </sc-for>
+          </div>
+          <sc-if value="{{ showGaps }}" hint-placeholder-val="{{ true }}">
+            <div style="border-top:2px solid rgba(32,30,29,.4);padding:8px 12px">
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#ae1800;font-weight:600">[backend-gap]</div>
+              <div style="font-size:10.5px;line-height:1.4;color:#7c1405">Threads are in-memory today. Spec: persist per entity under .kotta/threads/.</div>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="display:flex;flex-direction:column;min-width:0;min-height:0">
+          <div style="display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:2px solid rgba(32,30,29,.4)">
+            <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;font-weight:600;padding:1px 6px; {{ active.chipExtra }}">{{ active.chip }}</span>
+            <span style="font-weight:800;font-size:13.5px">{{ active.title }}</span>
+            <span style="font-size:11px;opacity:.55">{{ active.context }}</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:8px">
+              <span style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;opacity:.5">route to</span>
+              <sc-for list="{{ agents }}" as="ag" hint-placeholder-count="2">
+                <button type="button" onClick="{{ ag.pick }}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:6px;padding:3px 9px;border:1px solid rgba(32,30,29,.4);font-size:11.5px;font-weight:600; {{ ag.extra }}">
+                  <span style="width:7px;height:7px;border-radius:50%; {{ ag.dotExtra }}"></span>{{ ag.name }}
+                </button>
+              </sc-for>
+            </span>
+          </div>
+
+          <div class="atx" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px;min-height:0">
+            <sc-for list="{{ active.messages }}" as="m" hint-placeholder-count="3">
+              <div style="display:grid;grid-template-columns:86px 1fr;gap:12px">
+                <div style="font-family:ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;padding-top:2px; {{ m.whoExtra }}">{{ m.who }}</div>
+                <div style="font-size:13px;line-height:1.6;max-width:88ch;white-space:pre-wrap; {{ m.bodyExtra }}">{{ m.text }}<span style="{{ m.caretExtra }}">▍</span></div>
+              </div>
+            </sc-for>
+            <sc-if value="{{ active.showStarters }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:2px;padding-left:98px">
+                <sc-for list="{{ active.starters }}" as="s" hint-placeholder-count="2">
+                  <button type="button" class="btn btn-secondary" onClick="{{ s.send }}" style="font-size:11.5px">{{ s.label }}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="border-top:2px solid rgba(32,30,29,.4);padding:10px 16px 12px;display:flex;gap:10px;align-items:flex-end">
+            <div style="flex:1">
+              <textarea class="input" style="min-height:52px;background:#f3f2f2" placeholder="{{ active.placeholder }}"></textarea>
+              <div style="display:flex;align-items:center;gap:9px;margin-top:5px;font-size:10.5px;opacity:.55">
+                <span>{{ active.contextNote }}</span>
+                <span style="margin-left:auto;font-family:ui-monospace,Menlo,monospace">⌘↵ send</span>
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary" onClick="{{ sendMessage }}" style="text-transform:uppercase;letter-spacing:.06em;padding:11px 16px">Send</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- ══ shortcut sheet ══ -->
+  <sc-if value="{{ shortcutsOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" style="z-index:50">
+      <div class="dialog" style="width:min(560px,100%);background:#f3f2f2;border:2px solid #201e1d;gap:0;padding:0">
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:2px solid rgba(32,30,29,.4)">
+          <span style="font-weight:800;font-size:15px;letter-spacing:.06em;text-transform:uppercase">Keyboard</span>
+          <span style="font-size:11.5px;opacity:.55">Every shortcut has a clickable equivalent.</span>
+          <button type="button" onClick="{{ toggleShortcuts }}" style="all:unset;cursor:pointer;margin-left:auto;font-size:12px;opacity:.6">✕</button>
+        </div>
+        <div style="padding:6px 18px 16px">
+          <sc-for list="{{ shortcuts }}" as="s" hint-placeholder-count="6">
+            <div style="display:grid;grid-template-columns:104px 1fr;gap:14px;align-items:baseline;padding:7px 0;border-bottom:1px solid rgba(32,30,29,.2)">
+              <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:600">{{ s.keys }}</span>
+              <span style="font-size:12.5px">{{ s.what }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showBackendGaps&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Annotations&quot;},&quot;showMigration&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Annotations&quot;}}">
+const ACC='#ec3013', INK='#201e1d';
+const TAG={
+  backlog:'background:#eae9e9;color:#444141;border:1px solid rgba(32,30,29,.35);',
+  ready:'background:#ffe0d9;color:#7c1405;',
+  active:'background:#ec3013;color:#f3f2f2;',
+  review:'background:#201e1d;color:#f3f2f2;',
+  blocked:'background:#fff2ef;color:#ae1800;border:1px solid #ae1800;',
+  done:'background:#eae9e9;color:#605d5d;'
+};
+const FIELD={
+  inbox:{band:'background:#f3f2f2;',spine:'box-shadow:inset 6px 0 0 #bab6b6;',bar:'#d7d3d3'},
+  shape:{band:'background:#eae9e9;',spine:'box-shadow:inset 6px 0 0 #7d7979;',bar:'#9b9797'},
+  packages:{band:'background:#201e1d;color:#f3f2f2;',spine:'box-shadow:inset 6px 0 0 #201e1d;',bar:'#605d5d'},
+  run:{band:'background:#ec3013;color:#f3f2f2;',spine:'box-shadow:inset 6px 0 0 #ec3013;',bar:'#ec3013'},
+  done:{band:'background:#d7d3d3;',spine:'box-shadow:inset 6px 0 0 #d7d3d3;',bar:'#605d5d'}
+};
+const HUE={
+  finding:{stamp:'border:1px solid oklch(.64 .14 66);color:oklch(.44 .12 66);background:oklch(.955 .035 66);'},
+  ticket:{chip:'color:oklch(.45 .14 258);border-bottom:2px solid oklch(.55 .15 258);',
+          pill:'background:oklch(.5 .15 258);border-color:oklch(.5 .15 258);color:#f3f2f2;'},
+  package:{chip:'background:oklch(.47 .16 305);color:#f3f2f2;',
+           pill:'background:oklch(.47 .16 305);border-color:oklch(.47 .16 305);'},
+  workspace:{chip:'background:#201e1d;color:#f3f2f2;',
+             pill:'background:#f3f2f2;border-color:#f3f2f2;color:#201e1d;'}
+};
+const AGENT_DOT={codex:'background:#ec3013;', claude:'background:#201e1d;', none:'background:transparent;border:1px solid rgba(32,30,29,.4);'};
+
+const TICKETS=[
+  {id:'T-001',t:'Define the shaping plan schema, canonical hashes, and preview contract',type:'feature',state:'backlog',pkg:'P-001',pri:1,risk:'med',dep:'—'},
+  {id:'T-002',t:'Introduce a shared mutation lock for every canonical Kotta writer',type:'refactor',state:'backlog',pkg:'P-001',pri:1,risk:'high',dep:'—'},
+  {id:'T-003',t:'Implement transactional shape apply with journaled crash recovery',type:'feature',state:'backlog',pkg:'P-001',pri:2,risk:'high',dep:'T-001, T-002'},
+  {id:'T-004',t:'Add multi-finding provenance and backward-compatible entity semantics',type:'feature',state:'backlog',pkg:'P-001',pri:2,risk:'med',dep:'T-001'},
+  {id:'T-005',t:'Expose shaping provenance in the ticket brief and PM chat context',type:'feature',state:'backlog',pkg:'P-001',pri:3,risk:'low',dep:'T-004'},
+  {id:'T-006',t:'Add a read-only VS Code shaping workflow for code-aware clustering',type:'feature',state:'backlog',pkg:'P-001',pri:3,risk:'med',dep:'T-001'},
+  {id:'T-007',t:'Validate the shaping model against the one&a finding portfolio',type:'discovery',state:'backlog',pkg:'P-001',pri:3,risk:'low',dep:'T-003'},
+  {id:'T-014',t:'UI port collision returns raw EADDRINUSE without recovery guidance',type:'bug',state:'ready',pkg:'P-003',pri:2,risk:'low',dep:'—',drift:true},
+  {id:'T-015',t:'Completed package leaves the coordinator checkout on its merged branch',type:'bug',state:'ready',pkg:'P-003',pri:1,risk:'med',dep:'T-012'},
+  {id:'T-012',t:'Make the UI workspace argument contract explicit',type:'bug',state:'active',pkg:'P-003',pri:1,risk:'low',dep:'—',claim:'codex',branch:'kotta/t-012-workspace-arg',wt:'.worktrees/t-012',act:'42s ago'},
+  {id:'T-013',t:'Add a discoverable bug-reporting path',type:'feature',state:'review',pkg:'P-003',pri:2,risk:'low',dep:'—',claim:'claude',branch:'kotta/t-013-bug-report',wt:'.worktrees/t-013',act:'6m ago'},
+  {id:'T-016',t:'Findings inbox loses scroll position after disposition',type:'bug',state:'active',pkg:null,pri:3,risk:'low',dep:'—',claim:'codex',branch:'kotta/t-016-scroll',wt:'.worktrees/t-016',act:'2m ago'},
+  {id:'T-017',t:'Persist chat threads under .kotta/threads',type:'feature',state:'blocked',pkg:null,pri:2,risk:'med',dep:'T-011',claim:'—',branch:'—',wt:'—',act:'1h ago',blocked:'waiting on the decision record from T-011 before choosing an on-disk thread format.'},
+  {id:'T-010',t:'Show active worktree ticket state on the execution board',type:'bug',state:'done',pkg:'P-003',pri:1,risk:'low',dep:'—'},
+  {id:'T-011',t:'Add a canonical CLI writer for durable decisions',type:'bug',state:'done',pkg:'P-003',pri:1,risk:'med',dep:'—'},
+  {id:'T-008',t:'Publish and verify the Kotta CLI distribution',type:'feature',state:'done',pkg:'P-002',pri:1,risk:'med',dep:'—'},
+  {id:'T-009',t:'Publish the Kotta GitHub Pages onboarding site',type:'feature',state:'done',pkg:'P-002',pri:2,risk:'low',dep:'T-008'}
+];
+
+const PACKAGES=[
+  {id:'P-001',title:'Code-aware finding synthesis v1',kind:'mission',status:'backlog',mode:'dependency-aware',par:2,stop:true,
+   goal:'Turn code-reviewed finding clusters into explicitly approved, provenance-preserving Kotta tickets — without a human retyping the evidence.',
+   members:['T-001','T-002','T-003','T-004','T-005','T-006','T-007'],done:0},
+  {id:'P-002',title:'Trustworthy Kotta onboarding path',kind:'milestone',status:'done',mode:'sequential',par:1,stop:true,
+   goal:'A coding-agent lead can install Kotta from a clean machine, understand why it exists, and reach a first dispatch without reading the source.',
+   members:['T-008','T-009'],done:2},
+  {id:'P-003',title:'Trustworthy daily use and feedback intake',kind:'milestone',status:'active',mode:'dependency-aware',par:2,stop:true,
+   goal:'Kotta is dependable after onboarding: operators see truthful execution state, can record durable decisions, can start the UI from a truthful CLI contract, and can route product defects through GitHub Issues into finding triage.',
+   members:['T-010','T-011','T-012','T-013','T-014','T-015'],done:2}
+];
+
+const FINDINGS=[
+  {id:'F-004',t:'build:cli removes the executable bit from the linked kotta binary',type:'bug',sev:'medium',conf:'0.82',during:'T-012',
+   ev:'Observed 2026-07-23 after `npm run build:cli`: the globally linked kotta command failed with zsh: permission denied.\nThe global symlink resolves into this repository at dist/cli/index.js; that file had mode -rw-r--r-- despite a node shebang.\n`chmod +x` restored `kotta --help`. Rebuilding must preserve or restore executable mode, and regression coverage should invoke the linked binary.'},
+  {id:'F-005',t:'Ready tickets can sit with a live worktree and nobody notices',type:'bug',sev:'high',conf:'0.91',during:'session review',
+   ev:'While auditing P-003 the operator found T-014 in tickets/ready/ while .worktrees/t-014 held finished work on kotta/t-014-port-collision.\nNothing in the UI or CLI surfaced the disagreement. Derived state must be compared, not chosen.'},
+  {id:'F-006',t:'Chat threads vanish on reload, so decisions are lost',type:'feature',sev:'low',conf:'0.74',during:'T-013',
+   ev:'Thread state lives in React memory. A reload during a review discussion loses the reasoning that justified acceptance.\nSince the filesystem is canonical, threads belong on disk next to the entity they discuss.'}
+];
+
+const RESOLVED=[
+  {id:'F-003',title:'Coordinator checkout left on a merged branch',disposition:'ticket',became:'T-015',when:'2 days ago'},
+  {id:'F-002',title:'Execution board hides worktree state',disposition:'ticket',became:'T-010',when:'3 days ago'},
+  {id:'F-001',title:'CLI help text contradicts the --workspace default',disposition:'ticket',became:'T-012',when:'4 days ago'},
+  {id:'F-000',title:'Rename the board columns to match Linear',disposition:'rejected',became:'—',when:'5 days ago'}
+];
+
+const ISSUES={
+  'T-002':[{field:'verification',text:'no verification block — an executable contract must state how the outcome is checked.'},
+           {field:'acceptance',text:'criterion 2 is not observable: "locking should feel safe".'}],
+  'T-003':[{field:'depends_on',text:'T-001 is not ready; a dependency must be ready or done before this can be validated.'}]
+};
+
+const ACCEPTANCE={
+  'T-013':[{ok:true,text:'A bug-reporting entry point is discoverable from the UI footer and from `kotta --help`.'},
+           {ok:true,text:'The report path pre-fills a GitHub Issue template with workspace + version.'},
+           {ok:true,text:'Filed issues land in finding triage as `new` findings with provenance.'},
+           {ok:false,text:'Docs describe the route from issue to finding to ticket.'}],
+  'T-012':[{ok:true,text:'`kotta ui --help` shows --workspace is optional and defaults to `.`'},
+           {ok:false,text:'`kotta ui` from an initialized repository resolves the same workspace as `--workspace .`'},
+           {ok:false,text:'Explicit repository-root and .kotta paths continue to resolve correctly.'}]
+};
+
+const EVIDENCE={
+  'T-013':'$ kotta ticket evidence T-013\n  tests   28 passed  0 failed   (cli + ui)\n  docs    docs/reporting.md +64\n  issue   template .github/ISSUE_TEMPLATE/bug.yml\n  note    docs paragraph on issue→finding still TODO',
+  'T-012':'$ agent codex · streaming\n  edited  src/cli/ui.ts, src/cli/help.ts\n  tests   14 passed  2 failing (help snapshot)\n  note    reconciling option declaration with docs'
+};
+
+const THREADS=[
+  {id:'ws',chip:'WORKSPACE',level:'workspace',title:'What should I do next?',agent:'claude',dot:'claude',
+   context:'no entity attached · repo context',placeholder:'Ask about the whole workspace…',contextNote:'Workspace context · 18 tickets, 3 packages, 3 findings',
+   preview:'Two things need you: T-013 review and the T-014 drift.',
+   starters:['Summarize state','What should I do next?','Draft a finding'],
+   messages:[
+     {who:'operator',text:'Short session. What needs me?'},
+     {who:'claude',text:'Two decisions, one risk.\n\n1. T-013 is in review with evidence — acceptance 3 of 4 met; the docs criterion is unmet, so "request changes" is defensible.\n2. T-014 sits in tickets/ready/ but .worktrees/t-014 holds finished work on kotta/t-014-port-collision. The files and git disagree; reconcile before launching P-003 further.\n\nP-001 has seven backlog tickets and no ready members, so nothing there is launchable yet.'}
+   ]},
+  {id:'T-012',chip:'T-012',level:'ticket',title:'Make the UI workspace argument contract explicit',agent:'codex',dot:'codex',
+   context:'ticket contract + repo',placeholder:'Message codex about T-012…',contextNote:'Ticket context attached · contract, branch, worktree',
+   preview:'Reconciling option declaration with help snapshot…',
+   starters:['Tighten acceptance','Split this','Fill verification'],
+   messages:[
+     {who:'operator',text:'Where are you on the help snapshot?'},
+     {who:'codex',text:'The declaration now marks --workspace optional with `.` as default. Two snapshot tests still assert the old required form; rewriting them and then',stream:true}
+   ]},
+  {id:'P-003',chip:'P-003',level:'package',title:'Trustworthy daily use and feedback intake',agent:'claude',dot:'none',
+   context:'package goal + 6 members',placeholder:'Message claude about P-003…',contextNote:'Package context attached · members, execution mode',
+   preview:'Wave 2 can run in parallel once T-012 lands.',
+   starters:['What belongs together?','Plan the launch','Intervene in the run'],
+   messages:[
+     {who:'operator',text:'Is this batch shaped right for a parallel run?'},
+     {who:'claude',text:'Yes, with one caveat. T-014 and T-015 are independent of each other but T-015 depends on T-012, so a dependency-aware run yields three waves and never more than two agents at once. T-014 should be reconciled first — its worktree suggests the work is already done, which would waste a wave.'}
+   ]}
+];
+
+const SHORTCUTS=[
+  {keys:'g i / g s',what:'Jump to Inbox / Shape'},
+  {keys:'g p / g r',what:'Jump to Packages / Run'},
+  {keys:'g d',what:'Jump to Done'},
+  {keys:'j / k',what:'Move down / up the current list'},
+  {keys:'enter',what:'Open the focused row'},
+  {keys:'v',what:'Validate the focused backlog ticket'},
+  {keys:'c',what:'Toggle the chat dock'},
+  {keys:'/',what:'Search tickets, findings, packages'},
+  {keys:'?',what:'This sheet'}
+];
+
+class Component extends DCLogic {
+  state={stage:'run',cursor:0,openFinding:null,captureOpen:false,historyOpen:false,
+    validated:{},pkgSel:'P-003',preflight:false,openTicket:'T-013',driftOpen:false,
+    dockOpen:false,thread:'ws',agent:'claude',shortcuts:false,refreshed:2,streaming:true,extra:{}};
+
+  componentDidMount(){
+    this._tick=setInterval(()=>this.setState(s=>({refreshed:(s.refreshed%9)+1})),1500);
+    this._pending=null;
+    this._key=(e)=>{
+      if(e.target&&/input|textarea/i.test(e.target.tagName))return;
+      const k=e.key;
+      if(this._pending==='g'){this._pending=null;
+        const m={i:'inbox',s:'shape',p:'packages',r:'run',d:'done'}[k];
+        if(m){e.preventDefault();this.setState({stage:m,cursor:0});}return;}
+      if(k==='g'){this._pending='g';return;}
+      if(k==='?'){e.preventDefault();this.setState(s=>({shortcuts:!s.shortcuts}));}
+      else if(k==='c'){e.preventDefault();this.setState(s=>({dockOpen:!s.dockOpen}));}
+      else if(k==='j'||k==='k'){e.preventDefault();this.setState(s=>({cursor:Math.max(0,s.cursor+(k==='j'?1:-1))}));}
+      else if(k==='Escape')this.setState({shortcuts:false,preflight:false});
+    };
+    window.addEventListener('keydown',this._key);
+  }
+  componentWillUnmount(){clearInterval(this._tick);window.removeEventListener('keydown',this._key);}
+
+  go(stage){return()=>this.setState({stage,cursor:0});}
+  discuss(id){return()=>this.setState({dockOpen:true,thread:THREADS.some(t=>t.id===id)?id:'ws'});}
+  cur(i){return i===this.state.cursor?'background:rgba(236,48,19,.09);box-shadow:inset 3px 0 0 '+ACC+';':'';}
+
+  tickets(f){return TICKETS.filter(f);}
+  byId(id){return TICKETS.find(t=>t.id===id);}
+
+  runRow(t,i){
+    const s=this.state;
+    return {id:t.id,title:t.t,state:t.state,claim:t.claim||'unclaimed',branch:t.branch||'—',
+      worktree:t.wt||'—',activity:t.act||'—',
+      stateExtra:TAG[t.state]||TAG.backlog,
+      dotExtra:AGENT_DOT[t.claim]||AGENT_DOT.none,
+      rowExtra:this.cur(i)+(t.state==='review'?'background:rgba(32,30,29,.04);':''),
+      caret:s.openTicket===t.id?'▾':'▸',
+      open:s.openTicket===t.id,
+      acceptance:(ACCEPTANCE[t.id]||[]).map(a=>({mark:a.ok?'✓':'○',text:a.text,markExtra:a.ok?'color:'+ACC+';font-weight:700;':'opacity:.45;'})),
+      evidence:EVIDENCE[t.id]||'No evidence returned yet — agent is still working.',
+      pr:t.state==='review'?'github.com/…/pull/48':'no PR yet',
+      reviewable:t.state==='review',
+      blockedShown:t.state==='blocked',blockedReason:t.blocked||'',
+      note:t.blocked?'':'Independent work: no package semantics apply. Merging it will not advance any batch.',
+      toggle:()=>this.setState(st=>({openTicket:st.openTicket===t.id?null:t.id})),
+      discuss:this.discuss(t.id),
+      goPkg:this.go('packages')};
+  }
+
+  graphFor(p){
+    const waves=[];const placed=new Set();
+    let pool=p.members.map(id=>this.byId(id)).filter(t=>t.state!=='done');
+    if(!pool.length)pool=p.members.map(id=>this.byId(id));
+    let guard=0;
+    while(pool.length&&guard++<6){
+      const w=pool.filter(t=>t.dep==='—'||t.dep.split(', ').every(d=>placed.has(d)||(this.byId(d)||{}).state==='done'));
+      const layer=w.length?w:pool.slice(0,1);
+      layer.forEach(t=>placed.add(t.id));
+      waves.push(layer);
+      pool=pool.filter(t=>!layer.includes(t));
+    }
+    return waves;
+  }
+
+  renderVals(){
+    const s=this.state;
+    const stageCounts={inbox:FINDINGS.length,shape:9,packages:3,run:4,done:4};
+    const navMeta=[
+      {id:'inbox',label:'Inbox',sub:'observations',step:'01'},
+      {id:'shape',label:'Shape',sub:'contracts',step:'02'},
+      {id:'packages',label:'Packages',sub:'batches',step:'03'},
+      {id:'run',label:'Run',sub:'execution',step:'04'},
+      {id:'done',label:'Done',sub:'archive',step:'—'}
+    ];
+    const navItems=navMeta.map(n=>({...n,count:stageCounts[n.id],go:this.go(n.id),
+      extra:s.stage===n.id?'background:'+ACC+';color:#f3f2f2;':'',
+      badge:s.stage===n.id?'background:rgba(0,0,0,.28);':'background:rgba(243,242,242,.14);'}));
+
+    const needs=[
+      {count:3,label:'Findings to disposition',dest:'inbox',stage:'inbox'},
+      {count:1,label:'Review waiting',dest:'run',stage:'run'},
+      {count:1,label:'Blocked',dest:'run',stage:'run'},
+      {count:0,label:'Failed runs',dest:'run',stage:'run'},
+      {count:1,label:'State drift',dest:'run',stage:'run',hot:true}
+    ].map(n=>({...n,go:n.stage==='run'?()=>this.setState({stage:'run',driftOpen:n.hot||s.driftOpen}):this.go(n.stage),
+      extra:n.count===0?'opacity:.45;':'',
+      numExtra:n.hot&&n.count?'color:'+ACC+';':(n.count?'':'opacity:.5;')}));
+
+    const backlog=this.tickets(t=>t.state==='backlog').map((t,i)=>{
+      const v=s.validated[t.id];
+      return {id:t.id,title:t.t,type:t.type,priority:t.pri,risk:t.risk,
+        depends:t.dep==='—'?'no deps':'depends_on '+t.dep,
+        pkgLabel:t.pkg||'unpackaged',
+        pkgExtra:t.pkg?'background:#eae9e9;color:#444141;':'background:#fff2ef;color:#ae1800;border:1px solid #ae1800;',
+        rowExtra:this.cur(i),
+        hasIssues:v==='fail',issues:ISSUES[t.id]||[],promoted:v==='ok',
+        validate:()=>this.setState(st=>({validated:{...st.validated,[t.id]:ISSUES[t.id]?'fail':'ok'}})),
+        shape:this.discuss(t.id)};
+    });
+
+    const readyTickets=this.tickets(t=>t.state==='ready');
+    const readyGroups=[{
+      id:'P-003',title:'Trustworthy daily use and feedback intake',note:'active package · 2 ready members',
+      stampExtra:'background:oklch(.47 .16 305);color:#f3f2f2;',
+      headExtra:'background:#eae9e9;',noteExtra:'opacity:.6;',
+      rows:readyTickets.map(t=>({id:t.id,title:t.t,type:t.type,priority:t.pri,risk:t.risk,
+        depends:t.dep==='—'?'no deps':'depends_on '+t.dep,drift:!!t.drift,
+        pkgVerb:'Open package',shape:this.discuss(t.id),goPkg:this.go('packages'),
+        goDrift:()=>this.setState({stage:'run',driftOpen:true})}))
+    },{
+      id:'—',title:'Unpackaged and ready',note:'a decision waiting to happen',
+      stampExtra:'border:1px dashed oklch(.55 .15 305);color:oklch(.45 .14 305);',
+      headExtra:'background:#fff2ef;box-shadow:inset 3px 0 0 '+ACC+';',noteExtra:'color:#ae1800;font-weight:700;',
+      rows:[]
+    }];
+
+    const pkgs=PACKAGES.map(p=>({id:p.id,title:p.title,status:p.status,done:p.done,total:p.members.length,
+      modeSummary:p.mode+' · parallelism '+p.par+' · '+(p.stop?'stop on failure':'continue on failure'),
+      statusExtra:TAG[p.status]||TAG.backlog,
+      barExtra:'width:'+Math.round(p.done/p.members.length*100)+'%;',
+      extra:s.pkgSel===p.id?'background:rgba(236,48,19,.1);box-shadow:inset 3px 0 0 '+ACC+';':'',
+      select:()=>this.setState({pkgSel:p.id,preflight:false})}));
+
+    const P=PACKAGES.find(p=>p.id===s.pkgSel)||PACKAGES[0];
+    const waves=this.graphFor(P);
+    const locked=P.status!=='backlog';
+    const allReady=P.members.every(id=>['ready','done'].includes(this.byId(id).state));
+    const pkg={
+      id:P.id,title:P.title,kind:P.kind,status:P.status,goal:P.goal,total:P.members.length,
+      parallelism:P.par,path:'.kotta/packages/'+P.id.toLowerCase()+'.md',
+      statusExtra:TAG[P.status]||TAG.backlog,
+      membershipLocked:locked,
+      settingsNote:locked?'Editable only while the package is in backlog.':'Editable now — this package is still in backlog.',
+      settings:[{key:'mode',value:P.mode},{key:'parallelism',value:String(P.par)},{key:'stop_on_failure',value:String(P.stop)}],
+      members:P.members.map(id=>{const t=this.byId(id);return{id:t.id,title:t.t,state:t.state,
+        stateExtra:TAG[t.state],claim:t.claim||'—',depends:t.dep};}),
+      graph:waves.map((w,i)=>({wave:i+1,n:w.length,arrow:i<waves.length-1,
+        nodes:w.map(t=>({id:t.id,state:t.state,short:t.t.split(' ').slice(0,6).join(' ')+'…',
+          extra:'border-left-color:'+(t.state==='active'?ACC:t.state==='ready'?'#ff9783':'rgba(32,30,29,.4)')+';'}))})),
+      launchable:allReady&&P.status==='backlog',
+      launchBlocked:!(allReady&&P.status==='backlog'),
+      launchReason:P.status==='active'?'Already running — see Run. Launch is disabled while a run is in flight.':
+        P.status==='done'?'Package is done. Its members are archived in Done.':
+        P.members.filter(id=>this.byId(id).state==='backlog').length+' member tickets are still in backlog. Validate them in Shape before launch.'
+    };
+
+    const runPkg=PACKAGES.find(p=>p.status==='active');
+    const runs=[{id:runPkg.id,title:runPkg.title,
+      modeSummary:runPkg.mode+' · parallelism '+runPkg.par+' · stop on failure',
+      progress:runPkg.done+'/'+runPkg.members.length+' done · 1 active · 1 review',
+      discuss:this.discuss('P-003'),
+      rows:runPkg.members.map(id=>this.byId(id)).filter(t=>t.state!=='done').map((t,i)=>this.runRow(t,i))}];
+    const loose=this.tickets(t=>!t.pkg).map((t,i)=>this.runRow(t,i+9));
+
+    const activeT=THREADS.find(t=>t.id===s.thread)||THREADS[0];
+    const threads=THREADS.map(t=>({chip:t.chip,level:t.level,title:t.title,preview:t.preview,agent:t.agent,
+      open:()=>this.setState({dockOpen:true,thread:t.id,agent:t.agent}),
+      dotExtra:AGENT_DOT[t.dot]||AGENT_DOT.none,
+      rowExtra:s.thread===t.id?'background:rgba(236,48,19,.12);box-shadow:inset 3px 0 0 '+ACC+';':'',
+      chipExtra:HUE[t.level].chip,
+      pillExtra:s.thread===t.id?HUE[t.level].pill:''}));
+
+    const msgs=(s.extra[activeT.id]||[]).concat(activeT.messages).sort((a,b)=>0);
+    const allMsgs=activeT.messages.concat(s.extra[activeT.id]||[]);
+    const active={chip:activeT.chip,title:activeT.title,context:activeT.context,
+      placeholder:activeT.placeholder,contextNote:activeT.contextNote,
+      chipExtra:HUE[activeT.level].chip,
+      showStarters:true,
+      starters:activeT.starters.map(l=>({label:l,send:()=>this.setState(st=>({extra:{...st.extra,[activeT.id]:(st.extra[activeT.id]||[]).concat([{who:'operator',text:l}])}}))})),
+      messages:allMsgs.map(m=>({who:m.who,text:m.text,
+        whoExtra:m.who==='operator'?'opacity:.5;':'color:'+ACC+';font-weight:600;',
+        bodyExtra:m.who==='operator'?'opacity:.75;':'',
+        caretExtra:m.stream&&s.streaming?'color:'+ACC+';animation:atblink .9s steps(1) infinite;':'display:none;'}))};
+
+    const agents=[{name:'codex',key:'codex',live:true},{name:'claude',key:'claude',live:true}].map(a=>({
+      name:a.name,pick:()=>this.setState({agent:a.key}),
+      extra:s.agent===a.key?'background:'+INK+';color:#f3f2f2;border-color:'+INK+';':'',
+      dotExtra:s.agent===a.key?'background:#ff9783;':'background:#9b9797;'}));
+
+    return {
+      navItems,needs,
+      needsEmpty:false,needsShown:true,
+      refreshed:s.refreshed+'s',
+      isInbox:s.stage==='inbox',isShape:s.stage==='shape',isPackages:s.stage==='packages',
+      isRun:s.stage==='run',isDone:s.stage==='done',
+      toggleShortcuts:()=>this.setState(st=>({shortcuts:!st.shortcuts})),
+      shortcutsOpen:s.shortcuts,shortcuts:SHORTCUTS,
+      toggleSearch:this.go('done'),searchValue:'',
+      showGaps:this.props.showBackendGaps??true,
+      migrationShown:this.props.showMigration??true,
+
+      captureOpen:s.captureOpen,toggleCapture:()=>this.setState(st=>({captureOpen:!st.captureOpen})),
+      openFindingCount:FINDINGS.length,
+      newFindings:FINDINGS.map((f,i)=>({id:f.id,title:f.t,type:f.type,severity:f.sev,confidence:f.conf,
+        during:f.during,evidence:f.ev,path:'.kotta/findings/new/'+f.id.toLowerCase()+'.md',
+        open:s.openFinding===f.id,caret:s.openFinding===f.id?'▾':'▸',
+        rowExtra:this.cur(i),
+        sevExtra:f.sev==='high'?'background:oklch(.64 .14 66);color:#f3f2f2;'
+          :f.sev==='medium'?'background:oklch(.9 .075 66);color:oklch(.4 .11 66);'
+          :'background:oklch(.955 .035 66);color:oklch(.52 .07 66);border:1px solid oklch(.85 .05 66);',
+        toggle:()=>this.setState(st=>({openFinding:st.openFinding===f.id?null:f.id})),
+        discuss:this.discuss(f.id),goEntity:this.go('run')})),
+      historyOpen:s.historyOpen,historyCaret:s.historyOpen?'▾':'▸',
+      toggleHistory:()=>this.setState(st=>({historyOpen:!st.historyOpen})),
+      resolvedFindings:RESOLVED.map(r=>({...r,
+        dispExtra:r.disposition==='ticket'?'background:oklch(.93 .05 258);color:oklch(.4 .13 258);':'background:#eae9e9;color:#605d5d;'})),
+
+      backlog,readyGroups,readyCount:readyTickets.length,
+
+      packages:pkgs,pkg,
+      preflightOpen:s.preflight&&pkg.launchable,
+      togglePreflight:()=>this.setState(st=>({preflight:!st.preflight})),
+      preflightWaves:pkg.graph.map(g=>({wave:g.wave,ids:g.nodes.map(n=>n.id).join(', '),
+        note:g.n>1?g.n+' agents in parallel':'single agent'})),
+      launchCommand:'kotta package preflight '+P.id+'\n# then, in an agent session:\n/execute-package '+P.id+' --mode '+P.mode+' --parallelism '+P.par,
+      launchViaChat:()=>this.setState({dockOpen:true,thread:'P-003'}),
+
+      runs,loose,
+      driftShown:true,driftOpen:s.driftOpen,driftVerb:s.driftOpen?'Hide':'Inspect',
+      toggleDrift:()=>this.setState(st=>({driftOpen:!st.driftOpen})),
+      driftDiscuss:this.discuss('ws'),
+      driftFiles:[{k:'path',v:'tickets/ready/t-014.md'},{k:'status',v:'ready'},{k:'claim',v:'none on record'},{k:'updated',v:'2026-07-21'}],
+      driftGit:[{k:'worktree',v:'.worktrees/t-014 (exists)'},{k:'branch',v:'kotta/t-014-port-collision'},{k:'claim file',v:'claims/t-014.codex'},{k:'last commit',v:'2026-07-24 · "fix port fallback"'}],
+
+      doneRows:this.tickets(t=>t.state==='done').map(t=>({id:t.id,title:t.t,type:t.type,pkg:t.pkg,
+        branch:'kotta/'+t.id.toLowerCase(),closed:'2 days ago'})),
+
+      dockOpen:s.dockOpen,dockCollapsed:!s.dockOpen,
+      openDock:()=>this.setState({dockOpen:true}),closeDock:()=>this.setState({dockOpen:false}),
+      dockStatus:s.streaming?'codex streaming in T-012':'idle',
+      threads,active,agents,
+      sendMessage:()=>this.setState(st=>({extra:{...st.extra,[activeT.id]:(st.extra[activeT.id]||[]).concat([{who:'operator',text:'(sent)'}])}}))
+    };
+  }
+}
+
+</script>
+</body>
+</html>

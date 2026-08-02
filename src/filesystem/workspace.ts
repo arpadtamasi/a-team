@@ -20,7 +20,7 @@ const DIRECTORIES = [
   "decisions",
 ];
 
-/** The workspace directory name `init` creates (T-020 / D-006). */
+/** The primary workspace directory name: what `init` creates and what discovery looks for first (D-007). */
 export const WORKSPACE_DIRECTORY = ".kotta";
 
 /** The pre-rename name. Still read, never created: an existing workspace is never migrated by the CLI. */
@@ -46,7 +46,36 @@ function isSymbolicLink(path: string): boolean {
 }
 
 /**
- * The workspace directory name inside `root`: `.kotta` when it is there, `.a-team` otherwise (D-006).
+ * Both names as real directories is an ambiguity only the operator can resolve: two independent
+ * workspaces, and Kotta silently reading one of them would hide half the state. `.kotta/` wins
+ * (D-007), and the caller says so out loud. A symlink between the names is not ambiguous — it is
+ * the supported bridge — so it never triggers this.
+ *
+ * @returns the warning text, or `undefined` when `root` is unambiguous.
+ */
+export function duplicateWorkspaceWarning(root: string): string | undefined {
+  const real = WORKSPACE_DIRECTORIES.filter((name) => {
+    const path = join(root, name);
+    return isWorkspaceDirectory(path) && !isSymbolicLink(path);
+  });
+  if (real.length < 2) return undefined;
+  return `Warning: ${root} contains both ${WORKSPACE_DIRECTORY}/ and ${LEGACY_WORKSPACE_DIRECTORY}/ as real directories. Kotta uses ${WORKSPACE_DIRECTORY}/ and ignores ${LEGACY_WORKSPACE_DIRECTORY}/. Merge them, then replace the leftover with a symlink: ln -s ${WORKSPACE_DIRECTORY} ${LEGACY_WORKSPACE_DIRECTORY}`;
+}
+
+/** Once per root per process: discovery runs on every path join, the operator needs the sentence once. */
+const warnedRoots = new Set<string>();
+
+function warnOnDuplicateWorkspace(root: string): void {
+  if (warnedRoots.has(root)) return;
+  const warning = duplicateWorkspaceWarning(root);
+  if (!warning) return;
+  warnedRoots.add(root);
+  process.stderr.write(`${warning}\n`);
+}
+
+/**
+ * The workspace directory name inside `root`: `.kotta` when it is there, `.a-team` otherwise (D-007).
+ * With no workspace at all the answer is the primary name — that is what would be created next.
  *
  * A symlinked candidate loses to a real sibling directory. During the transition a project bridges the
  * two names with `ln -s`, and only the real directory is a tracked tree in Git — the UI reads state
@@ -55,7 +84,8 @@ function isSymbolicLink(path: string): boolean {
  */
 export function workspaceDirectoryName(root: string): string {
   const present = WORKSPACE_DIRECTORIES.filter((name) => isWorkspaceDirectory(join(root, name)));
-  if (present.length === 0) return LEGACY_WORKSPACE_DIRECTORY;
+  if (present.length === 0) return WORKSPACE_DIRECTORY;
+  warnOnDuplicateWorkspace(root);
   return present.find((name) => !isSymbolicLink(join(root, name))) ?? present[0];
 }
 

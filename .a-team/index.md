@@ -12,7 +12,7 @@ None.
 
 ## Ready tickets
 
-- T-013-add-a-discoverable-bug-reporting-path
+None.
 
 ## Active tickets
 
@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-None.
+- T-013-add-a-discoverable-bug-reporting-path
 
 ## Blocked
 
@@ -48,3 +48,4 @@ None.
 - F-028-ugyanannak-a-ticketnek-egyszerre-tobb-igaz-allapota-van-ninc
 - F-030-package-szintu-review-hianyzik-a-ticketek-review-ban-tartasa
 - F-032-a-friss-kontextusu-ticket-vegrehajtas-nincs-parancsban-es-a-
+- F-033-no-component-test-harness-exists-for-the-react-board

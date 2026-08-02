@@ -51,6 +51,8 @@ function entityLabel(id: string): string {
   return title ? `${id} — ${title}` : id;
 }
 const GAP = "[backend-gap]";
+/* Reporting leaves the workspace: the board never writes a report, it hands off to GitHub. */
+const BUG_REPORT_URL = "https://github.com/arpadtamasi/a-team/issues/new?template=bug.yml";
 
 /* ── Markdown + entity links ─────────────────────────── */
 function remarkEntityLinks() {
@@ -235,6 +237,10 @@ function Rail({ project, stage, counts, onStage, onShortcuts, refreshed }: {
     </button>)}
     <div className="rail__foot">
       <button type="button" className="rail__shortcuts" onClick={onShortcuts}><span className="rail__key">?</span> shortcuts</button>
+      <a className="rail__report" href={BUG_REPORT_URL} target="_blank" rel="noreferrer noopener" aria-label="Report a bug — opens the A-Team issue form on GitHub">
+        <span className="rail__key" aria-hidden="true">!</span> Report a bug <span aria-hidden="true">↗</span>
+      </a>
+      <div className="rail__report-note">Opens GitHub. Nothing from this workspace is sent — you write and submit the report there.</div>
       <div className="rail__stamps">
         <div className="kicker">entity stamps</div>
         <div className="rail__stamps-row">

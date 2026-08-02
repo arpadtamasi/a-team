@@ -64,6 +64,22 @@ for (const viewport of viewports) {
   });
 }
 
+test("offers a keyboard-reachable bug-reporting path at every supported width", async ({ page }) => {
+  const issueForm = "https://github.com/arpadtamasi/a-team/issues/new?template=bug.yml";
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    await page.goto("./");
+    const reporting = page.getByRole("link", { name: "Report a bug" });
+    await expect(reporting).toHaveCount(2);
+    for (const link of await reporting.all()) await expect(link).toHaveAttribute("href", issueForm);
+    // Visible without scrolling to the footer, at both widths.
+    await expect(reporting.first()).toBeVisible();
+    await reporting.first().focus();
+    await expect(reporting.first()).toBeFocused();
+    expect(await reporting.first().evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe("none");
+  }
+});
+
 test("remains readable without JavaScript", async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();

@@ -1,0 +1,80 @@
+name: Bug report
+description: Report a defect in the A-Team CLI, skills, local board, or public site.
+title: "[bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a defect. This issue is public.
+
+        Do not paste secrets, tokens, private repository contents, absolute filesystem
+        paths, Git remotes, environment values, or agent conversations. Redact anything
+        you are unsure about — a redacted report is still useful.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One sentence describing the defect.
+      placeholder: "`a-team ticket brief` fails on a ticket with no profiles."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: The exact steps, in order, that produce the defect.
+      placeholder: |
+        1. Run `a-team init` in an empty Git repository.
+        2. Run `a-team ticket new --title "Example" --type feature`.
+        3. Run `a-team ticket brief T-001`.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What happened instead. Quote the observed message with paths redacted.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: A-Team version
+      description: Output of `a-team --version`. Write "unknown" if it is not safely available.
+      placeholder: "0.2.2"
+    validations:
+      required: true
+  - type: checkboxes
+    id: diagnostics-consent
+    attributes:
+      label: Optional diagnostics (off by default)
+      description: |
+        Nothing below is collected unless you tick it for this report. Tick only what you
+        are willing to publish, then paste it in the next field.
+      options:
+        - label: Node.js version and operating system
+        - label: The failing command and its output, with paths and identifiers redacted
+        - label: The `--json` error payload, with paths and identifiers redacted
+    validations:
+      required: false
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics you ticked above
+      description: Leave empty unless you ticked a box above. Redact paths, tokens, and repository contents.
+    validations:
+      required: false
+  - type: checkboxes
+    id: disclosure
+    attributes:
+      label: Disclosure check
+      options:
+        - label: This report contains no secrets, tokens, private repository contents, or personal data.
+          required: true

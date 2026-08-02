@@ -3,7 +3,7 @@ import { statSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 
-// Regression guard for finding F-004: `tsc` emits dist/cli/index.js without the
+// Regression guard for observation F-004: `tsc` emits dist/cli/index.js without the
 // executable bit, so the published/linked `kotta` (and alias `a-team`) binary fails with
 // "permission denied". build:cli must restore mode 0755 (scripts/chmod-bin.mjs).
 const cli = resolve("dist/cli/index.js");

@@ -6,8 +6,8 @@ description: Prepare and, after explicit approval, submit a defect report about 
 # Report a Kotta bug
 
 Report defects in **Kotta itself** — the `kotta` CLI, the bundled skills, the local board,
-or the public site. This never touches the user's own `.kotta` workspace: no ticket, no
-finding, no decision is created locally by this skill. The destination is always
+or the public site. This never touches the user's own `.kotta` workspace: no contract, no
+observation, no decision is created locally by this skill. The destination is always
 `arpadtamasi/kotta` on GitHub.
 
 Issue form: `https://github.com/arpadtamasi/kotta/issues/new?template=bug.yml`
@@ -45,7 +45,7 @@ The report is public. Before showing it to anyone:
 
 - Replace absolute filesystem paths with repository-relative ones (`/Users/…/repo/src/x.ts` → `src/x.ts`).
 - Remove tokens, credentials, `.env` values, environment variable values, and Git remote URLs.
-- Remove repository contents, ticket bodies, log files, and the agent conversation.
+- Remove repository contents, contract bodies, log files, and the agent conversation.
 - Remove user, host, organization, and project identifiers unless the user names them.
 - Quote only the minimum output needed to recognize the defect, redacted.
 
@@ -128,13 +128,13 @@ re-expanded one. GitHub remains authoritative for final duplicate detection.
 ## 8. For Kotta maintainers only
 
 An incoming GitHub Issue is evidence, not scheduled work. Capture it in the Kotta
-maintainer workspace as a finding and keep the issue URL in the evidence:
+maintainer workspace as a observation and keep the issue URL in the evidence:
 
 ```bash
-kotta finding new --title "<issue title>" --type bug \
+kotta observation new --title "<issue title>" --type bug \
   --evidence "https://github.com/arpadtamasi/kotta/issues/<n> — <reported facts>"
 ```
 
-The finding stays open until `kotta finding validate` and a human-approved
-`kotta finding resolve --disposition <disposition> --approve`. A GitHub Issue never creates a
-ticket by itself.
+The observation stays open until `kotta observation validate` and a human-approved
+`kotta observation resolve --disposition <disposition> --approve`. A GitHub Issue never creates a
+contract by itself.

@@ -2,13 +2,13 @@
 id: T-01kz1g2vyhfn5ezzvvyzn4w2gr
 title: a-team ui does not open the browser — auto-open the served URL on start
 status: done
-origin: finding
+origin: observation
 types:
   - bug
 profiles: []
 priority: medium
 risk: medium
-package: null
+batch: null
 depends_on: []
 blocks: []
 branch: >-
@@ -16,7 +16,7 @@ branch: >-
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
-source_finding: F-014
+source_observation: F-014
 assigned_agent: claude
 resolution: completed
 ---

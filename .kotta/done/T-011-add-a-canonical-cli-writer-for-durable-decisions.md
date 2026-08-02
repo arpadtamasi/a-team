@@ -10,7 +10,7 @@ profiles:
   - workflow
 priority: high
 risk: medium
-package: P-003
+batch: P-003
 depends_on: []
 blocks: []
 branch: fix/T-011-add-a-canonical-cli-writer-for-durable-decisions

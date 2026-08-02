@@ -10,7 +10,7 @@ profiles:
   - workflow
 priority: medium
 risk: medium
-package: P-002
+batch: P-002
 depends_on:
   - T-008
 blocks: []

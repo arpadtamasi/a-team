@@ -12,11 +12,11 @@ const workspace = WORKSPACE_NAMES.includes(basename(outputRoot))
   ? outputRoot
   : join(outputRoot, WORKSPACE_NAMES.find((name) => existsSync(join(outputRoot, name))) ?? ".kotta");
 const replace = process.argv.includes("--replace");
-const ticketSource = join(sourceRoot, "scrum/tickets");
+const contractSource = join(sourceRoot, "scrum/tickets");
 const backlogSource = join(sourceRoot, "scrum/backlog.md");
 const sprintSource = join(sourceRoot, "scrum/sprint.md");
 
-if (!existsSync(ticketSource) || !existsSync(backlogSource) || !existsSync(sprintSource)) {
+if (!existsSync(contractSource) || !existsSync(backlogSource) || !existsSync(sprintSource)) {
   throw new Error(`Legacy Scrum workspace not found under ${sourceRoot}`);
 }
 
@@ -51,10 +51,10 @@ let section = "Later";
 for (const line of readFileSync(backlogSource, "utf8").split(/\r?\n/)) {
   const sectionMatch = /^##\s+(Now|Next|Later|Completed)/.exec(line);
   if (sectionMatch) section = sectionMatch[1];
-  const ticketMatch = /^- \[(O-\d+)\s+—/.exec(line);
-  if (!ticketMatch) continue;
+  const contractMatch = /^- \[(O-\d+)\s+—/.exec(line);
+  if (!contractMatch) continue;
   const priority = /\((P[0-3])(?:,|\))/.exec(line)?.[1] ?? null;
-  backlogMeta.set(ticketMatch[1], { section, priority, compact: line });
+  backlogMeta.set(contractMatch[1], { section, priority, compact: line });
 }
 
 const sprintContent = readFileSync(sprintSource, "utf8");
@@ -62,12 +62,12 @@ const sprintSections = headings(sprintContent);
 const sprintName = /#\s+Sprint\s+—\s+([^\n]+)/.exec(sprintContent)?.[1]?.trim() ?? "Current sprint";
 const sprintStatus = /^Status:\s*`([^`]+)`/m.exec(sprintContent)?.[1] ?? "backlog";
 const sprintLegacyIds = [...new Set([...(sprintSections.get("committed") ?? "").matchAll(/O-\d+/g)].map((match) => match[0]))];
-if (!sprintLegacyIds.length) throw new Error(`Current sprint ${sprintName} has no committed legacy tickets.`);
+if (!sprintLegacyIds.length) throw new Error(`Current sprint ${sprintName} has no committed legacy contracts.`);
 
-const legacyTickets = readdirSync(ticketSource)
+const legacyContracts = readdirSync(contractSource)
   .filter((name) => /^O-\d+.*\.md$/.test(name))
   .map((filename) => {
-    const parsed = matter(readFileSync(join(ticketSource, filename), "utf8"));
+    const parsed = matter(readFileSync(join(contractSource, filename), "utf8"));
     return {
       filename,
       data: parsed.data,
@@ -89,17 +89,17 @@ const splitDefinitions = {
   ],
 };
 
-// Only explicitly shaped, requested outcomes become tickets. Evidence-backed observations,
-// review follow-ups, speculative risks and unresolved technical debt remain findings until a
+// Only explicitly shaped, requested outcomes become contracts. Evidence-backed observations,
+// review follow-ups, speculative risks and unresolved technical debt remain observations until a
 // human dispositions them. Terminal Scrum history is recorded in migration.json, not replayed
 // onto the operational Kotta board.
-const ticketLegacyIds = new Set([
+const contractLegacyIds = new Set([
   "O-3", "O-4", "O-5", "O-7", "O-8", "O-9", "O-11", "O-12", "O-13", "O-16",
   "O-22", "O-23", "O-24", "O-25", "O-30", "O-40", "O-42", "O-43", "O-44", "O-45",
   "O-51", "O-56", "O-76", "O-97", "O-102", "O-107", "O-120", "O-121", "O-122",
   "O-123", "O-124",
 ]);
-const findingLegacyIds = new Set([
+const observationLegacyIds = new Set([
   "O-14", "O-15", "O-17", "O-18", "O-19", "O-21", "O-26", "O-27", "O-28", "O-29",
   "O-31", "O-32", "O-33", "O-34", "O-35", "O-36", "O-37", "O-38", "O-39", "O-41",
   "O-46", "O-57", "O-61", "O-69", "O-70", "O-71", "O-72", "O-74", "O-75", "O-77",
@@ -107,21 +107,21 @@ const findingLegacyIds = new Set([
   "O-91", "O-95", "O-101", "O-105", "O-108", "O-113", "O-114", "O-115", "O-116",
   "O-117", "O-118", "O-119",
 ]);
-const terminalLegacy = legacyTickets.filter((legacy) => ["done", "rejected"].includes(String(legacy.data.status)) || ["O-1", "O-2"].includes(String(legacy.data.id)));
+const terminalLegacy = legacyContracts.filter((legacy) => ["done", "rejected"].includes(String(legacy.data.status)) || ["O-1", "O-2"].includes(String(legacy.data.id)));
 const terminalLegacyIds = new Set(terminalLegacy.map((legacy) => String(legacy.data.id)));
 for (const legacyId of sprintLegacyIds) {
   if (terminalLegacyIds.has(legacyId)) continue;
-  ticketLegacyIds.add(legacyId);
-  findingLegacyIds.delete(legacyId);
+  contractLegacyIds.add(legacyId);
+  observationLegacyIds.delete(legacyId);
 }
-const unclassified = legacyTickets.filter((legacy) => !terminalLegacy.includes(legacy) && !ticketLegacyIds.has(String(legacy.data.id)) && !findingLegacyIds.has(String(legacy.data.id)));
+const unclassified = legacyContracts.filter((legacy) => !terminalLegacy.includes(legacy) && !contractLegacyIds.has(String(legacy.data.id)) && !observationLegacyIds.has(String(legacy.data.id)));
 if (unclassified.length) throw new Error(`Unclassified open legacy records: ${unclassified.map((legacy) => legacy.data.id).join(", ")}. Review them before migration.`);
-const findingLegacy = legacyTickets.filter((legacy) => findingLegacyIds.has(String(legacy.data.id)));
-const ticketLegacy = legacyTickets.filter((legacy) => ticketLegacyIds.has(String(legacy.data.id)));
+const observationLegacy = legacyContracts.filter((legacy) => observationLegacyIds.has(String(legacy.data.id)));
+const contractLegacy = legacyContracts.filter((legacy) => contractLegacyIds.has(String(legacy.data.id)));
 
 const expanded = [];
 const splitAudit = [];
-for (const legacy of ticketLegacy) {
+for (const legacy of contractLegacy) {
   const legacyId = String(legacy.data.id);
   const splits = splitDefinitions[legacyId];
   if (!splits) {
@@ -149,19 +149,19 @@ for (const audit of splitAudit) {
   delete audit.target_legacy;
 }
 
-const packageDefinitions = [{
+const batchDefinitions = [{
   id: "P-001",
   kind: "sprint",
-  status: ["backlog", "ready", "active", "done"].includes(sprintStatus) ? sprintStatus : "backlog",
+  status: ["backlog", "defined", "active", "done"].includes(sprintStatus) ? sprintStatus : "backlog",
   title: `Sprint ${sprintName}`,
   goal: cleanText(sprintSections.get("sprint goal"), "Deliver the current sprint's explicitly committed outcome."),
   legacy: sprintLegacyIds,
 }];
 
-const ticketPackages = new Map();
-for (const pkg of packageDefinitions) {
-  pkg.tickets = pkg.legacy.flatMap((legacyId) => idMap.get(legacyId) ?? []);
-  for (const ticketId of pkg.tickets) if (!ticketPackages.has(ticketId)) ticketPackages.set(ticketId, pkg.id);
+const contractBatches = new Map();
+for (const batch of batchDefinitions) {
+  batch.contracts = batch.legacy.flatMap((legacyId) => idMap.get(legacyId) ?? []);
+  for (const contractId of batch.contracts) if (!contractBatches.has(contractId)) contractBatches.set(contractId, batch.id);
 }
 
 const profileFor = (legacy) => {
@@ -187,10 +187,10 @@ const profileSections = (profile, item) => {
     discovery: [
       ["Decision to be supported", outcome], ["Research question", context], ["Hypotheses", "The source contract contains the current evidence and competing explanations."],
       ["Method", "Inspect repository evidence, run the smallest representative measurement, and record uncertainty."], ["Time or depth limit", "Stop when the stated decision can be made with explicit confidence."],
-      ["Expected output", "A decision-ready evidence note and the smallest follow-up ticket set."], ["Decision criterion", "The product owner can choose without inventing missing evidence."],
+      ["Expected output", "A decision-defined evidence note and the smallest follow-up contract set."], ["Decision criterion", "The product owner can choose without inventing missing evidence."],
     ],
     workflow: [
-      ["Actors", "Player, coach, operator, and the responsible delivery agent where applicable."], ["Initial state", context], ["States", "Use only the states already present in the product and this ticket contract."],
+      ["Actors", "Player, coach, operator, and the responsible delivery agent where applicable."], ["Initial state", context], ["States", "Use only the states already present in the product and this contract."],
       ["Transitions", outcome], ["Triggers", "The user or operational action described by the source contract."], ["Permissions", "Preserve existing authorization and privacy boundaries."],
       ["Error paths", "Failures remain visible and retryable without silent partial completion."], ["Cancellation path", "Cancellation leaves canonical repository and product state valid."],
       ["Retry and duplicate-action behaviour", "Retries are idempotent or explicitly rejected."], ["Audit and notification expectations", "Record material state changes; notify only the actor who can respond."],
@@ -211,7 +211,7 @@ const statusOverrides = new Map();
 const mapStatus = (legacyStatus, legacyId) => {
   if (statusOverrides.has(legacyId)) return statusOverrides.get(legacyId);
   if (legacyStatus === "in_progress") return { state: "active", resolution: null };
-  if (legacyStatus === "ready" && sprintLegacyIds.includes(legacyId)) return { state: "ready", resolution: null };
+  if (legacyStatus === "defined" && sprintLegacyIds.includes(legacyId)) return { state: "defined", resolution: null };
   if (legacyStatus === "done") return { state: "done", resolution: "completed" };
   if (legacyStatus === "rejected") return { state: "done", resolution: "obsolete" };
   return { state: "backlog", resolution: null };
@@ -219,11 +219,11 @@ const mapStatus = (legacyStatus, legacyId) => {
 
 const priorityMap = { P0: "critical", P1: "high", P2: "medium", P3: "low" };
 const migrationRecords = [];
-const findingRecords = [];
+const observationRecords = [];
 
 if (existsSync(workspace) && !replace) throw new Error(`Refusing to replace existing workspace ${workspace}; inspect it first or pass --replace.`);
 rmSync(workspace, { recursive: true, force: true });
-for (const directory of ["backlog", "ready", "active", "review", "done", "findings/new", "findings/resolved", "packages/backlog", "packages/ready", "packages/active", "packages/done", "profiles", "claims", "decisions"]) {
+for (const directory of ["backlog", "defined", "active", "review", "done", "observations/new", "observations/resolved", "batches/backlog", "batches/defined", "batches/active", "batches/done", "profiles", "claims", "decisions"]) {
   mkdirSync(join(workspace, directory), { recursive: true });
 }
 for (const filename of readdirSync(resolve("profiles")).filter((name) => name.endsWith(".yaml"))) {
@@ -244,7 +244,7 @@ for (const item of expanded) {
   const nonGoals = cleanText(legacy.sections.get("out of scope"), "No additional non-goals were stated in the legacy contract.");
   const reviewEvidence = status.state === "done" ? `\n\n## Review evidence\n\n${status.reason ?? cleanText(legacy.sections.get("result"), `Legacy ${legacy.data.status} state preserved during migration preview.`)}` : "";
   const bodyProfiles = profiles.map((profile) => profileSections(profile, item)).filter(Boolean).join("\n\n");
-  const content = `# ${item.id} — ${item.title}\n\n## Outcome\n\n${cleanText(item.outcome, item.title)}\n\n## Scope\n\n${scope}\n\n## Non-goals\n\n${nonGoals}\n\n## Acceptance\n\n${acceptance}\n\n## Verification\n\n${verification}\n\n## Constraints\n\nMigrated from ${legacyId}; lane: ${legacy.data.lane || "cross-cutting"}; legacy status: ${legacy.data.status}.\n\n## Open decisions\n\n${openQuestions}\n\n${bodyProfiles ? `${bodyProfiles}\n\n` : ""}${reviewEvidence}\n\n## Legacy source contract\n\nThe complete legacy body is preserved below. Its headings are demoted only to keep the Kotta contract structure unambiguous.\n\n${preservedLegacyContract(legacy)}\n\n## Execution notes\n\nMigration preview only. Source: scrum/tickets/${legacy.filename}. No product implementation or human ready approval is implied.\n`;
+  const content = `# ${item.id} — ${item.title}\n\n## Outcome\n\n${cleanText(item.outcome, item.title)}\n\n## Scope\n\n${scope}\n\n## Non-goals\n\n${nonGoals}\n\n## Acceptance\n\n${acceptance}\n\n## Verification\n\n${verification}\n\n## Constraints\n\nMigrated from ${legacyId}; lane: ${legacy.data.lane || "cross-cutting"}; legacy status: ${legacy.data.status}.\n\n## Open decisions\n\n${openQuestions}\n\n${bodyProfiles ? `${bodyProfiles}\n\n` : ""}${reviewEvidence}\n\n## Legacy source contract\n\nThe complete legacy body is preserved below. Its headings are demoted only to keep the Kotta contract structure unambiguous.\n\n${preservedLegacyContract(legacy)}\n\n## Execution notes\n\nMigration preview only. Source: scrum/tickets/${legacy.filename}. No product implementation or human defined approval is implied.\n`;
   const createdAt = String(legacy.data.created_at ?? today).slice(0, 10);
   const data = {
     id: item.id,
@@ -255,7 +255,7 @@ for (const item of expanded) {
     profiles,
     priority: priorityMap[legacy.backlog.priority] ?? "medium",
     risk: String(legacy.data.type) === "bug" ? "high" : "medium",
-    package: ticketPackages.get(item.id) ?? null,
+    batch: contractBatches.get(item.id) ?? null,
     depends_on: dependencies,
     blocks: [],
     branch: null,
@@ -286,7 +286,7 @@ for (const item of expanded) {
   });
 }
 
-const findingTypeFor = (legacy) => {
+const observationTypeFor = (legacy) => {
   const type = String(legacy.data.type ?? "other");
   if (type === "bug") return "bug";
   if (type === "research") return "risk";
@@ -302,7 +302,7 @@ const backlogEvidence = (legacy) => {
   return summary && summary !== compact ? summary : `See scrum/tickets/${legacy.filename}.`;
 };
 
-findingLegacy.forEach((legacy) => {
+observationLegacy.forEach((legacy) => {
   const legacyId = String(legacy.data.id);
   const id = legacyId;
   const title = String(legacy.data.title);
@@ -311,24 +311,24 @@ findingLegacy.forEach((legacy) => {
   const impact = cleanText(legacy.sections.get("outcome"), "The observation may affect correctness, product trust, maintainability, or delivery safety; a human disposition is still required.");
   const suggested = String(legacy.data.status) === "parked"
     ? "Keep parked unless the recorded reactivation condition becomes true; then investigate before creating work."
-    : "Review the evidence and explicitly create or attach a ticket only if the outcome is worth scheduling.";
+    : "Review the evidence and explicitly create or attach a contract only if the outcome is worth scheduling.";
   const data = {
-    id, title, status: "new", origin: "agent", finding_type: findingTypeFor(legacy),
+    id, title, status: "new", origin: "agent", observation_type: observationTypeFor(legacy),
     confidence: evidence.includes("See scrum/tickets/") ? "medium" : "high",
     severity: severityFor(legacy), discovered_during: null,
     created_at: String(legacy.data.created_at ?? today).slice(0, 10),
   };
-  const content = `# ${id} — ${title}\n\n## Observation\n\n${observation}\n\n## Evidence\n\n${evidence}\n\nLegacy source: ${legacyId} · scrum/tickets/${legacy.filename}.\n\n## Impact hypothesis\n\n${impact}\n\n## Confidence\n\n${data.confidence === "high" ? "High: the legacy record contains concrete observation or result evidence." : "Medium: the observation is recorded, but should be rechecked before scheduling work."}\n\n## Suggested disposition\n\n${suggested}\n\n## Legacy source contract\n\nThe complete legacy body is preserved below. Its headings are demoted only to keep the Kotta finding structure unambiguous.\n\n${preservedLegacyContract(legacy)}\n`;
+  const content = `# ${id} — ${title}\n\n## Observation\n\n${observation}\n\n## Evidence\n\n${evidence}\n\nLegacy source: ${legacyId} · scrum/tickets/${legacy.filename}.\n\n## Impact hypothesis\n\n${impact}\n\n## Confidence\n\n${data.confidence === "high" ? "High: the legacy record contains concrete observation or result evidence." : "Medium: the observation is recorded, but should be rechecked before scheduling work."}\n\n## Suggested disposition\n\n${suggested}\n\n## Legacy source contract\n\nThe complete legacy body is preserved below. Its headings are demoted only to keep the Kotta observation structure unambiguous.\n\n${preservedLegacyContract(legacy)}\n`;
   const filename = `${id}-${slugify(title)}.md`;
-  writeFileSync(join(workspace, "findings/new", filename), matter.stringify(content, data));
-  findingRecords.push({ id, legacy_id: legacyId, title, legacy_status: legacy.data.status, finding_type: data.finding_type, severity: data.severity, source_file: `scrum/tickets/${legacy.filename}` });
+  writeFileSync(join(workspace, "observations/new", filename), matter.stringify(content, data));
+  observationRecords.push({ id, legacy_id: legacyId, title, legacy_status: legacy.data.status, observation_type: data.observation_type, severity: data.severity, source_file: `scrum/tickets/${legacy.filename}` });
 });
 
 const activeRecord = migrationRecords.find((record) => record.status === "active");
 if (activeRecord) {
-  const legacy = ticketLegacy.find((candidate) => String(candidate.data.id) === activeRecord.legacy_id);
+  const legacy = contractLegacy.find((candidate) => String(candidate.data.id) === activeRecord.legacy_id);
   writeFileSync(join(workspace, "claims", `${activeRecord.id}.yaml`), stringify({
-    ticket: activeRecord.id,
+    contract: activeRecord.id,
     agent: "legacy-scrum",
     branch: String(legacy?.data.branch),
     worktree: ".",
@@ -337,46 +337,48 @@ if (activeRecord) {
   }));
 }
 
-for (const pkg of packageDefinitions) {
+for (const batch of batchDefinitions) {
   const data = {
-    id: pkg.id, kind: pkg.kind, title: pkg.title, status: pkg.status, tickets: pkg.tickets,
+    id: batch.id, kind: batch.kind, title: batch.title, status: batch.status, contracts: batch.contracts,
     execution: { mode: "dependency-aware", parallelism: 2, stop_on_failure: true },
-    authority: { create_findings: true, create_subtickets: false, reorder_independent_tickets: true, change_scope: false },
+    authority: { create_observations: true, create_subcontracts: false, reorder_independent_contracts: true, change_scope: false },
     created_at: today, updated_at: today,
   };
-  const content = `# ${pkg.id} — ${pkg.title}\n\n## Goal\n\n${pkg.goal}\n\n## Completion\n\nEvery referenced ticket is accepted and done; obsolete items have an explicit disposition.\n\n## Execution notes\n\nMigration preview package. Ordering remains dependency-aware and requires human commitment before execution.\n`;
-  writeFileSync(join(workspace, "packages", pkg.status, `${pkg.id}-${slugify(pkg.title)}.md`), matter.stringify(content, data));
+  const content = `# ${batch.id} — ${batch.title}\n\n## Goal\n\n${batch.goal}\n\n## Completion\n\nEvery referenced contract is accepted and done; obsolete items have an explicit disposition.\n\n## Execution notes\n\nMigration preview batch. Ordering remains dependency-aware and requires human commitment before execution.\n`;
+  writeFileSync(join(workspace, "batches", batch.status, `${batch.id}-${slugify(batch.title)}.md`), matter.stringify(content, data));
 }
 
-const statusCounts = migrationRecords.reduce((counts, ticket) => ({ ...counts, [ticket.status]: (counts[ticket.status] ?? 0) + 1 }), {});
+const statusCounts = migrationRecords.reduce((counts, contract) => ({ ...counts, [contract.status]: (counts[contract.status] ?? 0) + 1 }), {});
 const metadata = {
   project: "one&a",
   source_workspace: sourceRoot,
   source_snapshot: `${String(now.toISOString())} · branch recorded separately in source artifacts`,
   generated_at: now.toISOString(),
-  legacy_ticket_count: legacyTickets.length,
+  legacy_ticket_count: legacyContracts.length,
   migrated_ticket_count: migrationRecords.length,
-  finding_count: findingRecords.length,
+  observation_count: observationRecords.length,
   excluded_terminal_count: terminalLegacy.length,
-  package_count: packageDefinitions.length,
+  package_count: batchDefinitions.length,
   status_counts: statusCounts,
-  ready_candidate_count: migrationRecords.filter((ticket) => ticket.ready_candidate).length,
+  ready_candidate_count: migrationRecords.filter((contract) => contract.ready_candidate).length,
   split_audit: splitAudit,
+  // Frozen artefact keys: `migration.json` records what the legacy import produced and is read back
+  // by the board under exactly these names. The vocabulary rename deliberately stops at this file.
   tickets: migrationRecords,
-  findings: findingRecords,
+  findings: observationRecords,
   excluded_terminal: terminalLegacy.map((legacy) => ({ legacy_id: legacy.data.id, legacy_status: legacy.data.status, source_file: `scrum/tickets/${legacy.filename}` })),
-  packages: packageDefinitions.map(({ legacy, ...pkg }) => pkg),
+  packages: batchDefinitions.map(({ legacy, ...batch }) => batch),
 };
 writeFileSync(join(workspace, "migration.json"), `${JSON.stringify(metadata, null, 2)}\n`);
 writeFileSync(join(workspace, "config.yaml"), stringify({
   version: 1,
   project: { name: "one&a" },
-  workflow: { require_human_ready_approval: true, require_human_done_approval: true, allow_agent_findings: true, allow_agent_ready_tickets: false },
+  workflow: { require_human_sign_approval: true, require_human_done_approval: true, allow_agent_observations: true, allow_agent_defined_contracts: false },
   git: { base_branch: "main", protected_branches: ["main", "master", "develop"], worktrees: "auto", worktree_root: ".worktrees", branch_pattern: "{prefix}/{id}-{slug}" },
-  packages: { default_parallelism: 2, stop_on_failure: true },
-  validation: { strict: true, reject_unknown_profiles: true, require_verification_for_ready: true, require_review_evidence_for_done: true },
+  batches: { default_parallelism: 2, stop_on_failure: true },
+  validation: { strict: true, reject_unknown_profiles: true, require_verification_for_defined: true, require_review_evidence_for_done: true },
 }));
-writeFileSync(join(workspace, "README.md"), "# one&a Kotta workspace\n\nMigrated from the legacy Scrum files. Open work was deliberately separated into human-approved tickets and evidence awaiting disposition as findings. The legacy `scrum/` directory remains the historical source snapshot until cutover is explicitly accepted.\n");
-writeFileSync(join(workspace, "index.md"), `# Kotta Status\n\n> Generated migration workspace. Do not edit this index manually.\n\n- ${metadata.migrated_ticket_count} executable or explicitly requested tickets\n- ${metadata.finding_count} findings awaiting human disposition\n- ${metadata.excluded_terminal_count} terminal legacy records preserved only in migration.json\n- ${metadata.package_count} outcome packages\n- ${metadata.ready_candidate_count} backlog tickets have enough evidence to discuss readiness\n`);
+writeFileSync(join(workspace, "README.md"), "# one&a Kotta workspace\n\nMigrated from the legacy Scrum files. Open work was deliberately separated into human-approved contracts and evidence awaiting disposition as observations. The legacy `scrum/` directory remains the historical source snapshot until cutover is explicitly accepted.\n");
+writeFileSync(join(workspace, "index.md"), `# Kotta Status\n\n> Generated migration workspace. Do not edit this index manually.\n\n- ${metadata.migrated_ticket_count} executable or explicitly requested contracts\n- ${metadata.observation_count} observations awaiting human disposition\n- ${metadata.excluded_terminal_count} terminal legacy records preserved only in migration.json\n- ${metadata.package_count} outcome batches\n- ${metadata.ready_candidate_count} backlog contracts have enough evidence to discuss readiness\n`);
 
-console.log(JSON.stringify({ ok: true, source: legacyTickets.length, tickets: migrationRecords.length, findings: findingRecords.length, excludedTerminal: terminalLegacy.length, packages: packageDefinitions.length, output: workspace }, null, 2));
+console.log(JSON.stringify({ ok: true, source: legacyContracts.length, tickets: migrationRecords.length, findings: observationRecords.length, excludedTerminal: terminalLegacy.length, packages: batchDefinitions.length, output: workspace }, null, 2));

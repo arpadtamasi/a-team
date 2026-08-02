@@ -9,7 +9,7 @@ profiles:
   - ui
 priority: medium
 risk: medium
-package: P-001
+batch: P-001
 depends_on:
   - T-004
 blocks: []

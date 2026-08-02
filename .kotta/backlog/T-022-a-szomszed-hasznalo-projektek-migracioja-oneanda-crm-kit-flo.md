@@ -1,6 +1,6 @@
 ---
 id: T-022
-title: 'A szomszed workspace-ek migracioja a kotta migrate paranccsal'
+title: A szomszed workspace-ek migracioja a kotta migrate paranccsal
 status: backlog
 origin: human
 types:
@@ -8,7 +8,7 @@ types:
 profiles: []
 priority: medium
 risk: medium
-package: P-004
+batch: P-004
 depends_on:
   - T-023
 blocks: []

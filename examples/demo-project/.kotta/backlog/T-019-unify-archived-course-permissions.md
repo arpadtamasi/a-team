@@ -2,21 +2,24 @@
 id: T-019
 title: Unify archived-course export permissions
 status: backlog
-origin: finding
-types: [bug, refactor]
-profiles: [bug, refactor]
+origin: observation
+types:
+  - bug
+  - refactor
+profiles:
+  - bug
+  - refactor
 priority: null
 risk: medium
-package: null
+batch: null
 depends_on: []
 blocks: []
 branch: null
 pull_request: null
-source_finding: F-032
-created_at: 2026-07-21
-updated_at: 2026-07-21
+source_observation: F-032
+created_at: '2026-07-21'
+updated_at: '2026-07-21'
 ---
-
 # T-019 — Unify archived-course export permissions
 
 ## Outcome

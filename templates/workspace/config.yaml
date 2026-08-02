@@ -1,13 +1,13 @@
-version: 1
+version: 2
 
 project:
   name: example-project
 
 workflow:
-  require_human_ready_approval: true
+  require_human_sign_approval: true
   require_human_done_approval: true
-  allow_agent_findings: true
-  allow_agent_ready_tickets: false
+  allow_agent_observations: true
+  allow_agent_defined_contracts: false
 
 git:
   base_branch: main
@@ -19,12 +19,12 @@ git:
   worktree_root: .worktrees
   branch_pattern: "{prefix}/{id}-{slug}"
 
-packages:
+batches:
   default_parallelism: 2
   stop_on_failure: true
 
 validation:
   strict: true
   reject_unknown_profiles: true
-  require_verification_for_ready: true
+  require_verification_for_defined: true
   require_review_evidence_for_done: true

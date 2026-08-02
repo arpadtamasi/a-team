@@ -10,7 +10,7 @@ profiles:
   - refactor
 priority: medium
 risk: medium
-package: P-001
+batch: P-001
 depends_on: []
 blocks: []
 branch: null

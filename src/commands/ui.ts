@@ -7,16 +7,16 @@ import { fileURLToPath } from "node:url";
 import matter from "gray-matter";
 import { parse } from "yaml";
 import { sections } from "../core/markdown.js";
-import { findTicket, idFromFilename } from "../filesystem/entities.js";
-import { FINDING_ID, PACKAGE_ID, TICKET_ID } from "../core/identity.js";
-import { newFinding, resolveFinding } from "./finding.js";
-import { newPackage, updatePackageTickets } from "./package.js";
-import { readyTicket } from "./ticket.js";
+import { findContract, idFromFilename } from "../filesystem/entities.js";
+import { OBSERVATION_ID, BATCH_ID, CONTRACT_ID } from "../core/identity.js";
+import { newObservation, resolveObservation } from "./observation.js";
+import { newBatch, updateBatchContracts } from "./batch.js";
+import { signContract } from "./contract.js";
 import { ENV_PREFIX, readEnv } from "../core/env.js";
-import { WORKSPACE_DIRECTORIES, hasWorkspace, workspaceDirectoryName } from "../filesystem/workspace.js";
+import { WORKSPACE_DIRECTORIES, hasWorkspace, legacyStateDirectories, workspaceDirectoryName } from "../filesystem/workspace.js";
 
-const TICKET_STATES = ["backlog", "ready", "active", "review", "done"];
-const PACKAGE_STATES = ["backlog", "ready", "active", "done"];
+const CONTRACT_STATES = ["backlog", "defined", "active", "review", "done"];
+const BATCH_STATES = ["backlog", "defined", "active", "done"];
 
 function git(root: string, args: string[]): { ok: boolean; out: string } {
   const result = spawnSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
@@ -131,14 +131,17 @@ export function readWorkspace(workspaceOption: string) {
   const refFiles = useBase ? refSnapshot(projectRoot, baseInfo.commit, workspaceDirectory) : null;
   // Working-tree state is never cached: one status call per reload, filtered per subpath below.
   const uncommittedAdds = onBase ? uncommittedMdAdds(projectRoot, workspaceDirectory) : [];
+  // `migration.json` is a pre-Kotta import artefact, not part of the entity model: its `tickets` /
+  // `findings` / `packages` keys are frozen at what the importer wrote and deliberately keep the old
+  // words, so an already-imported workspace stays readable. Nothing else in the code says them.
   const migrationPath = join(workspace, "migration.json");
   const migration = existsSync(migrationPath) ? JSON.parse(readFileSync(migrationPath, "utf8")) as { project?: string; tickets?: Array<{ id: string; [key: string]: unknown }> } : null;
-  const migrationById = new Map((migration?.tickets ?? []).map((ticket) => [ticket.id, ticket]));
+  const migrationById = new Map((migration?.tickets ?? []).map((contract) => [contract.id, contract]));
 
   // Derive the baseline entity set from the configured base ref (git plumbing, no checkout), so it does
   // not change when another process checks out a different branch in the primary working tree. When the
   // primary dir IS on the base branch, union its uncommitted workspace additions so freshly-created intake
-  // shows immediately. Active worktrees are overlaid per ticket below. (T-016 / D-001)
+  // shows immediately. Active worktrees are overlaid per contract below. (T-016 / D-001)
   const readMd = (repoPath: string, fromRef: boolean): string =>
     (fromRef ? (refFiles?.get(repoPath) ?? readMdFromRef(projectRoot, base, repoPath)) : readFileSync(join(projectRoot, repoPath), "utf8")) ?? "";
   const listRefMd = (subpath: string): string[] => refFiles
@@ -167,32 +170,32 @@ export function readWorkspace(workspaceOption: string) {
     return { ...parsed.data, status: entry.state, filename: basename(entry.repoPath), sections: sectionObject(parsed.content) };
   };
 
-  const diagnostics: Array<{ entity: "ticket"; id: string; worktree: string; message: string }> = [];
+  const diagnostics: Array<{ entity: "contract"; id: string; worktree: string; message: string }> = [];
 
-  // Tickets: base-ref baseline, overlaid per id by any live worktree (in-flight truth from .worktrees/<id>).
+  // Contracts: base-ref baseline, overlaid per id by any live worktree (in-flight truth from .worktrees/<id>).
   // Identity comes from the frontmatter: a minted entity's filename carries only its short id suffix.
-  const ticketBase = new Map<string, Record<string, unknown>>();
-  for (const entry of gather(TICKET_STATES, (state) => state)) {
+  const contractBase = new Map<string, Record<string, unknown>>();
+  for (const entry of gather(CONTRACT_STATES, (state) => state)) {
     const parsed = parseEntity(entry);
     const id = String(parsed.id ?? idFromFilename(basename(entry.repoPath)) ?? "");
-    if (id && !ticketBase.has(id)) ticketBase.set(id, parsed);
+    if (id && !contractBase.has(id)) contractBase.set(id, parsed);
   }
-  const tickets = [...ticketBase].map(([id, baseline]) => {
+  const contracts = [...contractBase].map(([id, baseline]) => {
     const worktree = join(projectRoot, ".worktrees", id);
     if (existsSync(worktree)) {
       try {
-        const location = findTicket(worktree, id);
+        const location = findContract(worktree, id);
         const parsed = matter(readFileSync(location.path, "utf8"));
-        if (String(parsed.data.id) !== id) throw new Error(`Ticket metadata id '${String(parsed.data.id)}' does not match ${id}.`);
+        if (String(parsed.data.id) !== id) throw new Error(`Contract metadata id '${String(parsed.data.id)}' does not match ${id}.`);
         return { ...parsed.data, status: location.state, filename: location.filename, sections: sectionObject(parsed.content), migration: migrationById.get(id) ?? null, worktree: worktree };
       } catch (error) {
-        diagnostics.push({ entity: "ticket", id, worktree: worktree, message: error instanceof Error ? error.message : String(error) });
+        diagnostics.push({ entity: "contract", id, worktree: worktree, message: error instanceof Error ? error.message : String(error) });
       }
     }
     return { ...baseline, migration: migrationById.get(id) ?? null };
   });
-  const packages = gather(PACKAGE_STATES, (state) => `packages/${state}`).map(parseEntity);
-  const findings = gather(["new", "resolved"], (state) => `findings/${state}`).map(parseEntity);
+  const batches = gather(BATCH_STATES, (state) => `batches/${state}`).map(parseEntity);
+  const observations = gather(["new", "resolved"], (state) => `observations/${state}`).map(parseEntity);
   // Decisions are cross-cutting and stateless — one directory, no state dirs — so they carry a date
   // instead of a status. They come out of the same cached snapshot: no extra subprocess. (T-029)
   const decisions = gather(["decisions"], () => "decisions").map((entry) => {
@@ -206,7 +209,46 @@ export function readWorkspace(workspaceOption: string) {
       sections: sectionObject(parsed.content),
     };
   });
-  return { workspace, project: migration?.project ?? config.project?.name ?? "Kotta workspace", migration, tickets, packages, findings, decisions, diagnostics, generatedAt: new Date().toISOString() };
+  const notices = readNotices(projectRoot, workspace, useBase, base, contracts.length + batches.length + observations.length);
+  return { workspace, project: migration?.project ?? config.project?.name ?? "Kotta workspace", migration, contracts, batches, observations, decisions, diagnostics, notices, generatedAt: new Date().toISOString() };
+}
+
+/** Entity files sitting in the working tree, under either vocabulary — the counterweight to the ref read. */
+function workingTreeEntityCount(workspace: string): number {
+  const directories = [
+    ...CONTRACT_STATES, "ready",
+    "observations/new", "observations/resolved", "findings/new", "findings/resolved",
+    ...["backlog", "ready", "defined", "active", "done"].flatMap((state) => [`batches/${state}`, `packages/${state}`]),
+  ];
+  return directories.reduce((total, directory) => {
+    const path = join(workspace, directory);
+    return existsSync(path) ? total + readdirSync(path).filter((name) => name.endsWith(".md")).length : total;
+  }, 0);
+}
+
+/**
+ * What the board must say out loud instead of rendering an empty page (F-01kz25qf318bmn1t860n2rjcpt).
+ *
+ * The board reads the configured base ref through git plumbing, not the working tree, so a directory
+ * or vocabulary migration that has not reached that ref yet produces a header path that looks right
+ * above no content at all. That is indistinguishable from an empty workspace — unless the reader says
+ * which side it read and why the other side is fuller.
+ */
+export function readNotices(projectRoot: string, workspace: string, useBase: boolean, base: string, fromRef: number): string[] {
+  const notices: string[] = [];
+  const legacy = legacyStateDirectories(projectRoot);
+  if (legacy.length) {
+    notices.push(`This workspace is still on the pre-vocabulary shape (${legacy.map((name) => `${name}/`).join(", ")}). The board reads the current names, so what you see is incomplete. Run 'kotta migrate --dry-run', then 'kotta migrate'.`);
+  }
+  // Only when the shape is current: an old-shape workspace reads as empty for the reason above, and
+  // saying "the ref has no entities" about it would be wrong — the ref has them, under the old names.
+  if (!legacy.length && useBase && fromRef === 0) {
+    const onDisk = workingTreeEntityCount(workspace);
+    if (onDisk > 0) {
+      notices.push(`The board reads ${basename(workspace)}/ from the '${base}' ref, not from the working tree. That ref has no entities while the working tree has ${onDisk} — a migration or rename that has not reached '${base}' yet. Commit it and merge it into '${base}'; the board is empty until then, and the workspace is not.`);
+    }
+  }
+  return notices;
 }
 
 function json(response: ServerResponse, status: number, value: unknown): void {
@@ -220,7 +262,7 @@ class CodexAppServer {
   private readonly process: ChildProcessWithoutNullStreams;
   private readonly pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
   private readonly listeners = new Map<string, Set<(message: JsonRpcMessage) => void>>();
-  private readonly threadTickets = new Map<string, string>();
+  private readonly threadContracts = new Map<string, string>();
   private nextId = 1;
   readonly ready: Promise<void>;
 
@@ -277,17 +319,17 @@ class CodexAppServer {
 
   async chat(scopeId: string, existingThreadId: string | null, prompt: string, onEvent: (event: Record<string, unknown>) => void): Promise<void> {
     await this.ready;
-    let threadId = existingThreadId && this.threadTickets.get(existingThreadId) === scopeId ? existingThreadId : null;
+    let threadId = existingThreadId && this.threadContracts.get(existingThreadId) === scopeId ? existingThreadId : null;
     let isNew = false;
     if (!threadId) {
       const result = await this.request("thread/start", { cwd: this.cwd, approvalPolicy: "never", sandbox: "workspace-write", serviceName: "kotta-pm" }) as { thread?: { id?: string } };
       threadId = result.thread?.id ?? null;
       if (!threadId) throw new Error("Codex did not return a thread id.");
-      this.threadTickets.set(threadId, scopeId);
+      this.threadContracts.set(threadId, scopeId);
       isNew = true;
     }
     onEvent({ type: "thread", threadId });
-    const instruction = "You are inside the Kotta PM ticket chat. You may inspect and modify files inside the current workspace when the user asks you to implement or change something. Stay within the selected ticket's scope, avoid destructive operations, and report the files and verification performed. If you discover evidence-backed work outside this ticket's scope, do not silently expand the ticket and do not create another ticket: capture it as a Kotta finding with the canonical CLI so a human can disposition it.";
+    const instruction = "You are inside the Kotta PM contract chat. You may inspect and modify files inside the current workspace when the user asks you to implement or change something. Stay within the selected contract's scope, avoid destructive operations, and report the files and verification performed. If you discover evidence-backed work outside this contract's scope, do not silently expand the contract and do not create another contract: capture it as a Kotta observation with the canonical CLI so a human can disposition it.";
     const input = isNew ? `${prompt}\n\n${instruction}` : prompt;
 
     await new Promise<void>(async (resolvePromise, reject) => {
@@ -458,7 +500,7 @@ export async function uiCommand(options: { workspace: string; port?: number; hos
         sourceFile = sourceFile.replace(/^source:/, "").replace(/^\/+/, "");
         if (!sourceFile) throw new Error(`No historical source is recorded for ${requestedId || "this reference"}.`);
         let target = resolve(projectRoot, sourceFile);
-        if (!existsSync(target) && sourceFile.startsWith("tickets/")) target = resolve(projectRoot, "scrum", sourceFile);
+        if (!existsSync(target) && sourceFile.startsWith("contracts/")) target = resolve(projectRoot, "scrum", sourceFile);
         const projectRelative = relative(projectRoot, target);
         if (!projectRelative || projectRelative.startsWith("..") || projectRelative.includes("\0") || extname(target) !== ".md") throw new Error("Only Markdown sources inside the project can be opened.");
         if (!existsSync(target) || !statSync(target).isFile()) throw new Error(`Source file not found: ${sourceFile}`);
@@ -474,18 +516,18 @@ export async function uiCommand(options: { workspace: string; port?: number; hos
       const event = (value: Record<string, unknown>) => response.write(`${JSON.stringify(value)}\n`);
       try {
         const body = await requestBody(request);
-        const ticketId = typeof body.ticketId === "string" ? body.ticketId : "";
+        const contractId = typeof body.contractId === "string" ? body.contractId : "";
         const message = typeof body.message === "string" ? body.message.trim() : "";
         const agent = body.agent === "claude" ? "claude" : "codex";
         const threadId = typeof body.threadId === "string" ? body.threadId : null;
         const workspace = readWorkspace(initial.workspace);
-        const ticket = (workspace.tickets as unknown as Array<{ id: string; title: string; status: string; sections: Record<string, string> }>).find((candidate) => candidate.id === ticketId);
-        if (!ticket || !message) throw new Error("A valid ticket and non-empty message are required.");
+        const contract = (workspace.contracts as unknown as Array<{ id: string; title: string; status: string; sections: Record<string, string> }>).find((candidate) => candidate.id === contractId);
+        if (!contract || !message) throw new Error("A valid contract and non-empty message are required.");
         if (agent === "claude") throw new Error("Claude Code is not connected on this machine yet.");
         if (!agents.codex) throw new Error("Codex is not installed or not available on PATH.");
         codex ??= new CodexAppServer(projectRoot);
-        const context = `Selected ticket: ${ticket.id} — ${ticket.title}\nStatus: ${ticket.status}\nOutcome: ${ticket.sections.outcome ?? "—"}\nScope: ${ticket.sections.scope ?? "—"}\nAcceptance: ${ticket.sections.acceptance ?? "—"}\nVerification: ${ticket.sections.verification ?? "—"}\n\nUser message: ${message}`;
-        await codex.chat(ticket.id, threadId, context, event);
+        const context = `Selected contract: ${contract.id} — ${contract.title}\nStatus: ${contract.status}\nOutcome: ${contract.sections.outcome ?? "—"}\nScope: ${contract.sections.scope ?? "—"}\nAcceptance: ${contract.sections.acceptance ?? "—"}\nVerification: ${contract.sections.verification ?? "—"}\n\nUser message: ${message}`;
+        await codex.chat(contract.id, threadId, context, event);
         event({ type: "done" });
       } catch (error) {
         event({ type: "error", message: error instanceof Error ? error.message : String(error) });
@@ -494,12 +536,12 @@ export async function uiCommand(options: { workspace: string; port?: number; hos
       }
       return;
     }
-    if (url.pathname === "/api/ticket/ready" && request.method === "POST") {
+    if (url.pathname === "/api/contract/sign" && request.method === "POST") {
       try {
         const body = await requestBody(request);
-        const ticketId = typeof body.ticketId === "string" ? body.ticketId : "";
-        if (!TICKET_ID.test(ticketId)) throw new Error("A valid ticket id is required.");
-        json(response, 200, readyTicket(ticketId, true, projectRoot));
+        const contractId = typeof body.contractId === "string" ? body.contractId : "";
+        if (!CONTRACT_ID.test(contractId)) throw new Error("A valid contract id is required.");
+        json(response, 200, signContract(contractId, true, projectRoot));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         json(response, 409, { ok: false, errors: message.split("\n").filter(Boolean).map((line) => {
@@ -509,52 +551,51 @@ export async function uiCommand(options: { workspace: string; port?: number; hos
       }
       return;
     }
-    if (url.pathname === "/api/package" && request.method === "POST") {
+    if (url.pathname === "/api/batch" && request.method === "POST") {
       try {
         const body = await requestBody(request);
         const title = typeof body.title === "string" ? body.title.trim() : "";
-        const kind = typeof body.kind === "string" ? body.kind : "batch";
         const goal = typeof body.goal === "string" ? body.goal : undefined;
-        json(response, 201, newPackage({ title, kind, goal }, projectRoot));
+        json(response, 201, newBatch({ title, goal }, projectRoot));
       } catch (error) {
         json(response, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
       }
       return;
     }
-    if (url.pathname === "/api/package/tickets" && request.method === "POST") {
+    if (url.pathname === "/api/batch/contracts" && request.method === "POST") {
       try {
         const body = await requestBody(request);
-        const packageId = typeof body.packageId === "string" ? body.packageId : "";
-        const ticketId = typeof body.ticketId === "string" ? body.ticketId : "";
+        const batchId = typeof body.batchId === "string" ? body.batchId : "";
+        const contractId = typeof body.contractId === "string" ? body.contractId : "";
         const action = body.action === "remove" ? "remove" : "add";
-        if (!PACKAGE_ID.test(packageId) || !TICKET_ID.test(ticketId)) throw new Error("Valid package and ticket ids are required.");
-        json(response, 200, updatePackageTickets(packageId, ticketId, action, projectRoot));
+        if (!BATCH_ID.test(batchId) || !CONTRACT_ID.test(contractId)) throw new Error("Valid batch and contract ids are required.");
+        json(response, 200, updateBatchContracts(batchId, contractId, action, projectRoot));
       } catch (error) {
         json(response, 409, { ok: false, error: error instanceof Error ? error.message : String(error) });
       }
       return;
     }
-    if (url.pathname === "/api/finding" && request.method === "POST") {
+    if (url.pathname === "/api/observation" && request.method === "POST") {
       try {
         const body = await requestBody(request);
         const title = typeof body.title === "string" ? body.title.trim() : "";
         const type = typeof body.type === "string" ? body.type : "product";
         const evidence = typeof body.evidence === "string" ? body.evidence.trim() : "";
         const discoveredDuring = typeof body.discoveredDuring === "string" ? body.discoveredDuring : undefined;
-        if (!title || !evidence) throw new Error("Finding title and evidence are required.");
-        json(response, 201, newFinding({ title, type, evidence, discoveredDuring }, projectRoot));
+        if (!title || !evidence) throw new Error("Observation title and evidence are required.");
+        json(response, 201, newObservation({ title, type, evidence, discoveredDuring }, projectRoot));
       } catch (error) {
         json(response, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
       }
       return;
     }
-    if (url.pathname === "/api/finding/resolve" && request.method === "POST") {
+    if (url.pathname === "/api/observation/resolve" && request.method === "POST") {
       try {
         const body = await requestBody(request);
-        const findingId = typeof body.findingId === "string" ? body.findingId : "";
-        const disposition = body.disposition === "create-ticket" ? "create-ticket" : "reject";
-        if (!FINDING_ID.test(findingId)) throw new Error("A valid finding id is required.");
-        json(response, 200, resolveFinding(findingId, disposition, true, projectRoot));
+        const observationId = typeof body.observationId === "string" ? body.observationId : "";
+        const disposition = body.disposition === "create-contract" ? "create-contract" : "reject";
+        if (!OBSERVATION_ID.test(observationId)) throw new Error("A valid observation id is required.");
+        json(response, 200, resolveObservation(observationId, disposition, true, projectRoot));
       } catch (error) {
         json(response, 409, { ok: false, error: error instanceof Error ? error.message : String(error) });
       }

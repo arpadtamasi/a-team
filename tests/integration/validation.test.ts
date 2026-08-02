@@ -7,15 +7,15 @@ import { describe, expect, test } from "vitest";
 const cli = resolve("dist/cli/index.js");
 
 describe("workspace reference validation", () => {
-  test("rejects dependencies and blockers that are absent from the current ticket graph", () => {
+  test("rejects dependencies and blockers that are absent from the current contract graph", () => {
     const root = mkdtempSync(join(tmpdir(), "kotta-dangling-reference-"));
     execFileSync("git", ["init", "-b", "main"], { cwd: root });
     execFileSync("node", [cli, "init", "--json"], { cwd: root });
-    const created = JSON.parse(execFileSync("node", [cli, "ticket", "new", "--title", "Release beta", "--type", "feature", "--json"], { cwd: root, encoding: "utf8" })) as { data: { path: string } };
-    const ticketPath = created.data.path;
+    const created = JSON.parse(execFileSync("node", [cli, "contract", "new", "--title", "Release beta", "--type", "feature", "--json"], { cwd: root, encoding: "utf8" })) as { data: { path: string } };
+    const contractPath = created.data.path;
     writeFileSync(
-      ticketPath,
-      readFileSync(ticketPath, "utf8")
+      contractPath,
+      readFileSync(contractPath, "utf8")
         .replace("depends_on: []", "depends_on:\n  - T-999")
         .replace("blocks: []", "blocks:\n  - O-404"),
     );
@@ -25,8 +25,8 @@ describe("workspace reference validation", () => {
     expect(JSON.parse(result.stdout)).toMatchObject({
       ok: false,
       errors: expect.arrayContaining([
-        expect.objectContaining({ code: "DANGLING_REFERENCE", message: expect.stringContaining("depends_on references missing ticket T-999") }),
-        expect.objectContaining({ code: "DANGLING_REFERENCE", message: expect.stringContaining("blocks references missing ticket O-404") }),
+        expect.objectContaining({ code: "DANGLING_REFERENCE", message: expect.stringContaining("depends_on references missing contract T-999") }),
+        expect.objectContaining({ code: "DANGLING_REFERENCE", message: expect.stringContaining("blocks references missing contract O-404") }),
       ]),
     });
   });

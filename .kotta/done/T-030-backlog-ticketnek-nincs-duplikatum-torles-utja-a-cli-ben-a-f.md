@@ -4,20 +4,20 @@ title: >-
   Backlog-ticketnek nincs duplikatum/torles utja a CLI-ben — a finding resolve
   auto-ticketje utkozott a kezzel irt szerzodessel
 status: done
-origin: finding
+origin: observation
 types:
   - feature
 profiles: []
 priority: medium
 risk: medium
-package: null
+batch: null
 depends_on: []
 blocks: []
 branch: feat/T-030-backlog-ticketnek-nincs-duplikatum-torles-utja-a-cli-ben-a-f
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
-source_finding: F-027
+source_observation: F-027
 assigned_agent: claude
 resolution: completed
 ---

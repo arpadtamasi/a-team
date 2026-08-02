@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Kotta keeps AI-sized software work inside human-sized, repository-native tickets and packages." />
+    <meta name="description" content="Kotta keeps AI-sized software work inside human-sized, repository-native contracts and batches." />
     <meta name="theme-color" content="#f3f2f2" />
     <title>Kotta — Repository-native control for human–AI teams</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -45,9 +45,9 @@
           <div class="hero-copy">
             <p class="eyebrow">Repository-native control for human–AI development teams</p>
             <h1 id="hero-title">AI can finish work <br />too large for you to see.</h1>
-            <p class="hero-support">Kotta breaks AI-sized work into human-sized executable tickets and packages, then keeps each agent isolated, reviewable and tied to evidence.</p>
+            <p class="hero-support">Kotta breaks AI-sized work into human-sized executable contracts and batches, then keeps each agent isolated, reviewable and tied to evidence.</p>
             <div class="hero-actions">
-              <a class="button button-primary" href="#install">Create your first ticket</a>
+              <a class="button button-primary" href="#install">Create your first contract</a>
               <a class="button button-secondary" href="#how">See the workflow</a>
             </div>
           </div>
@@ -108,12 +108,12 @@
         <div class="container">
           <div class="section-heading section-heading-wide">
             <p class="section-index"><span class="idx-n">02</span><span>From plan to evidence</span></p>
-            <h2 id="workflow-title">Keep AI-sized output inside human-sized work packages.</h2>
+            <h2 id="workflow-title">Keep AI-sized output inside human-sized work batches.</h2>
             <p>Each step narrows ambiguity and leaves a durable record for the next human decision.</p>
           </div>
           <ol class="workflow-steps">
             <li><span class="step-number">01</span><h3>Define</h3><p>Turn intent into an observable outcome, scope and verification contract.</p></li>
-            <li><span class="step-number">02</span><h3>Package</h3><p>Order related tickets by dependency, risk and safe parallelism.</p></li>
+            <li><span class="step-number">02</span><h3>Batch</h3><p>Order related contracts by dependency, risk and safe parallelism.</p></li>
             <li><span class="step-number">03</span><h3>Claim</h3><p>Give one agent one branch and one isolated worktree.</p></li>
             <li><span class="step-number">04</span><h3>Review</h3><p>Map every acceptance condition to reproducible evidence.</p></li>
             <li><span class="step-number">05</span><h3>Close</h3><p>Accept only integrated work, then release claims and cleanup safely.</p></li>
@@ -148,7 +148,7 @@
         <div class="container">
           <div class="section-heading section-heading-wide">
             <p class="section-index"><span class="idx-n">04</span><span>One-minute verified quickstart</span></p>
-            <h2 id="install-title">Install it. Define one real ticket.</h2>
+            <h2 id="install-title">Install it. Define one real contract.</h2>
             <p>Verified with Node.js 20+, Git, Codex and <code>skills@1.5.20</code>. The public clean-machine canary completed in 60 seconds.</p>
           </div>
           <div class="quickstart-grid">
@@ -163,12 +163,12 @@ npx skills@1.5.20 add arpadtamasi/kotta
 
 # Inside an existing Git repository in Codex:
 /setup-kotta
-/define-ticket
+/define-contract
 
-kotta ticket validate T-001
+kotta contract validate T-001
 kotta validate</code></pre>
               <div class="terminal-result" aria-label="Successful validation result">
-                <span>kotta ticket validate completed.</span>
+                <span>kotta contract validate completed.</span>
                 <span>kotta validate completed.</span>
               </div>
             </div>
@@ -178,7 +178,7 @@ kotta validate</code></pre>
                 <h3>Get a complete contract</h3>
               </div>
               <p class="file-label">.kotta/backlog/T-001-first-controlled-change.md</p>
-              <pre class="ticket-example" tabindex="0" aria-label="Complete minimal Kotta ticket"><code>---
+              <pre class="contract-example" tabindex="0" aria-label="Complete minimal Kotta contract"><code>---
 id: T-001
 title: First controlled change
 status: backlog

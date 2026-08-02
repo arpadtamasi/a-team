@@ -8,7 +8,7 @@ types:
 profiles: []
 priority: medium
 risk: medium
-package: P-004
+batch: P-004
 depends_on: []
 blocks: []
 branch: feat/T-020-rename-a-team-kotta-npm-cli-workspace-kompatibilitas-dokumen

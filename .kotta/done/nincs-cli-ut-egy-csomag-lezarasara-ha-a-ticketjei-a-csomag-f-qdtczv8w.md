@@ -4,13 +4,13 @@ title: >-
   Nincs CLI-ut egy csomag lezarasara, ha a ticketjei a csomag-folyamaton kivul
   keszultek el
 status: done
-origin: finding
+origin: observation
 types:
   - bug
 profiles: []
 priority: medium
 risk: medium
-package: null
+batch: null
 depends_on: []
 blocks: []
 branch: >-
@@ -18,7 +18,7 @@ branch: >-
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
-source_finding: F-01kz1fndr7se26q7bcpv49d2hk
+source_observation: F-01kz1fndr7se26q7bcpv49d2hk
 assigned_agent: claude
 resolution: completed
 ---

@@ -2,7 +2,7 @@
 id: T-014
 title: UI port collision returns raw EADDRINUSE without recovery guidance
 status: done
-origin: finding
+origin: observation
 types:
   - bug
 profiles:
@@ -10,14 +10,14 @@ profiles:
   - workflow
 priority: medium
 risk: low
-package: P-003
+batch: P-003
 depends_on: []
 blocks: []
 branch: fix/T-014-ui-port-collision-returns-raw-eaddrinuse-without-recovery-gu
 pull_request: null
 created_at: '2026-07-23'
 updated_at: '2026-08-02'
-source_finding: F-001
+source_observation: F-001
 assigned_agent: claude
 resolution: completed
 ---

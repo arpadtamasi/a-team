@@ -5,16 +5,16 @@ import { stringify } from "yaml";
 
 const DIRECTORIES = [
   "backlog",
-  "ready",
+  "defined",
   "active",
   "review",
   "done",
-  "findings/new",
-  "findings/resolved",
-  "packages/backlog",
-  "packages/ready",
-  "packages/active",
-  "packages/done",
+  "observations/new",
+  "observations/resolved",
+  "batches/backlog",
+  "batches/defined",
+  "batches/active",
+  "batches/done",
   "profiles",
   "claims",
   "decisions",
@@ -23,8 +23,21 @@ const DIRECTORIES = [
 /** The primary workspace directory name: what `init` creates and what discovery looks for first (D-007). */
 export const WORKSPACE_DIRECTORY = ".kotta";
 
-/** The pre-rename name. Still read, never created: an existing workspace is never migrated by the CLI. */
+/** The pre-rename name. Still read, never created; `kotta migrate` moves a real one onto the new name. */
 export const LEGACY_WORKSPACE_DIRECTORY = ".a-team";
+
+/**
+ * The pre-vocabulary state directories (D-01kz240dn155hb97h6px6n2p85). Their presence *is* the old
+ * shape: no reader outside `kotta migrate` understands them, so every other command refuses a
+ * workspace that still has one and names the command that fixes it. The directory *name* of the
+ * workspace itself is deliberately not part of this test — `.a-team/` stays readable (D-007), it is
+ * only moved when the migration runs.
+ */
+export const LEGACY_STATE_DIRECTORIES = [
+  { from: "ready", to: "defined" },
+  { from: "findings", to: "observations" },
+  { from: "packages", to: "batches" },
+] as const;
 
 /** Discovery order: the new name wins, the legacy name keeps every existing workspace working. */
 export const WORKSPACE_DIRECTORIES = [WORKSPACE_DIRECTORY, LEGACY_WORKSPACE_DIRECTORY] as const;
@@ -102,6 +115,31 @@ export function hasWorkspace(root: string): boolean {
 /** Both names, for the "no workspace here" messages — the reader may be on either side of the rename. */
 export const WORKSPACE_DIRECTORY_LABEL = WORKSPACE_DIRECTORIES.join(" or ");
 
+/** The pre-vocabulary state directories still present in `root`, in migration order. Empty means current. */
+export function legacyStateDirectories(root: string): string[] {
+  if (!hasWorkspace(root)) return [];
+  const workspace = workspacePath(root);
+  const legacy: string[] = LEGACY_STATE_DIRECTORIES.filter(({ from }) => isWorkspaceDirectory(join(workspace, from))).map(({ from }) => String(from));
+  if (isWorkspaceDirectory(join(workspace, "batches/ready"))) legacy.push("batches/ready");
+  return legacy;
+}
+
+/**
+ * The refusal every ordinary command makes on a pre-vocabulary workspace. There is no compatibility
+ * layer behind it on purpose: four workspaces exist in the world and all four are migrated by running
+ * the command this message names, so a silent fallback would be insurance for nobody — and a reader
+ * that half-understands the old shape is worse than one that refuses it.
+ */
+export function assertCurrentWorkspaceShape(root: string): void {
+  const legacy = legacyStateDirectories(root);
+  if (!legacy.length) return;
+  const directory = workspaceDirectoryName(root);
+  throw new Error(
+    `${root} is a pre-vocabulary Kotta workspace: ${legacy.map((name) => `${directory}/${name}/`).join(", ")} ${legacy.length === 1 ? "is" : "are"} still on the old names. `
+    + "Run 'kotta migrate --dry-run' to see exactly what would change, then 'kotta migrate'. No other command reads the old shape.",
+  );
+}
+
 export interface InitOptions {
   root?: string;
   projectName?: string;
@@ -134,13 +172,13 @@ export function initializeWorkspace(options: InitOptions = {}): { root: string; 
   }
 
   const config = {
-    version: 1,
+    version: 2,
     project: { name: options.projectName ?? basename(root) },
     workflow: {
-      require_human_ready_approval: true,
+      require_human_sign_approval: true,
       require_human_done_approval: true,
-      allow_agent_findings: true,
-      allow_agent_ready_tickets: false,
+      allow_agent_observations: true,
+      allow_agent_defined_contracts: false,
     },
     git: {
       base_branch: "main",
@@ -149,11 +187,11 @@ export function initializeWorkspace(options: InitOptions = {}): { root: string; 
       worktree_root: ".worktrees",
       branch_pattern: "{prefix}/{id}-{slug}",
     },
-    packages: { default_parallelism: 2, stop_on_failure: true },
+    batches: { default_parallelism: 2, stop_on_failure: true },
     validation: {
       strict: true,
       reject_unknown_profiles: true,
-      require_verification_for_ready: true,
+      require_verification_for_defined: true,
       require_review_evidence_for_done: true,
     },
   };
@@ -206,19 +244,19 @@ export function renderEmptyIndex(): string {
 
 > Generated file. Do not edit manually.
 
-## Ready packages
+## Defined batches
 
-## Active packages
+## Active batches
 
-## Ready tickets
+## Defined contracts
 
-## Active tickets
+## Active contracts
 
 ## Review
 
 ## Blocked
 
-## New findings
+## New observations
 `;
 }
 
@@ -232,12 +270,12 @@ export function regenerateIndex(root: string): void {
   };
   const section = (title: string, lines: string[]) => `## ${title}\n\n${lines.length ? lines.join("\n") : "None."}`;
   writeFileSync(join(workspace, "index.md"), `# Kotta Status\n\n> Generated file. Do not edit manually.\n\n${[
-    section("Ready packages", entries("packages/ready")),
-    section("Active packages", entries("packages/active")),
-    section("Ready tickets", entries("ready")),
-    section("Active tickets", entries("active")),
+    section("Defined batches", entries("batches/defined")),
+    section("Active batches", entries("batches/active")),
+    section("Defined contracts", entries("defined")),
+    section("Active contracts", entries("active")),
     section("Review", entries("review")),
     section("Blocked", []),
-    section("New findings", entries("findings/new")),
+    section("New observations", entries("observations/new")),
   ].join("\n\n")}\n`);
 }

@@ -4,20 +4,20 @@ title: >-
   Harom lezart ticket Deviations mezojenek kibekitese a sajat prozajaval (T-026,
   T-029, T-030)
 status: done
-origin: finding
+origin: observation
 types:
   - bug
 profiles: []
 priority: medium
 risk: low
-package: null
+batch: null
 depends_on: []
 blocks: []
 branch: fix/T-033-harom-lezart-ticket-deviations-mezojenek-kibekitese-a-sajat-
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
-source_finding: F-031
+source_observation: F-031
 assigned_agent: claude
 resolution: completed
 ---

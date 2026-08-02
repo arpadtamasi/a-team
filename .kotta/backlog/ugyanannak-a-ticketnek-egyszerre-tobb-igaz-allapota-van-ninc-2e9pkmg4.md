@@ -4,20 +4,20 @@ title: >-
   Ugyanannak a ticketnek egyszerre tobb igaz allapota van — nincs kimondott
   olvasasi szabaly a git-kontextusok folott
 status: backlog
-origin: finding
+origin: observation
 types:
   - bug
 profiles: []
 priority: medium
 risk: medium
-package: null
+batch: null
 depends_on: []
 blocks: []
 branch: null
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
-source_finding: F-028
+source_observation: F-028
 ---
 # T-01kz1g2w1fs2qx0bs72e9pkmg4 — Kanonikus olvasat a git-kontextusok fölött
 

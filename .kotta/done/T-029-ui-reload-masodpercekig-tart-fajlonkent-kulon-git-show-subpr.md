@@ -4,20 +4,20 @@ title: >-
   UI reload masodpercekig tart — fajlonkent kulon git show subprocess, cache
   nelkul
 status: done
-origin: finding
+origin: observation
 types:
   - feature
 profiles: []
 priority: medium
 risk: medium
-package: null
+batch: null
 depends_on: []
 blocks: []
 branch: feat/T-029-ui-reload-masodpercekig-tart-fajlonkent-kulon-git-show-subpr
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
-source_finding: F-029
+source_observation: F-029
 assigned_agent: claude
 resolution: completed
 ---

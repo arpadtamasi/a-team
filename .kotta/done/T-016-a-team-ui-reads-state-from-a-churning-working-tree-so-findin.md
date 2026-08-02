@@ -4,20 +4,20 @@ title: >-
   a-team ui reads state from a churning working tree, so findings flicker/vanish
   from the UI
 status: done
-origin: finding
+origin: observation
 types:
   - feature
 profiles: []
 priority: high
 risk: medium
-package: null
+batch: null
 depends_on: []
 blocks: []
 branch: feat/T-016-a-team-ui-reads-state-from-a-churning-working-tree-so-findin
 pull_request: null
 created_at: '2026-07-26'
 updated_at: '2026-07-28'
-source_finding: F-006
+source_observation: F-006
 assigned_agent: claude
 resolution: completed
 ---

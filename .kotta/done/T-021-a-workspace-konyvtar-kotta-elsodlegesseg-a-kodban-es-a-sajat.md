@@ -8,7 +8,7 @@ types:
 profiles: []
 priority: medium
 risk: medium
-package: P-004
+batch: P-004
 depends_on:
   - T-020
 blocks: []

@@ -1,7 +1,7 @@
 ---
 id: T-01kz1g2vyhfn5ezzvvyzn4w2gr
 title: a-team ui does not open the browser — auto-open the served URL on start
-status: ready
+status: active
 origin: finding
 types:
   - bug
@@ -11,11 +11,13 @@ risk: medium
 package: null
 depends_on: []
 blocks: []
-branch: null
+branch: >-
+  fix/T-01kz1g2vyhfn5ezzvvyzn4w2gr-a-team-ui-does-not-open-the-browser-auto-open-the-served-url
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
 source_finding: F-014
+assigned_agent: claude
 ---
 # T-01kz1g2vyhfn5ezzvvyzn4w2gr — a-team ui does not open the browser — auto-open the served URL on start
 

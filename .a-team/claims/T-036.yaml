@@ -1,0 +1,5 @@
+ticket: T-036
+agent: claude
+branch: fix/T-036-merge-utan-ugyanaz-az-entitas-ket-allapot-konyvtarban-marad
+worktree: .worktrees/T-036
+started_at: 2026-08-02T14:29:54.173Z

@@ -31,7 +31,7 @@ F-008 és D-003. A `nextId()` a jelenlegi ág fájljait pásztázza és max+1-et
 
 A D-003 az irányt eldöntötte: a gépi identitás legyen koordináció-mentes, idő-rendezhető azonosító (ULID/KSUID), az emberi hivatkozás pedig a cím/slug.
 
-**Operátori döntés (2026-08-02): a meglévő azonosítókat nem bántjuk.** Ez szűkíti a D-003 „Consequences" szakaszát, amely teljes migrációt vetített előre („every `T-`/`F-`/`P-` reference moves to id + title"). Nincs migráció, nincs átszámozás, nincs hivatkozás-átírás: a `T-034` és társai maradnak, ami a workspace-t tartósan vegyes azonosító-terűvé teszi — a régiek szekvenciálisak, az ezután születők koordináció-mentesek. Cserébe a ticket elveszti az egyetlen visszafordíthatatlan részét, és a oneanda 163 ticketje sem mozdul.
+**A D-010 szűkíti ezt: a meglévő azonosítókat nem bántjuk.** Nincs migráció, nincs átszámozás, nincs hivatkozás-átírás — a `T-034` és társai maradnak, a workspace tartósan vegyes azonosító-terű lesz. A D-003 „Consequences" szakasza teljes migrációt vetített előre; azt a részt a D-010 ejtette. Cserébe a ticket elveszti az egyetlen visszafordíthatatlan részét, és a oneanda 163 ticketje sem mozdul.
 
 Ez a ticket blokkolja a párhuzamos, több-ágenses végrehajtást: amíg az azonosító ütközhet, a T-035 (`ticket execute`) által lehetővé tett párhuzamosság adatromlást termel.
 

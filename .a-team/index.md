@@ -12,7 +12,7 @@ None.
 
 ## Ready tickets
 
-- a-board-atallitasa-a-kotta-console-v2-tervre-a0bv0fcq
+None.
 
 ## Active tickets
 
@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-None.
+- a-board-atallitasa-a-kotta-console-v2-tervre-a0bv0fcq
 
 ## Blocked
 
@@ -41,8 +41,12 @@ None.
 - F-022-state-gates-are-bypassable-because-the-store-is-the-filesyst
 - F-025-progos-as-first-kotta-publisher-mcp-kottas-for-standard-sme-
 - F-030-package-szintu-review-hianyzik-a-ticketek-review-ban-tartasa
+- a-decision-cannot-record-that-it-narrows-or-continues-anothe-8pv9r452
 - a-markdown-h1-a-teljes-azonositot-hordozza-igy-a-mintazott-u-rb71ckkr
 - ready-ticket-szovege-nem-javithato-a-define-csak-backlogbol--147t946f
 - schemas-package-schema-json-rejects-every-started-package-an-8et554b5
+- state-drift-has-no-reconcile-command-so-the-board-can-only-p-5mqcvk49
 - tests-integration-ui-port-cli-test-ts-is-flaky-aftereach-tim-hqqt57nj
+- the-board-cannot-show-two-contradiction-classes-that-a-team--2s40aw1j
 - ui-port-cli-tests-silently-assert-nothing-when-4311-is-alrea-nbxc71r5
+- ui-ux-spec-md-describes-the-pre-v2-board-and-has-no-owner-af-a4dg5622

@@ -1,5 +1,12 @@
 # A-Team UI — UX Redesign Spec
 
+> **Superseded as the board's specification.** The board now implements the Kotta
+> Console v2 design, vendored at `design/kotta/Kotta Console v2.dc.html` with its
+> Modernist design system in `design/kotta/_ds/`. That file is the specification for
+> layout, wording and behaviour; this document is kept for the reasoning that led to
+> it and is stale wherever the two disagree. Captures of the shipped board are the
+> `v2-*.png` files in `ui/spec-assets/`.
+
 Audience: a design agent producing the next iteration of the local A-Team web UI.
 This is a UX spec, not a visual style guide. Layout, hierarchy, and flows are binding;
 colors, type, and ornamentation are the designer's to propose — subordinate to the UX.

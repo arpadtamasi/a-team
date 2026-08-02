@@ -175,7 +175,20 @@ export function readWorkspace(workspaceOption: string) {
   });
   const packages = gather(PACKAGE_STATES, (state) => `packages/${state}`).map(parseEntity);
   const findings = gather(["new", "resolved"], (state) => `findings/${state}`).map(parseEntity);
-  return { workspace, project: migration?.project ?? config.project?.name ?? "A-Team workspace", migration, tickets, packages, findings, diagnostics, generatedAt: new Date().toISOString() };
+  // Decisions are cross-cutting and stateless — one directory, no state dirs — so they carry a date
+  // instead of a status. They come out of the same cached snapshot: no extra subprocess. (T-029)
+  const decisions = gather(["decisions"], () => "decisions").map((entry) => {
+    const parsed = matter(readMd(entry.repoPath, entry.fromRef));
+    const date = parsed.data.date;
+    return {
+      id: String(parsed.data.id ?? basename(entry.repoPath).replace(/\.md$/, "")),
+      title: String(parsed.data.title ?? ""),
+      date: date instanceof Date ? date.toISOString().slice(0, 10) : date === undefined ? null : String(date),
+      filename: basename(entry.repoPath),
+      sections: sectionObject(parsed.content),
+    };
+  });
+  return { workspace, project: migration?.project ?? config.project?.name ?? "A-Team workspace", migration, tickets, packages, findings, decisions, diagnostics, generatedAt: new Date().toISOString() };
 }
 
 function json(response: ServerResponse, status: number, value: unknown): void {

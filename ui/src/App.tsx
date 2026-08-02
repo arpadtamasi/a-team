@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+/* ══ Kotta Console v2 ═══════════════════════════════════
+   The board reads. Every state change happens through the CLI, so nothing here
+   posts: the only request this module makes is GET /api/workspace.
+   Layout, wording and behaviour come from design/kotta/Kotta Console v2.dc.html;
+   every colour, space and radius comes from the Modernist tokens in styles.css. */
 
 /* ── Types ───────────────────────────────────────────── */
 type Status = "backlog" | "ready" | "active" | "review" | "done";
@@ -15,54 +21,88 @@ type Migration = {
 type Ticket = {
   id: string; title: string; status: Status; types: string[]; profiles: string[]; priority: string; risk: string;
   package: string | null; depends_on: string[]; blocks?: string[]; blocked?: boolean; resolution?: string;
-  branch?: string | null; pull_request?: string | null; updated_at?: string | null; sections: Record<string, string>;
+  source_finding?: string | null; assigned_agent?: string | null; worktree?: string | null;
+  branch?: string | null; pull_request?: string | null; created_at?: string | null; updated_at?: string | null; sections: Record<string, string>;
   migration?: { legacy_id: string; legacy_title: string; lane: string; legacy_status: string; backlog_section: string; story_points: number | null; ready_candidate: boolean; split: boolean; status_correction?: string | null; source_file: string } | null;
 };
 type Package = {
   id: string; title: string; status: string; kind: string; tickets: string[]; sections: Record<string, string>;
+  created_at?: string | null; updated_at?: string | null;
   execution?: { mode?: string; parallelism?: number; stop_on_failure?: boolean };
   coordinator?: { branch?: string; base_branch?: string; base_commit?: string; cleaned_at?: string | null } | null;
 };
-
-/** A done package that still records an uncleaned coordinator branch is awaiting `a-team package finalize`. */
-function coordinatorLabel(p: Package): { text: string; tone: string } | null {
-  const branch = p.coordinator?.branch;
-  if (!branch) return null;
-  if (p.status !== "done") return { text: branch, tone: "tag-neutral" };
-  return p.coordinator?.cleaned_at ? { text: "coordinator cleaned", tone: "tag-neutral" } : { text: "cleanup pending", tone: "tag-warn" };
-}
-type Finding = { id: string; title: string; status: "new" | "resolved"; finding_type: string; severity: string; confidence: string; discovered_during?: string | null; resolution?: string; became?: string | null; sections: Record<string, string> };
+type Finding = {
+  id: string; title: string; status: "new" | "resolved"; finding_type: string; severity: string; confidence: string;
+  discovered_during?: string | null; created_at?: string | null; resolution?: string; became?: string | null; sections: Record<string, string>;
+};
+type Decision = { id: string; title: string; date: string | null; sections: Record<string, string> };
 type Diagnostic = { entity: string; id: string; worktree: string; message: string };
-export type Workspace = { project: string; migration: Migration | null; tickets: Ticket[]; packages: Package[]; findings: Finding[]; diagnostics?: Diagnostic[] };
-type Agent = "codex" | "claude";
-type AgentAvailability = Record<Agent, boolean>;
-type Stage = "inbox" | "shape" | "packages" | "run" | "done";
-type SourceReference = { id?: string; path?: string };
-type SourceDocument = { path: string; title: string; id: string | null; content: string };
-type MarkdownNode = { type: string; value?: string; url?: string; children?: MarkdownNode[] };
-type ChatMessage = { id: string; role: "user" | "assistant"; agent?: Agent; body: string; streaming?: boolean };
-type Thread = { scope: string; kind: ThreadKind; agent: Agent; draft: string; messages: ChatMessage[]; threadId: string | null };
-type ThreadKind = "workspace" | "ticket" | "package" | "finding";
+export type Workspace = {
+  project: string; workspace?: string; migration: Migration | null;
+  tickets: Ticket[]; packages: Package[]; findings: Finding[]; decisions?: Decision[]; diagnostics?: Diagnostic[];
+};
+
+/** The rail's five destinations. `running` is an overlay over any of them, not a sixth destination. */
+export type View = "home" | "observations" | "contracts" | "batches" | "decisions";
+
+/* Reporting leaves the workspace: the board never writes a report, it hands off to GitHub. */
+const BUG_REPORT_URL = "https://github.com/arpadtamasi/a-team/issues/new?template=bug.yml";
+/* The one request the board makes. Named so a test can assert nothing else is ever called. */
+export const WORKSPACE_ENDPOINT = "/api/workspace";
+/* Stored state is `ready`; the board says `defined`, as the design does. Renaming the stored value is P-004. */
+const DEFINED: Status = "ready";
+const CONTRACT_STATES: Status[] = ["backlog", "ready", "active", "review", "done"];
 
 /* Identity is mixed for good (D-010): sequential ids stay, minted ones are `<type>-<26 char ULID>`. */
 const MINTED_BODY = "[0-9a-hjkmnp-tv-z]{26}";
-const ENTITY_SOURCE = `(?:O-\\d+(?:\\.\\d+)?|[TFP]-\\d+|[TFP]-${MINTED_BODY})`;
+const ENTITY_SOURCE = `(?:O-\\d+(?:\\.\\d+)?|[TFPD]-\\d+|[TFPD]-${MINTED_BODY})`;
 const ENTITY_PATTERN = new RegExp(`\\b${ENTITY_SOURCE}\\b`, "g");
 const MINTED_ID = new RegExp(`^[TFPD]-${MINTED_BODY}$`);
-/* Show a short id tail rather than 26 characters of ULID (D-003); it is the file's suffix too. */
-function displayId(id: string): string {
+/* Non-global twin of ENTITY_PATTERN: `.test` on a /g regex carries lastIndex between calls. */
+const ID_TEST = new RegExp(`^${ENTITY_SOURCE}$`);
+
+/** The short tail of a minted id — the part a human can still recognise (D-003). */
+export function displayId(id: string): string {
   return MINTED_ID.test(id) ? `${id.slice(0, id.indexOf("-") + 1)}${id.slice(-8)}` : id;
 }
 const entityTitles = new Map<string, string>();
+/** Human reference is the title; the raw id rides along for recall (D-003, D-01kz1yqm…). */
 function entityLabel(id: string): string {
   const title = entityTitles.get(id);
-  return title ? `${id} — ${title}` : id;
+  return title ? `${title} · ${id}` : id;
 }
-const GAP = "[backend-gap]";
-/* Reporting leaves the workspace: the board never writes a report, it hands off to GitHub. */
-const BUG_REPORT_URL = "https://github.com/arpadtamasi/a-team/issues/new?template=bug.yml";
+function titleOf(id: string): string | null {
+  return entityTitles.get(id) ?? null;
+}
+function stampSuffix(id: string): "t" | "f" | "p" | "d" {
+  if (/^P-/.test(id)) return "p";
+  if (/^F-/.test(id)) return "f";
+  if (/^D-/.test(id)) return "d";
+  return "t"; // T- and legacy O-
+}
+
+/* ── Time ────────────────────────────────────────────── */
+function parseDate(value?: string | null): number | null {
+  if (!value) return null;
+  const parsed = Date.parse(value.length === 10 ? `${value}T00:00:00Z` : value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+export function daysSince(value?: string | null, now = Date.now()): number | null {
+  const then = parseDate(value);
+  return then === null ? null : Math.max(0, Math.floor((now - then) / 86_400_000));
+}
+function relativeTime(iso?: string | null): string {
+  const then = parseDate(iso);
+  if (then === null) return "—";
+  const secs = Math.max(0, Math.round((Date.now() - then) / 1000));
+  if (secs < 60) return `${secs}s ago`;
+  if (secs < 3600) return `${Math.round(secs / 60)}m ago`;
+  if (secs < 86400) return `${Math.round(secs / 3600)}h ago`;
+  return `${Math.round(secs / 86400)}d ago`;
+}
 
 /* ── Markdown + entity links ─────────────────────────── */
+type MarkdownNode = { type: string; value?: string; url?: string; children?: MarkdownNode[] };
 function remarkEntityLinks() {
   return (tree: MarkdownNode) => {
     const visit = (node: MarkdownNode) => {
@@ -88,1047 +128,936 @@ function remarkEntityLinks() {
 function normalizeMarkdown(value: string): string {
   return value.replace(/([^\n])(?=#{2,4}\s)/g, "$1\n\n");
 }
-function MarkdownContent({ value, onEntity, onSource, className = "" }: { value: string; onEntity: (id: string) => void; onSource: (reference: SourceReference) => void; className?: string }) {
-  return <div className={`markdown-body ${className}`.trim()}><ReactMarkdown
+/** In prose an entity reads as its title, with the id kept for recall (D-01kz1yqm…). */
+export function MarkdownContent({ value, onEntity }: { value: string; onEntity: (id: string) => void }) {
+  return <div className="prose"><ReactMarkdown
     remarkPlugins={[remarkGfm, remarkEntityLinks]}
-    urlTransform={(url) => /^(?:https?:|mailto:|#|entity:)/.test(url) || /(?:^|\/)tickets\/.*\.md(?:#.*)?$/i.test(url) ? url : "#"}
+    urlTransform={(url) => (/^(?:https?:|mailto:|#|entity:)/.test(url) ? url : "#")}
     components={{ a: ({ href = "", children }) => {
       const label = String(children);
       const entityId = href.startsWith("entity:") ? href.slice(7) : label.match(ENTITY_PATTERN)?.[0];
-      if (entityId) return <button type="button" className={`inline-entity ent-${stampSuffix(entityId)}`} title={entityLabel(entityId)} onClick={() => onEntity(entityId)}>{children}</button>;
-      if (/\.md(?:#.*)?$/i.test(href)) return <button type="button" className="inline-entity" onClick={() => onSource({ path: href.split("#")[0] })}>{children}</button>;
+      if (entityId) {
+        const known = titleOf(entityId);
+        return <button type="button" className={`ref ref-${stampSuffix(entityId)}`} title={entityLabel(entityId)} onClick={() => onEntity(entityId)}>
+          {known ?? entityId}{known ? <span className="ref__tail">{displayId(entityId)}</span> : null}
+        </button>;
+      }
       if (/^https?:|^mailto:/.test(href)) return <a href={href} target="_blank" rel="noreferrer noopener">{children}</a>;
       return <span>{children}</span>;
     } }}
   >{normalizeMarkdown(value)}</ReactMarkdown></div>;
 }
 
-function snippet(value?: string, length = 150): string {
-  const plain = (value ?? "")
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/<https?:\/\/[^>]+>/g, "link").replace(/^\s*[-+*]\s+/gm, "")
-    .replace(/[`*_#>|~]/g, "").replace(/\s+/g, " ").trim();
-  return plain.length > length ? `${plain.slice(0, length).trim()}…` : plain;
-}
-async function postJson(path: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const response = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  const result = await response.json() as Record<string, unknown>;
-  if (!response.ok || result.ok === false) throw new Error(typeof result.error === "string" ? result.error : `Request failed (HTTP ${response.status}).`);
-  return result;
-}
+/* ── Derivation of everything the board shows ────────── */
+export type Queue = { key: string; count: number; label: string; ask: string; age: number | null; view: View; filter?: Status };
+export type Contradiction = {
+  key: string; kind: string; subject: string; subjectId: string | null; title: string;
+  leftLabel: string; left: string[]; rightLabel: string; right: string[]; command: string; action: string; view: View;
+};
+export type MenuItem = { id: string; title: string; batch: string | null; why: string; command: string };
 
-/* ── Derived helpers ─────────────────────────────────── */
-const stateOf = (t: Ticket): Status | "blocked" => (t.blocked ? "blocked" : t.status);
-const dependsLabel = (t: Ticket) => (t.depends_on?.length ? `depends_on ${t.depends_on.join(", ")}` : "no deps");
-const pkgParallelism = (p: Package) => p.execution?.parallelism ?? 2;
-const pkgMode = (p: Package) => p.execution?.mode ?? "dependency-aware";
-const pkgStop = (p: Package) => p.execution?.stop_on_failure ?? true;
-function relativeTime(iso?: string | null): string {
-  if (!iso) return "—";
-  const then = Date.parse(iso);
-  if (Number.isNaN(then)) return "—";
-  const secs = Math.max(0, Math.round((Date.now() - then) / 1000));
-  if (secs < 60) return `${secs}s ago`;
-  if (secs < 3600) return `${Math.round(secs / 60)}m ago`;
-  if (secs < 86400) return `${Math.round(secs / 3600)}h ago`;
-  return `${Math.round(secs / 86400)}d ago`;
-}
-const pkgModeSummary = (p: Package) => `${pkgMode(p)} · parallelism ${pkgParallelism(p)} · ${pkgStop(p) ? "stop on failure" : "continue on failure"}`;
+export type Board = {
+  tickets: Ticket[]; packages: Package[]; findings: Finding[]; decisions: Decision[];
+  ticketById: Map<string, Ticket>; packageById: Map<string, Package>; findingById: Map<string, Finding>;
+  undisposed: Finding[]; inReview: Ticket[]; closable: Package[]; defined: Ticket[]; running: Ticket[]; activeBatches: Package[];
+  queues: Queue[]; queueTotal: number; contradictions: Contradiction[]; menu: MenuItem[];
+};
 
-function computeWaves(members: Ticket[], includeDone = false): Ticket[][] {
-  const memberIds = new Set(members.map((t) => t.id));
-  const placed = new Set<string>();
-  let pool = includeDone ? [...members] : members.filter((t) => t.status !== "done");
-  if (!pool.length) pool = [...members];
-  const waves: Ticket[][] = [];
-  let guard = 0;
-  while (pool.length && guard++ < 12) {
-    const layer = pool.filter((t) => (t.depends_on ?? []).every((d) => !memberIds.has(d) || placed.has(d) || members.find((m) => m.id === d)?.status === "done"));
-    const wave = layer.length ? layer : pool.slice(0, 1);
-    wave.forEach((t) => placed.add(t.id));
-    waves.push(wave);
-    pool = pool.filter((t) => !wave.includes(t));
+const isDone = (t?: Ticket) => t?.status === "done";
+
+/** Everything the three bands, the rail counts and the header stats are derived from. */
+export function readBoard(workspace: Workspace): Board {
+  const tickets = workspace.tickets ?? [];
+  const packages = workspace.packages ?? [];
+  const findings = workspace.findings ?? [];
+  const decisions = workspace.decisions ?? [];
+  const ticketById = new Map(tickets.map((t) => [t.id, t]));
+  const packageById = new Map(packages.map((p) => [p.id, p]));
+  const findingById = new Map(findings.map((f) => [f.id, f]));
+  // Every surface names an entity by its title, so the title index is part of reading the board.
+  entityTitles.clear();
+  for (const entity of [...tickets, ...packages, ...findings, ...decisions]) entityTitles.set(entity.id, entity.title);
+
+  // The three queues are exactly where the CLI refuses without --approve.
+  const undisposed = findings.filter((f) => f.status === "new");
+  const inReview = tickets.filter((t) => t.status === "review");
+  const closable = packages.filter((p) => p.status !== "done" && p.tickets.length > 0 && p.tickets.every((id) => isDone(ticketById.get(id))));
+  // The backlog menu is deliberately NOT a queue: a defined contract is an option, not a debt.
+  const defined = tickets.filter((t) => t.status === DEFINED);
+  const running = tickets.filter((t) => t.status === "active");
+  const activeBatches = packages.filter((p) => p.status === "active" || p.tickets.some((id) => ticketById.get(id)?.status === "active"));
+
+  const oldest = (values: Array<string | null | undefined>) => values.reduce<number | null>((max, value) => {
+    const age = daysSince(value);
+    return age === null ? max : Math.max(max ?? 0, age);
+  }, null);
+
+  const queues: Queue[] = [
+    { key: "observations", count: undisposed.length, label: "Observations without a disposition", ask: "yes / no · then it is gone", age: oldest(undisposed.map((f) => f.created_at)), view: "observations" },
+    { key: "review", count: inReview.length, label: "Contracts waiting for review", ask: "accept, or request changes", age: oldest(inReview.map((t) => t.updated_at)), view: "contracts", filter: "review" },
+    { key: "batches", count: closable.length, label: "Batches waiting to be closed", ask: "every member is done", age: oldest(closable.map((p) => p.updated_at)), view: "batches" },
+  ];
+
+  const label = (id: string) => titleOf(id) ?? id;
+  const contradictions: Contradiction[] = [];
+  // 1. Files and git disagree about the same contract — the board shows both and picks neither.
+  for (const diagnostic of workspace.diagnostics ?? []) {
+    const ticket = ticketById.get(diagnostic.id);
+    contradictions.push({
+      key: `drift:${diagnostic.id}`, kind: "state drift", subject: label(diagnostic.id), subjectId: diagnostic.id,
+      title: "A live worktree disagrees with the committed contract",
+      leftLabel: "files say", left: [`state: ${stateLabel(ticket?.status ?? "unknown")}`, `.a-team/${ticket?.status ?? "?"}/`],
+      rightLabel: "git says", right: [diagnostic.worktree, diagnostic.message],
+      command: "a-team validate", action: "Open contract", view: "contracts",
+    });
   }
-  return waves;
-}
+  // 2. A recorded link with nothing behind it. `a-team validate` reports the same ones it can see.
+  const dangling = (from: string, field: string, target: string, kind: string) => contradictions.push({
+    key: `dangling:${from}:${field}:${target}`, kind: "dangling reference", subject: label(from), subjectId: from,
+    title: `${field} points at ${kind} that is not on disk`,
+    leftLabel: "frontmatter says", left: [`${field}: ${target}`],
+    rightLabel: "disk says", right: ["no such file", "the link is recorded, the entity is gone"],
+    command: "a-team validate", action: "Open contract", view: "contracts",
+  });
+  for (const ticket of tickets) {
+    if (ticket.source_finding && !findingById.has(ticket.source_finding)) dangling(ticket.id, "source_finding", ticket.source_finding, "an observation");
+    if (ticket.package && !packageById.has(ticket.package)) dangling(ticket.id, "package", ticket.package, "a batch");
+    for (const field of ["depends_on", "blocks"] as const) {
+      for (const reference of ticket[field] ?? []) if (!ticketById.has(reference)) dangling(ticket.id, field, reference, "a contract");
+    }
+  }
+  for (const pkg of packages) for (const member of pkg.tickets) if (!ticketById.has(member)) dangling(pkg.id, "tickets", member, "a contract");
+  for (const finding of findings) if (finding.became && !ticketById.has(finding.became)) dangling(finding.id, "became", finding.became, "a contract");
+  // 3. Membership recorded on one side only: two files describe the same relationship differently.
+  for (const ticket of tickets) {
+    const pkg = ticket.package ? packageById.get(ticket.package) : null;
+    if (pkg && !pkg.tickets.includes(ticket.id)) contradictions.push({
+      key: `member:${ticket.id}`, kind: "membership", subject: label(ticket.id), subjectId: ticket.id,
+      title: "The contract claims a batch that does not list it",
+      leftLabel: "the contract says", left: [`package: ${pkg.id}`],
+      rightLabel: "the batch says", right: [`tickets: ${pkg.tickets.length ? pkg.tickets.map(displayId).join(", ") : "—"}`],
+      command: `a-team package validate ${pkg.id}`, action: "See batches", view: "batches",
+    });
+  }
+  for (const pkg of packages) for (const member of pkg.tickets) {
+    const ticket = ticketById.get(member);
+    if (ticket && ticket.package !== pkg.id) contradictions.push({
+      key: `member:${pkg.id}:${member}`, kind: "membership", subject: label(pkg.id), subjectId: pkg.id,
+      title: "The batch lists a contract that belongs elsewhere",
+      leftLabel: "the batch says", left: [`tickets: … ${displayId(member)}`],
+      rightLabel: "the contract says", right: [`package: ${ticket.package ?? "null"}`],
+      command: `a-team package validate ${pkg.id}`, action: "See batches", view: "batches",
+    });
+  }
 
-function waveLabel(wave: Ticket[]): string {
-  const done = wave.filter((t) => t.status === "done").length;
-  const open = wave.length - done;
-  if (!done) return `${open} parallel`;
-  if (!open) return `${done} done`;
-  return `${open} parallel · ${done} done`;
-}
+  const menu: MenuItem[] = defined.map((ticket) => {
+    const waiting = (ticket.depends_on ?? []).filter((id) => !isDone(ticketById.get(id)));
+    const unblocks = (ticket.blocks ?? []).length;
+    return {
+      id: ticket.id, title: ticket.title, batch: ticket.package,
+      why: waiting.length ? `waits on ${waiting.map((id) => titleOf(id) ?? displayId(id)).join(", ")}`
+        : unblocks ? `unblocks ${unblocks} other${unblocks === 1 ? "" : "s"}` : "no blockers",
+      command: `a-team ticket execute ${ticket.id} --agent codex`,
+    };
+  });
 
-function WaveGraph({ members, onEntity }: { members: Ticket[]; onEntity: (id: string) => void }) {
-  const waves = computeWaves(members, true);
-  if (waves.length === 0) return <div className="pane-empty" style={{ padding: 0 }}>No members to sequence.</div>;
-  return <div className="graph scroll">
-    {waves.map((wave, wi) => <div key={wi} className="graph__col">
-      <div className="graph__wave">
-        <div className="graph__wave-label">wave {wi + 1} · {waveLabel(wave)}</div>
-        {wave.map((t) => <button type="button" key={t.id} className={`graph__node node-${stateOf(t)}`} style={{ textAlign: "left", cursor: "pointer" }} onClick={() => onEntity(t.id)}>
-          <div className="graph__node-id"><span className="eid stamp-t">{t.id}</span><StateChip ticket={t} /></div>
-          <div className="graph__node-short">{t.title.split(" ").slice(0, 6).join(" ")}…</div>
-        </button>)}
-      </div>
-      {wi < waves.length - 1 && <div className="graph__arrow">→</div>}
-    </div>)}
-  </div>;
+  return {
+    tickets, packages, findings, decisions, ticketById, packageById, findingById,
+    undisposed, inReview, closable, defined, running, activeBatches,
+    queues, queueTotal: undisposed.length + inReview.length + closable.length, contradictions, menu,
+  };
 }
 
 /* ── Small presentational bits ───────────────────────── */
 /* Display label only — the stored status stays `ready` until the rename ticket lands. */
-const stateLabel = (s: Status | "blocked") => (s === "ready" ? "defined" : s);
-function StateChip({ ticket }: { ticket: Ticket }) {
-  const s = stateOf(ticket);
-  return <span className={`state state-${s}`}>{stateLabel(s)}</span>;
+export const stateLabel = (s: string) => (s === "ready" ? "defined" : s);
+function StateTag({ state }: { state: string }) {
+  return <span className={`tag state state-${state}`}>{stateLabel(state)}</span>;
 }
-function ClaimDot({ agent }: { agent?: string }) {
+function ClaimDot({ agent }: { agent?: string | null }) {
   const cls = agent === "codex" ? "dot-codex" : agent === "claude" ? "dot-claude" : "dot-none";
-  return <span className={`dot ${cls}`} />;
+  return <span className={`dot ${cls}`} aria-hidden="true" />;
 }
-// Entity-type stamp: ticket=blue · finding=amber · package=purple · workspace=ink
-function stampSuffix(id: string): "t" | "f" | "p" | "ws" {
-  if (id === "workspace") return "ws";
-  if (/^P-/.test(id)) return "p";
-  if (/^F-/.test(id)) return "f";
-  return "t"; // T- and legacy O-
+/** The small monospace id marker the design puts beside a title. Never the label on its own. */
+function Tail({ id }: { id: string }) {
+  return <span className={`tail tail-${stampSuffix(id)}`}>{displayId(id)}</span>;
 }
-function kindStampSuffix(kind: ThreadKind): "t" | "f" | "p" | "ws" {
-  return kind === "workspace" ? "ws" : kind === "package" ? "p" : kind === "finding" ? "f" : "t";
+/** A row that opens an entity: the title is the accessible name, the id rides in `title`. */
+function EntityButton({ id, className, children, onOpen }: { id: string; className: string; children: ReactNode; onOpen: (id: string) => void }) {
+  return <button type="button" className={className} title={entityLabel(id)} onClick={() => onOpen(id)}>{children}</button>;
 }
-function Eid({ id, onClick, dark, label }: { id: string; onClick?: () => void; dark?: boolean; label?: string }) {
-  const cls = `eid stamp-${stampSuffix(id)}${dark ? " on-dark" : ""}`;
-  const text = label ?? displayId(id);
-  return onClick
-    ? <button type="button" className={cls} title={entityLabel(id)} onClick={onClick}>{text}</button>
-    : <span className={cls} title={entityLabel(id)}>{text}</span>;
+function CopyCommand({ command, label = "Copy" }: { command: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+  return <span className="cmd">
+    <code>{command}</code>
+    <button type="button" className="btn btn-ghost btn-sm" aria-label={`Copy command: ${command}`} onClick={() => {
+      void navigator.clipboard?.writeText(command);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1_200);
+    }}>{copied ? "Copied" : label}</button>
+  </span>;
+}
+function Placeholder({ rows = 3, label }: { rows?: number; label: string }) {
+  return <div className="ph" role="status" aria-live="polite">
+    <span className="visually-hidden">{label}</span>
+    {Array.from({ length: rows }, (_, i) => <span key={i} className="ph__row" aria-hidden="true" />)}
+  </div>;
 }
 
-/* ══ Stage rail ═════════════════════════════════════════ */
-/* The mark is a staff: three rules, one red head standing on the middle one.
-   Reversed here — the rail is ink, so the ground is paper. See assets/brand. */
-function BrandMark() {
-  return <svg className="rail__mark" viewBox="0 0 30 30" aria-hidden="true" focusable="false">
-    <rect width="30" height="30" fill="#f3f2f2" />
-    <g fill="#201e1d">
-      <rect y="8" width="30" height="2" />
-      <rect y="14" width="30" height="2" />
-      <rect y="20" width="30" height="2" />
-    </g>
-    <rect x="16" y="12" width="6" height="6" fill="#ec3013" />
+/* ══ The mark ══════════════════════════════════════════
+   A staff: three rules with the red note-head standing ON the middle one, never
+   between two. Four rules above 24px, three below, two below 18px (Kotta Logo). */
+export function BrandMark({ size = 22 }: { size?: number }) {
+  const rules = size >= 24 ? 4 : size >= 18 ? 3 : 2;
+  const step = 6, top = (30 - (rules - 1) * step) / 2 - 1;
+  const lines = Array.from({ length: rules }, (_, i) => top + i * step);
+  const head = lines[Math.min(rules - 1, Math.floor((rules - 1) / 2) + (rules % 2 === 0 ? 1 : 0))];
+  return <svg className="mark" width={size} height={size} viewBox="0 0 30 30" aria-hidden="true" focusable="false">
+    <rect width="30" height="30" className="mark__ground" />
+    {lines.map((y) => <rect key={y} y={y} width="30" height="2" className="mark__rule" />)}
+    <rect x="16" y={head - 2} width="6" height="6" className="mark__head" />
   </svg>;
 }
 
-function Rail({ project, stage, counts, onStage, onShortcuts, refreshed }: {
-  project: string; stage: Stage; counts: Record<Stage, number>; onStage: (s: Stage) => void; onShortcuts: () => void; refreshed: number;
+/* ══ The rail ══════════════════════════════════════════ */
+export function Rail({ view, onView, board, running, onWatch, refreshed }: {
+  view: View; onView: (v: View) => void; board: Board | null; running: boolean; onWatch: () => void; refreshed: number;
 }) {
-  const items: Array<{ id: Stage; label: string; sub: string; step: string }> = [
-    { id: "inbox", label: "Inbox", sub: "observations", step: "01" },
-    { id: "shape", label: "Shape", sub: "contracts", step: "02" },
-    { id: "packages", label: "Packages", sub: "batches", step: "03" },
-    { id: "run", label: "Run", sub: "execution", step: "04" },
-    { id: "done", label: "Done", sub: "archive", step: "—" },
+  const chain: Array<{ id: View; step: string; label: string; sub: string; count: number | null }> = [
+    { id: "observations", step: "01", label: "Observations", sub: "new information", count: board ? board.undisposed.length : null },
+    { id: "contracts", step: "02", label: "Contracts", sub: "tickets", count: board ? board.tickets.length : null },
+    { id: "batches", step: "03", label: "Batches", sub: "sequencing", count: board ? board.packages.length : null },
   ];
-  return <nav className="rail">
+  const runningCount = board ? board.running.length : 0;
+  const batchCount = board ? board.activeBatches.length : 0;
+  return <nav className="rail" aria-label="Board sections">
     <div className="rail__head">
-      <div className="rail__brand"><BrandMark /><span className="rail__brand-name">Kotta</span></div>
-      <div className="kicker">workspace</div>
-      <div className="rail__ws">{project}</div>
+      <BrandMark />
+      <h1 className="rail__brand">KOTTA</h1>
+      <span className="rail__version">v2</span>
     </div>
-    <div className="rail__group">pipeline</div>
-    {items.map((item) => <button key={item.id} type="button" className={`rail__item ${stage === item.id ? "is-active" : ""}`} onClick={() => onStage(item.id)}>
-      <span className="rail__item-step">{item.step}</span>
-      <span className="rail__item-label"><b>{item.label}</b><span>{item.sub}</span></span>
-      <span className="rail__badge">{counts[item.id]}</span>
+    <button type="button" className={`rail__home ${view === "home" ? "is-active" : ""}`} aria-current={view === "home" ? "page" : undefined} onClick={() => onView("home")}>
+      <span className="rail__home-label">Home</span>
+      <span className="rail__count">{board ? board.queueTotal : "—"}</span>
+    </button>
+    <div className="rail__group">derivation chain</div>
+    {chain.map((item) => <button key={item.id} type="button" className={`rail__item ${view === item.id ? "is-active" : ""}`}
+      aria-current={view === item.id ? "page" : undefined} onClick={() => onView(item.id)}>
+      <span className="rail__step">{item.step}</span>
+      <span className="rail__label"><b>{item.label}</b><span>{item.sub}</span></span>
+      <span className="rail__count">{item.count ?? "—"}</span>
     </button>)}
+    <div className="rail__group rail__group--cross">cross-cutting</div>
+    <button type="button" className={`rail__item ${view === "decisions" ? "is-active" : ""}`}
+      aria-current={view === "decisions" ? "page" : undefined} onClick={() => onView("decisions")}>
+      <span className="rail__step">·</span>
+      <span className="rail__label"><b>Decisions</b><span>quoted, not staged</span></span>
+      <span className="rail__count">{board ? board.decisions.length : "—"}</span>
+    </button>
     <div className="rail__foot">
-      <button type="button" className="rail__shortcuts" onClick={onShortcuts}><span className="rail__key">?</span> shortcuts</button>
+      <button type="button" className={`rail__watch ${running ? "is-live" : ""}`} onClick={onWatch}>
+        <span className="rail__watch-top">
+          <span className={`pulse ${running ? "is-live" : ""}`} aria-hidden="true" />
+          Running
+          <span className="rail__count rail__count--watch">{runningCount}</span>
+        </span>
+        <span className="rail__watch-sub">
+          {runningCount
+            ? `${runningCount} contract${runningCount === 1 ? "" : "s"} under way in ${batchCount} batch${batchCount === 1 ? "" : "es"} · Watch →`
+            : "Nothing is running · Watch →"}
+        </span>
+      </button>
       <a className="rail__report" href={BUG_REPORT_URL} target="_blank" rel="noreferrer noopener" aria-label="Report a bug — opens the A-Team issue form on GitHub">
         <span className="rail__key" aria-hidden="true">!</span> Report a bug <span aria-hidden="true">↗</span>
       </a>
       <div className="rail__report-note">Opens GitHub. Nothing from this workspace is sent — you write and submit the report there.</div>
-      <div className="rail__stamps">
-        <div className="kicker">entity stamps</div>
-        <div className="rail__stamps-row">
-          <span className="eid stamp-f on-dark">F-###</span>
-          <span className="eid stamp-t on-dark">T-###</span>
-          <span className="eid stamp-p on-dark">P-###</span>
-        </div>
-      </div>
-      <div className="rail__meta">derived from filesystem<br />refreshed {refreshed}s ago · poll 1.5s<br /><code>.a-team/</code></div>
+      <div className="rail__meta">read from frontmatter · no per-file git<br />refreshed {refreshed}s ago</div>
     </div>
   </nav>;
 }
 
-/* ══ Needs-you strip ═══════════════════════════════════ */
-function NeedsStrip({ items, running, ready, onSearch }: {
-  items: Array<{ n: number; label: string; dest: string; hot?: boolean; go: () => void }>;
-  running: number; ready: number; onSearch: () => void;
+/* ══ Header ════════════════════════════════════════════ */
+function initials(project: string): string {
+  const words = project.split(/[\s\-_/]+/).filter(Boolean);
+  return (words.length > 1 ? words.slice(0, 2).map((w) => w[0]).join("") : project.slice(0, 2)).toUpperCase();
+}
+export function TopBar({ workspace, board, onHelp, onRefresh, refreshed }: {
+  workspace: Workspace | null; board: Board | null; onHelp: () => void; onRefresh: () => void; refreshed: number;
 }) {
-  const empty = items.every((item) => item.n === 0);
-  return <div className="needs">
-    <div className="needs__label"><div className="kicker">attention</div><b>Needs you</b></div>
-    {empty
-      ? <div className="needs__empty"><b>Nothing needs you.</b><span>{running} running · {ready} defined and waiting</span></div>
-      : <div className="needs__items">{items.map((item) => <button key={item.label} type="button" className={`needs__item ${item.n === 0 ? "is-zero" : ""} ${item.hot && item.n ? "is-hot" : ""}`} onClick={item.go}>
-        <span className="needs__item-n">{item.n}</span>
-        <span className="needs__item-txt"><b>{item.label}</b><span>→ {item.dest}</span></span>
-      </button>)}</div>}
-    <button type="button" className="needs__search" onClick={onSearch}><span className="rail__key">/</span> search</button>
+  const project = workspace?.project ?? "workspace";
+  const stats: Array<{ label: string; value: string; hot?: boolean }> = [
+    { label: "waiting on you", value: board ? String(board.queueTotal) : "—", hot: Boolean(board?.queueTotal) },
+    { label: "running", value: board ? `${board.running.length} in ${board.activeBatches.length} batch${board.activeBatches.length === 1 ? "" : "es"}` : "—" },
+    { label: "defined and ready", value: board ? String(board.defined.length) : "—" },
+    { label: "contradictions", value: board ? String(board.contradictions.length) : "—", hot: Boolean(board?.contradictions.length) },
+  ];
+  return <header className="top">
+    <div className="top__ws">
+      <span className="top__mark">{initials(project)}</span>
+      <span className="top__ws-text">
+        <span className="top__ws-name">{project}</span>
+        <span className="top__ws-path">{workspace?.workspace ?? ".a-team/"}{typeof window !== "undefined" && window.location.port ? ` · port ${window.location.port}` : ""}</span>
+      </span>
+    </div>
+    <div className="top__stats">
+      {stats.map((stat) => <div key={stat.label} className="top__stat">
+        <span className="top__stat-label">{stat.label}</span>
+        <span className={`top__stat-value ${stat.hot ? "is-hot" : ""}`}>{stat.value}</span>
+      </div>)}
+    </div>
+    <button type="button" className="top__action" onClick={onRefresh}>
+      <span className="top__key" aria-hidden="true">↻</span> Refresh <span className="top__ago">{refreshed}s</span>
+    </button>
+    <button type="button" className="top__action" onClick={onHelp}><span className="top__key" aria-hidden="true">?</span> CLI</button>
+  </header>;
+}
+
+/* ══ Running strip ═════════════════════════════════════ */
+function RunningStrip({ board, onWatch, onOpen }: { board: Board; onWatch: () => void; onOpen: (id: string) => void }) {
+  if (!board.running.length) return null;
+  return <section className="live" aria-label="Running now">
+    <div className="live__label"><span className="pulse is-live" aria-hidden="true" /> Running</div>
+    <div className="live__items scroll" tabIndex={0} role="group" aria-label="Contracts running now">
+      {board.running.map((ticket) => <EntityButton key={ticket.id} id={ticket.id} className="live__item" onOpen={onOpen}>
+        <span className="live__item-title">{ticket.title}</span>
+        <Tail id={ticket.id} />
+        <span className="live__item-meta">{ticket.assigned_agent ?? "no claim"} · {relativeTime(ticket.updated_at)}</span>
+      </EntityButton>)}
+    </div>
+    <button type="button" className="live__watch" onClick={onWatch}>Watch →</button>
+  </section>;
+}
+
+/* ══ Home ══════════════════════════════════════════════ */
+function BandHead({ id, title, children, tone }: { id: string; title: string; children: ReactNode; tone?: "alarm" }) {
+  return <div className={`band__head ${tone === "alarm" ? "band__head--alarm" : ""}`}>
+    <h2 id={id}>{title}</h2>
+    <p>{children}</p>
   </div>;
 }
 
-/* ══ Inbox stage ═══════════════════════════════════════ */
-function InboxStage({ workspace, onRefresh, onEntity, onSource, onDiscuss, cursor }: {
-  workspace: Workspace; onRefresh: () => Promise<void>; onEntity: (id: string) => void; onSource: (r: SourceReference) => void; onDiscuss: (id: string) => void; cursor: number;
+export function HomeView({ workspace, board, error, onView, onOpen, onRetry }: {
+  workspace: Workspace | null; board: Board | null; error: string | null;
+  onView: (view: View, filter?: Status) => void; onOpen: (id: string) => void; onRetry: () => void;
 }) {
-  const [capturing, setCapturing] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [title, setTitle] = useState(""); const [evidence, setEvidence] = useState(""); const [type, setType] = useState("product"); const [during, setDuring] = useState("");
-  const [busy, setBusy] = useState<string | null>(null); const [error, setError] = useState<string | null>(null);
-  const open = workspace.findings.filter((f) => f.status === "new");
-  const resolved = workspace.findings.filter((f) => f.status === "resolved");
+  const loading = !board && !error;
+  const emptyWorkspace = Boolean(board && !board.tickets.length && !board.findings.length && !board.packages.length);
+  return <div className="home">
+    <section className="band" aria-labelledby="band-waiting">
+      <BandHead id="band-waiting" title="Waiting on you">
+        Exactly where the CLI refuses without <code>--approve</code>. Queues are meant to be emptied — and they age.
+      </BandHead>
+      <div className="band__body">
+        {loading && <Placeholder label="Reading the workspace…" />}
+        {error && <BandError error={error} onRetry={onRetry} />}
+        {board && !board.queueTotal && <p className="band__empty">Nothing waiting to decide. Every observation has a disposition, no contract sits in review, no batch is waiting to be closed.</p>}
+        {board && board.queueTotal > 0 && board.queues.map((queue) => <button key={queue.key} type="button"
+          className={`queue ${queue.count ? "" : "is-zero"}`} onClick={() => onView(queue.view, queue.filter)}>
+          <span className="queue__top">
+            <span className={`queue__n ${queue.age !== null && queue.age > 30 ? "is-hot" : ""}`}>{queue.count}</span>
+            <span className="queue__label">{queue.label}</span>
+          </span>
+          <span className="queue__meta">
+            <span className="queue__ask">{queue.ask}</span>
+            <span className={`queue__age ${queue.age !== null && queue.age > 30 ? "is-hot" : ""}`}>{queue.age === null ? "no date on record" : `oldest ${queue.age}d`}</span>
+          </span>
+          {queue.age !== null && <span className="queue__bar"><span className={queue.age > 30 ? "is-hot" : ""} style={{ width: `${Math.min(100, (queue.age / 45) * 100)}%` }} /></span>}
+        </button>)}
+      </div>
+      <p className="band__foot">The library is still behind the menu on the left — browsing did not go away, it just stopped being the opening screen.</p>
+    </section>
 
-  const capture = async () => {
-    setBusy("new"); setError(null);
-    try { await postJson("/api/finding", { title, evidence, type, ...(during.trim() ? { discoveredDuring: during.trim() } : {}) }); setTitle(""); setEvidence(""); setDuring(""); setCapturing(false); await onRefresh(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
-    finally { setBusy(null); }
-  };
-  const resolve = async (findingId: string, disposition: "create-ticket" | "reject") => {
-    setBusy(findingId); setError(null);
-    try { await postJson("/api/finding/resolve", { findingId, disposition }); await onRefresh(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
-    finally { setBusy(null); }
-  };
-  const sevClass = (sev: string) => (sev === "high" ? "sev-high" : sev === "medium" ? "sev-medium" : "sev-low");
-
-  return <div>
-    <div className="stage__head">
-      <div style={{ flex: 1, minWidth: 0 }}><h2>Inbox</h2><p>Observations awaiting human disposition — not tasks. Reject, or promote to a contract.</p></div>
-      <div className="stage__head-aside">
-        <div className="stat-inline"><div className="kicker">intake · open vs resolved</div><div className="mono">{open.length} open / {resolved.length} dispositioned</div></div>
-        <button type="button" className="btn btn-primary" onClick={() => setCapturing((v) => !v)}>{capturing ? "Cancel" : "+ Capture finding"}</button>
-      </div>
-    </div>
-    {capturing && <div className="capture">
-      <div className="capture__col">
-        <div className="field"><label>Title</label><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="One observation, stated plainly" /></div>
-        <div className="field"><label>Evidence (markdown)</label><textarea className="input" value={evidence} onChange={(e) => setEvidence(e.target.value)} placeholder="What was observed, where, and how it was reproduced" /></div>
-      </div>
-      <div className="capture__col">
-        <div className="field"><label>Type</label><select className="input" value={type} onChange={(e) => setType(e.target.value)}><option value="product">product</option><option value="bug">bug</option><option value="risk">risk</option><option value="technical">technical</option></select></div>
-        <div className="field"><label>Discovered during (optional)</label><input className="input mono" value={during} onChange={(e) => setDuring(e.target.value)} placeholder="T-012" /></div>
-        <button type="button" className="btn btn-primary" style={{ justifyContent: "flex-start" }} disabled={!title.trim() || !evidence.trim() || busy === "new"} onClick={() => void capture()}>{busy === "new" ? "Saving…" : "Capture →"}</button>
-        <div className="capture__note">POST /api/finding · writes .a-team/findings/new/</div>
-      </div>
-    </div>}
-    {error && <div style={{ padding: "0 22px" }}><p className="inline-error">{error}</p></div>}
-    <div className="inbox__bar"><b>Open observations</b><span className="count">{open.length}</span><span className="path">.a-team/findings/new/</span></div>
-    {open.length === 0 && <div className="pane-empty" style={{ padding: "8px 22px 22px" }}>Inbox zero. Agents can add evidence here without expanding ticket scope.</div>}
-    {open.map((f, i) => {
-      const isOpen = openId === f.id;
-      return <article id={`entity-${f.id}`} key={f.id} className={`finding-row ${i === cursor ? "is-cursor" : ""}`}>
-        <div className="finding-row__grid">
-          <button type="button" className="finding-row__id" onClick={() => setOpenId(isOpen ? null : f.id)}><span className="caret">{isOpen ? "▾" : "▸"}</span><span className="eid stamp-f">{f.id}</span></button>
-          <div style={{ minWidth: 0 }}>
-            <button type="button" className="finding-row__title" onClick={() => setOpenId(isOpen ? null : f.id)}>{f.title}</button>
-            <div className="finding-row__meta">
-              <span className="tag tag-neutral">{f.finding_type}</span>
-              <span className={`tag ${sevClass(f.severity)}`}>sev {f.severity}</span>
-              {f.confidence && <span className="mono" style={{ opacity: .6 }}>conf {f.confidence}</span>}
-              {f.discovered_during && <span style={{ display: "flex", gap: 5, alignItems: "center" }}><span style={{ opacity: .6 }}>during</span><Eid id={f.discovered_during} onClick={() => onEntity(f.discovered_during!)} /></span>}
-              <span className="mono" style={{ opacity: .45 }}>.a-team/findings/new/</span>
-            </div>
-            {isOpen && <div className="finding-row__evidence"><div className="kicker">evidence</div><MarkdownContent value={f.sections.evidence || f.sections.observation || "—"} onEntity={onEntity} onSource={onSource} /></div>}
+    <section className="band band--alarm" aria-labelledby="band-contradictions">
+      <BandHead id="band-contradictions" title="Doesn't add up" tone="alarm">
+        Two sources disagree, or the data contradicts its own definition. The board will not pick a story.
+      </BandHead>
+      <div className="band__body">
+        {loading && <Placeholder label="Reading the workspace…" />}
+        {error && <BandError error={error} onRetry={onRetry} />}
+        {board && !board.contradictions.length && <p className="band__empty">Nothing contradictory. Every recorded link resolves, and no worktree disagrees with its contract.</p>}
+        {board?.contradictions.map((item) => <article key={item.key} className="contra">
+          <div className="contra__top">
+            <span className="contra__kind">{item.kind}</span>
+            {item.subjectId
+              ? <EntityButton id={item.subjectId} className="contra__subject" onOpen={onOpen}>{item.subject}<Tail id={item.subjectId} /></EntityButton>
+              : <span className="contra__subject">{item.subject}</span>}
           </div>
-          <div className="finding-row__actions">
-            <button type="button" className="btn btn-secondary btn-sm" disabled={busy === f.id} onClick={() => void resolve(f.id, "reject")}>Reject</button>
-            <button type="button" className="btn btn-primary btn-sm" disabled={busy === f.id} onClick={() => void resolve(f.id, "create-ticket")}>Create ticket →</button>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => onDiscuss(f.id)}>Discuss</button>
-          </div>
-        </div>
-      </article>;
-    })}
-    <div className="history">
-      <button type="button" className="history__toggle" onClick={() => setHistoryOpen((v) => !v)}>
-        <span className="caret">{historyOpen ? "▾" : "▸"}</span> Dispositioned history <span className="mono" style={{ opacity: .5 }}>{resolved.length}</span>
-        <span className="path">.a-team/findings/resolved/</span>
-      </button>
-      {historyOpen && <div style={{ padding: "0 22px 16px" }}>
-        {resolved.length === 0 ? <div className="pane-empty">Nothing dispositioned yet.</div> : <table className="table">
-          <thead><tr><th style={{ width: 76 }}>id</th><th>title</th><th style={{ width: 120 }}>disposition</th><th style={{ width: 120 }}>became</th></tr></thead>
-          <tbody>{resolved.map((r) => <tr key={r.id}>
-            <td className="mono" style={{ fontWeight: 600 }}>{r.id}</td>
-            <td>{r.title}</td>
-            <td><span className="tag tag-neutral">{r.resolution || "resolved"}</span></td>
-            <td className="mono">{r.became ? <Eid id={r.became} onClick={() => onEntity(r.became!)} /> : "—"}</td>
-          </tr>)}</tbody>
-        </table>}
-      </div>}
-    </div>
-  </div>;
-}
-
-/* ══ Shape stage ═══════════════════════════════════════ */
-type ValidationState = { status: "checking" | "fail" | "ok"; issues?: Array<{ field: string; text: string }> };
-function ShapeStage({ workspace, packageMap, validated, onValidate, onEntity, onDiscuss, cursor }: {
-  workspace: Workspace; packageMap: Map<string, Package>; validated: Record<string, ValidationState>; onValidate: (t: Ticket) => void; onEntity: (id: string) => void; onDiscuss: (id: string) => void; cursor: number;
-}) {
-  const backlog = workspace.tickets.filter((t) => t.status === "backlog");
-  const ready = workspace.tickets.filter((t) => t.status === "ready");
-  const readyByPkg = new Map<string, Ticket[]>();
-  const unpackaged: Ticket[] = [];
-  ready.forEach((t) => { if (t.package) { const arr = readyByPkg.get(t.package) ?? []; arr.push(t); readyByPkg.set(t.package, arr); } else unpackaged.push(t); });
-
-  return <div style={{ display: "flex", flexDirection: "column", minHeight: "100%" }}>
-    <div className="stage__head">
-      <div style={{ flex: 1 }}><h2>Shape</h2><p>Turn items into executable contracts. Directory is the state — validation moves the file.</p></div>
-      <span className="hint">v to validate the focused ticket</span>
-    </div>
-    <div className="shape">
-      <div className="shape__pane shape__pane--left">
-        <div className="subhead"><b>Backlog</b><span className="count dark">{backlog.length}</span><span className="note">unshaped</span><span className="path">tickets/backlog/</span></div>
-        {backlog.length === 0 && <div className="pane-empty">No unshaped work.</div>}
-        {backlog.map((t, i) => {
-          const v = validated[t.id];
-          return <div key={t.id} className={`tk-row ${i === cursor ? "is-cursor" : ""}`}>
-            <div className="tk-row__top"><Eid id={t.id} onClick={() => onEntity(t.id)} /><span className="tk-row__title">{t.title}</span></div>
-            <div className="tk-row__meta">
-              <span className="tag tag-neutral">{t.types[0] ?? "ticket"}</span>
-              <span className="mono">P{t.priority} · risk {t.risk}</span>
-              <span className={`pkg-chip ${t.package ? "is-packaged" : "is-unpackaged"}`}>{t.package ?? "unpackaged"}</span>
-              <span className="mono" style={{ opacity: .55 }}>{dependsLabel(t)}</span>
-              <span className="tk-row__actions">
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => onDiscuss(t.id)}>Shape with agent</button>
-                <button type="button" className="btn btn-primary btn-sm" disabled={v?.status === "checking"} onClick={() => onValidate(t)}>{v?.status === "checking" ? "Checking…" : "Validate → Defined"}</button>
-              </span>
+          <h3 className="contra__title">{item.title}</h3>
+          <div className="contra__cmp">
+            <div>
+              <div className="contra__side">{item.leftLabel}</div>
+              {item.left.map((line, i) => <div key={i} className="contra__line">{line}</div>)}
             </div>
-            {v?.status === "fail" && v.issues && <div className="callout-fail">
-              <div className="kicker">validation failed · POST /api/ticket/ready</div>
-              {v.issues.map((iss, k) => <div className="issue" key={k}><span className="mono">{iss.field}</span><span>{iss.text}</span></div>)}
-            </div>}
-            {v?.status === "ok" && <div className="callout-ok">✓ moved → tickets/ready/{t.id.toLowerCase()}.md</div>}
-          </div>;
-        })}
+            <div className="contra__right">
+              <div className="contra__side">{item.rightLabel}</div>
+              {item.right.map((line, i) => <div key={i} className="contra__line">{line}</div>)}
+            </div>
+          </div>
+          <div className="contra__foot">
+            <CopyCommand command={item.command} />
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => onView(item.view)}>{item.action}</button>
+          </div>
+        </article>)}
       </div>
-      <div className="shape__pane">
-        <div className="subhead"><b>Defined</b><span className="count accent">{ready.length}</span><span className="note">executable · grouped by package</span><span className="path">tickets/ready/</span></div>
-        {ready.length === 0 && <div className="pane-empty">Human approval has not moved any ticket here yet.</div>}
-        {[...readyByPkg.entries()].map(([pkgId, rows]) => <div key={pkgId} className="ready-group">
-          <div className="ready-group__head"><Eid id={pkgId} /><span style={{ fontSize: 12, fontWeight: 600 }}>{packageMap.get(pkgId)?.title ?? "Package"}</span><span className="note">{rows.length} defined</span></div>
-          {rows.map((t) => <div key={t.id} className="tk-row">
-            <div className="tk-row__top"><Eid id={t.id} onClick={() => onEntity(t.id)} /><span className="tk-row__title">{t.title}</span></div>
-            <div className="tk-row__meta"><span className="tag tag-neutral">{t.types[0] ?? "ticket"}</span><span className="mono">P{t.priority} · risk {t.risk}</span><span className="mono" style={{ opacity: .55 }}>{dependsLabel(t)}</span>
-              <span className="tk-row__actions"><button type="button" className="btn btn-secondary btn-sm" onClick={() => onDiscuss(t.id)}>Discuss</button></span></div>
-          </div>)}
+    </section>
+
+    <section className="band" aria-labelledby="band-menu">
+      <BandHead id="band-menu" title="What runs next?">
+        A menu, not a debt. {board ? board.defined.length : "—"} defined contracts are executable today — the question is which one, not whether you approve.
+      </BandHead>
+      <div className="band__body">
+        {loading && <Placeholder label="Reading the workspace…" />}
+        {error && <BandError error={error} onRetry={onRetry} />}
+        {board && !board.menu.length && <p className="band__empty">
+          Nothing defined to run. {emptyWorkspace
+            ? "This workspace is empty — write the first contract with the CLI:"
+            : "Shape a backlog contract until it validates, then define it:"}
+          <br /><code>{emptyWorkspace ? 'a-team ticket new --title "…" --type feature' : "a-team ticket ready <id> --approve"}</code>
+        </p>}
+        {board?.menu.map((item, index) => <div key={item.id} className={`menu ${index === 0 ? "is-first" : ""}`}>
+          <div className="menu__top">
+            <EntityButton id={item.id} className="menu__title" onOpen={onOpen}>{item.title}</EntityButton>
+            <Tail id={item.id} />
+          </div>
+          <div className="menu__meta">
+            <span className={`tag ${item.batch ? "tag-neutral" : "tag-outline"}`}>{item.batch ? titleOf(item.batch) ?? item.batch : "no batch"}</span>
+            <span className="menu__why">{item.why}</span>
+          </div>
+          <div className="menu__run">
+            <CopyCommand command={item.command} label="Run next →" />
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => onOpen(item.id)}>Chain →</button>
+          </div>
         </div>)}
-        {unpackaged.length > 0 && <div className="ready-group">
-          <div className="ready-group__head is-unpackaged"><span className="mono">—</span><span style={{ fontSize: 12, fontWeight: 600 }}>Unpackaged and defined</span><span className="note">a decision waiting to happen</span></div>
-          {unpackaged.map((t) => <div key={t.id} className="tk-row">
-            <div className="tk-row__top"><Eid id={t.id} onClick={() => onEntity(t.id)} /><span className="tk-row__title">{t.title}</span></div>
-            <div className="tk-row__meta"><span className="tag tag-neutral">{t.types[0] ?? "ticket"}</span><span className="mono">P{t.priority} · risk {t.risk}</span><span className="mono" style={{ opacity: .55 }}>{dependsLabel(t)}</span>
-              <span className="tk-row__actions"><button type="button" className="btn btn-secondary btn-sm" onClick={() => onDiscuss(t.id)}>Discuss</button></span></div>
-          </div>)}
-        </div>}
+        {board && board.menu.length > 0 && <button type="button" className="band__more" onClick={() => onView("contracts", DEFINED)}>See all {board.defined.length} defined →</button>}
       </div>
-    </div>
+      {board && board.menu.length > 0 && <p className="band__foot">If these sat in the queue, the opening screen would show a {board.defined.length}-item debt every morning that is not a debt.</p>}
+    </section>
   </div>;
 }
 
-/* ══ Packages stage ════════════════════════════════════ */
-function PackagesStage({ workspace, ticketMap, selected, onSelect, onEntity, onSource, onDiscuss, onRefresh }: {
-  workspace: Workspace; ticketMap: Map<string, Ticket>; selected: string | null; onSelect: (id: string) => void; onEntity: (id: string) => void; onSource: (r: SourceReference) => void; onDiscuss: (id: string) => void; onRefresh: (pkgId?: string) => Promise<void>;
+function BandError({ error, onRetry }: { error: string; onRetry: () => void }) {
+  return <div className="band__error" role="alert">
+    <b>The workspace could not be read.</b>
+    <p>Tried <code>GET {WORKSPACE_ENDPOINT}</code> — {error}</p>
+    <button type="button" className="btn btn-secondary btn-sm" onClick={onRetry}>Retry</button>
+  </div>;
+}
+
+/* ══ Observations ══════════════════════════════════════ */
+type ObsFilter = "waiting" | "dispositioned" | "all";
+export function ObservationsView({ board, filter, onFilter, onOpen }: {
+  board: Board; filter: ObsFilter; onFilter: (f: ObsFilter) => void; onOpen: (id: string) => void;
 }) {
-  const [preflight, setPreflight] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [busy, setBusy] = useState<string | null>(null); const [error, setError] = useState<string | null>(null);
-  const [title, setTitle] = useState(""); const [goal, setGoal] = useState(""); const [kind, setKind] = useState("batch");
-  const packages = workspace.packages;
-  const active = packages.find((p) => p.id === selected) ?? packages[0] ?? null;
-
-  const create = async () => {
-    setBusy("create"); setError(null);
-    try { const result = await postJson("/api/package", { title, goal, kind }); const data = result.data as { id?: string } | undefined; setTitle(""); setGoal(""); setCreating(false); await onRefresh(data?.id); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
-    finally { setBusy(null); }
-  };
-  const membership = async (pkgId: string, ticketId: string, action: "add" | "remove") => {
-    setBusy(ticketId); setError(null);
-    try { await postJson("/api/package/tickets", { packageId: pkgId, ticketId, action }); await onRefresh(pkgId); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
-    finally { setBusy(null); }
-  };
-
-  const detail = () => {
-    if (!active) return <div className="pane-empty">No packages yet. Create an outcome container to batch related work.</div>;
-    const members = active.tickets.map((id) => ticketMap.get(id)).filter(Boolean) as Ticket[];
-    const waves = computeWaves(members);
-    const locked = active.status !== "backlog";
-    const backlogMembers = members.filter((t) => t.status === "backlog");
-    const allReady = members.length > 0 && members.every((t) => ["ready", "done"].includes(t.status));
-    const launchable = allReady && active.status === "backlog";
-    const launchReason = active.status === "active" ? "Already running — see Run. Launch is disabled while a run is in flight."
-      : active.status === "done" ? "Package is done. Its members are archived in Done."
-        : members.length === 0 ? "No members yet. Add defined tickets before launch."
-          : `${backlogMembers.length} member ticket${backlogMembers.length === 1 ? "" : "s"} still in backlog. Validate them in Shape before launch.`;
-    const available = workspace.tickets.filter((t) => !active.tickets.includes(t.id) && t.status !== "done");
-
-    return <div className="pkg-detail">
-      <div className="pkg-detail__head">
-        <div className="pkg-detail__head-top">
-          <Eid id={active.id} />
-          <span className="tag tag-neutral">{active.kind} · {active.status}</span>
-          <span className="path">.a-team/packages/{active.status}/{active.id.toLowerCase()}.md</span>
-        </div>
-        <h2>{active.title}</h2>
-        <div className="markdown-body goal"><MarkdownContent value={active.sections.goal || "—"} onEntity={onEntity} onSource={onSource} /></div>
+  const waiting = board.undisposed;
+  const rows = board.findings.filter((f) => (filter === "all" ? true : filter === "waiting" ? f.status === "new" : f.status === "resolved"));
+  const filters: Array<{ key: ObsFilter; label: string; count: number }> = [
+    { key: "waiting", label: "waiting", count: waiting.length },
+    { key: "dispositioned", label: "dispositioned", count: board.findings.length - waiting.length },
+    { key: "all", label: "all", count: board.findings.length },
+  ];
+  return <div className="view">
+    <div className="view__head">
+      <div>
+        <div className="view__step">01 · new information</div>
+        <h2>Observations</h2>
+        <p>What was noticed, from outside or from inside a run. Each one waits for one yes/no — and stales.</p>
       </div>
-      {error && <p className="inline-error" style={{ margin: "10px 22px" }}>{error}</p>}
-      <div className="pkg-body">
-        <div className="pkg-body__main">
-          <div className="pkg-block">
-            <div className="pkg-block__head"><b>Execution order</b><span>derived from depends_on · columns run in parallel</span></div>
-            <WaveGraph members={members} onEntity={onEntity} />
-          </div>
-          <div className="pkg-block" style={{ borderBottom: 0 }}>
-            <div className="pkg-block__head"><b>Members</b><span className="mono">{members.length} tickets</span>
-              {!locked && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCreating(false)}>Edit membership below</button>}
-            </div>
-            {locked && <div className="locked-banner"><b>Membership locked</b> — package is {active.status}. Only backlog packages can add or remove tickets.</div>}
-            <table className="table">
-              <thead><tr><th style={{ width: 70 }}>id</th><th>title</th><th style={{ width: 90 }}>state</th><th style={{ width: 130 }}>depends on</th>{!locked && <th style={{ width: 90 }} />}</tr></thead>
-              <tbody>{members.map((t) => <tr key={t.id}>
-                <td><Eid id={t.id} onClick={() => onEntity(t.id)} /></td>
-                <td style={{ lineHeight: 1.3 }}>{t.title}</td>
-                <td><StateChip ticket={t} /></td>
-                <td className="mono" style={{ fontSize: 11.5, opacity: .7 }}>{t.depends_on?.join(", ") || "—"}</td>
-                {!locked && <td><button type="button" className="btn btn-secondary btn-sm" disabled={busy === t.id} onClick={() => void membership(active.id, t.id, "remove")}>Remove</button></td>}
-              </tr>)}
-              {members.length === 0 && <tr><td colSpan={locked ? 4 : 5} className="muted">No tickets yet. Add the work that shares this outcome.</td></tr>}
-              </tbody>
-            </table>
-            {!locked && available.length > 0 && <div style={{ marginTop: 14 }}>
-              <div className="pkg-block__head"><b>Available</b><span className="mono">{available.length}</span></div>
-              <table className="table">
-                <tbody>{available.map((t) => <tr key={t.id}>
-                  <td style={{ width: 70 }}><Eid id={t.id} /></td>
-                  <td style={{ lineHeight: 1.3 }}>{t.title}</td>
-                  <td style={{ width: 90 }}><StateChip ticket={t} /></td>
-                  <td style={{ width: 90 }}><button type="button" className="btn btn-secondary btn-sm" disabled={busy === t.id} onClick={() => void membership(active.id, t.id, "add")}>+ Add</button></td>
-                </tr>)}</tbody>
-              </table>
-            </div>}
-          </div>
-        </div>
-        <div className="pkg-side">
-          <div className="pkg-side__block">
-            <h5>Execution settings</h5>
-            <div className="setting-row"><span className="k">mode</span><span className="v">{pkgMode(active)}</span></div>
-            <div className="setting-row"><span className="k">parallelism</span><span className="v">{pkgParallelism(active)}</span></div>
-            <div className="setting-row"><span className="k">stop_on_failure</span><span className="v">{String(pkgStop(active))}</span></div>
-            <div className="pkg-side__note">Read from package frontmatter. {locked ? "Editable only while the package is in backlog." : "Editable now — this package is still in backlog."}</div>
-          </div>
-          <div className="launch">
-            <h5>Launch</h5>
-            {launchable ? <>
-              <p>All {members.length} members are defined and validated. Hand the batch to the machine.</p>
-              <button type="button" className="btn btn-primary btn-block" onClick={() => setPreflight((v) => !v)}>▶ Launch package</button>
-            </> : <>
-              <button type="button" className="btn btn-primary btn-block" disabled>▶ Launch package</button>
-              <div className="launch__block">{launchReason}</div>
-            </>}
-            <div className="gap-note">
-              <div className="kicker">{GAP}</div>
-              <div>No launch endpoint yet. Pre-flight ends in a copy-paste command for an agent session, never a dead end.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      {preflight && launchable && <div className="preflight">
-        <div className="preflight__head"><b>Pre-flight · {active.id}</b><span className="gap-badge">{GAP}</span><button type="button" className="btn btn-secondary btn-sm" style={{ marginLeft: "auto" }} onClick={() => setPreflight(false)}>Close ✕</button></div>
-        <div className="preflight__grid">
-          <div>
-            <div className="kicker" style={{ opacity: .5, marginBottom: 6 }}>what will run</div>
-            {waves.map((wave, wi) => <div key={wi} className="preflight__wave"><span className="w">wave {wi + 1}</span><span className="ids">{wave.map((t) => t.id).join(", ")}<span style={{ fontWeight: 400, opacity: .6 }}> · {wave.length > 1 ? `${wave.length} agents in parallel` : "single agent"}</span></span></div>)}
-            <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.5, opacity: .75 }}>Each ticket gets an isolated git worktree and a feature branch; a claim file records the agent. {members.length} branches, max {pkgParallelism(active)} concurrent.</div>
-          </div>
-          <div>
-            <div className="kicker" style={{ opacity: .5, marginBottom: 6 }}>run this in an agent session</div>
-            <div className="codeblock">{`/execute-package ${active.id}\n# dependency-aware · parallelism ${pkgParallelism(active)} · isolated worktrees`}</div>
-            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => void navigator.clipboard?.writeText(`/execute-package ${active.id}`)}>Copy command</button>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => onDiscuss(active.id)}>Send to package thread</button>
-            </div>
-          </div>
-        </div>
-      </div>}
-    </div>;
-  };
+      <div className="view__note">stored as <b>finding</b> on disk<br />rename → observation is a migration</div>
+    </div>
+    <div className="filters">
+      <span className="filters__label">disposition</span>
+      {filters.map((f) => <button key={f.key} type="button" className={`filter ${filter === f.key ? "is-active" : ""}`}
+        aria-pressed={filter === f.key} onClick={() => onFilter(f.key)}>{f.label}<span>{f.count}</span></button>)}
+      <span className="filters__path">.a-team/findings/</span>
+    </div>
+    {rows.length === 0 && <p className="view__empty">Nothing here — the {filter} list is empty.</p>}
+    {rows.map((finding) => {
+      const age = daysSince(finding.created_at);
+      return <EntityButton key={finding.id} id={finding.id} className={`obs ${age !== null && age > 30 ? "is-stale" : ""}`} onOpen={onOpen}>
+        <span className="obs__title">{finding.title}</span>
+        <span className="obs__meta">
+          <Tail id={finding.id} />
+          <span className="tag tag-neutral">{finding.finding_type}</span>
+          <span className={`tag sev-${finding.severity}`}>sev {finding.severity}</span>
+          {finding.discovered_during && <span className="obs__during">seen during {titleOf(finding.discovered_during) ?? displayId(finding.discovered_during)}</span>}
+          <span className={`obs__age ${age !== null && age > 30 ? "is-hot" : ""}`}>{age === null ? "no date" : `${age} days old`}</span>
+          {finding.became && <span className="obs__became">→ {titleOf(finding.became) ?? displayId(finding.became)}</span>}
+        </span>
+      </EntityButton>;
+    })}
+    <p className="view__foot">{rows.length} shown · disposition writes the file and it leaves this list.</p>
+  </div>;
+}
 
-  return <div className="packages">
-    <div className="pkg-list">
-      <div className="subhead"><b>Packages</b><span className="count dark">{packages.length}</span><button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: "auto" }} onClick={() => setCreating((v) => !v)}>{creating ? "Cancel" : "+ New"}</button></div>
-      {creating && <div style={{ padding: 14, borderBottom: "2px solid var(--line)", display: "grid", gap: 10 }}>
-        <div className="field"><label>Title</label><input className="input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Release slice, milestone…" /></div>
-        <div className="field"><label>Kind</label><select className="input" value={kind} onChange={(e) => setKind(e.target.value)}><option value="batch">batch</option><option value="milestone">milestone</option><option value="mission">mission</option><option value="sprint">sprint</option></select></div>
-        <div className="field"><label>Goal</label><textarea className="input" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="What shared outcome does this package produce?" /></div>
-        <button type="button" className="btn btn-primary" disabled={!title.trim() || busy === "create"} onClick={() => void create()}>{busy === "create" ? "Creating…" : "Create package"}</button>
-      </div>}
-      {packages.map((p) => {
-        const members = p.tickets.map((id) => ticketMap.get(id));
-        const done = members.filter((t) => t?.status === "done").length;
-        const coordinator = coordinatorLabel(p);
-        return <button key={p.id} type="button" className={`pkg-list__item ${active?.id === p.id ? "is-active" : ""}`} onClick={() => onSelect(p.id)}>
-          <div className="pkg-list__top"><Eid id={p.id} /><span className="tag tag-neutral">{p.status}</span>{coordinator && <span className={`tag ${coordinator.tone}`}>{coordinator.text}</span>}<span className="frac">{done}/{p.tickets.length}</span></div>
-          <div className="pkg-list__title">{p.title}</div>
-          <div className="progress"><i style={{ width: `${p.tickets.length ? (done / p.tickets.length) * 100 : 0}%` }} /></div>
-          <div className="pkg-list__mode">{pkgModeSummary(p)}</div>
-        </button>;
+/* ══ Contracts ═════════════════════════════════════════ */
+export function ContractsView({ board, filter, onFilter, query, onQuery, onOpen }: {
+  board: Board; filter: Status | "all"; onFilter: (f: Status | "all") => void; query: string; onQuery: (q: string) => void; onOpen: (id: string) => void;
+}) {
+  const needle = query.trim().toLowerCase();
+  const rows = board.tickets
+    .filter((t) => (filter === "all" ? true : t.status === filter))
+    .filter((t) => !needle || `${t.id} ${t.title}`.toLowerCase().includes(needle));
+  const count = (state: Status) => board.tickets.filter((t) => t.status === state).length;
+  const filters: Array<{ key: Status | "all"; label: string; count: number }> = [
+    { key: "all", label: "all", count: board.tickets.length },
+    ...CONTRACT_STATES.map((state) => ({ key: state, label: stateLabel(state), count: count(state) })),
+  ];
+  return <div className="view">
+    <div className="view__head">
+      <div>
+        <div className="view__step">02 · tickets</div>
+        <h2>Contracts</h2>
+        <p>One entity, five states. Done is a filter value here, not a place of its own.</p>
+      </div>
+      <label className="view__search">
+        <span className="visually-hidden">Search contracts by title or id</span>
+        <input className="input" value={query} onChange={(e) => onQuery(e.target.value)} placeholder="Search title or id…" />
+      </label>
+    </div>
+    <div className="filters">
+      <span className="filters__label">state</span>
+      {filters.map((f) => <button key={f.key} type="button" className={`filter ${filter === f.key ? "is-active" : ""}`}
+        aria-pressed={filter === f.key} onClick={() => onFilter(f.key)}>{f.label}<span>{f.count}</span></button>)}
+      <span className="filters__path">.a-team/&lt;state&gt;/</span>
+    </div>
+    <div className="ctr__head" aria-hidden="true"><span>contract</span><span>state</span><span>came from</span><span>batch</span><span>claim</span></div>
+    {rows.length === 0 && <p className="view__empty">No contract matches this filter{needle ? " and search" : ""}.</p>}
+    {rows.map((ticket) => <EntityButton key={ticket.id} id={ticket.id} className="ctr" onOpen={onOpen}>
+      <span className="ctr__title">{ticket.title}<Tail id={ticket.id} /></span>
+      <span><StateTag state={ticket.blocked ? "blocked" : ticket.status} /></span>
+      <span className="ctr__from">{ticket.source_finding ? titleOf(ticket.source_finding) ?? displayId(ticket.source_finding) : "—"}</span>
+      <span className="ctr__batch">{ticket.package ? titleOf(ticket.package) ?? displayId(ticket.package) : "—"}</span>
+      <span className="ctr__claim"><ClaimDot agent={ticket.assigned_agent} />{ticket.assigned_agent ?? "—"}</span>
+    </EntityButton>)}
+    <p className="view__foot">Showing {rows.length} of {board.tickets.length} · state comes from the directory the file lives in.</p>
+  </div>;
+}
+
+/* ══ Batches ═══════════════════════════════════════════ */
+export function BatchesView({ board, onOpen }: { board: Board; onOpen: (id: string) => void }) {
+  return <div className="view">
+    <div className="view__head">
+      <div>
+        <div className="view__step">03 · sequencing</div>
+        <h2>Batches</h2>
+        <p>Things that must be solved together — a module, or a clean-up. Reason, not calendar.</p>
+      </div>
+      <div className="view__note">{board.packages.length} batches · {board.activeBatches.length} active<br />grouped by reason, not by calendar</div>
+    </div>
+    {board.packages.length === 0 && <p className="view__empty">No batch on disk. A batch is written with <code>a-team package new</code>.</p>}
+    <div className="cards">
+      {board.packages.map((pkg) => {
+        const members = pkg.tickets.map((id) => board.ticketById.get(id)).filter((t): t is Ticket => Boolean(t));
+        const done = members.filter((t) => t.status === "done").length;
+        const total = pkg.tickets.length;
+        return <EntityButton key={pkg.id} id={pkg.id} className={`card-batch ${pkg.status === "active" ? "is-active" : ""}`} onOpen={onOpen}>
+          <span className="card-batch__top">
+            <StateTag state={pkg.status} />
+            <span className="card-batch__frac">{done}/{total}</span>
+          </span>
+          <span className="card-batch__title">{pkg.title}<Tail id={pkg.id} /></span>
+          <span className="bar"><span style={{ width: `${total ? (done / total) * 100 : 0}%` }} /></span>
+          <span className="card-batch__why">{firstLine(pkg.sections.goal) || "No goal recorded."}</span>
+          <span className="card-batch__mode">{pkg.execution?.mode ?? "dependency-aware"} · parallelism {pkg.execution?.parallelism ?? 2}</span>
+        </EntityButton>;
       })}
     </div>
-    {detail()}
   </div>;
 }
-
-/* ══ Run stage ═════════════════════════════════════════ */
-function RunRow({ ticket, diagnostic, expanded, onToggle, onEntity, onSource, onDiscuss, cursor }: {
-  ticket: Ticket; diagnostic?: Diagnostic; expanded: boolean; onToggle: () => void; onEntity: (id: string) => void; onSource: (r: SourceReference) => void; onDiscuss: (id: string) => void; cursor: boolean;
-}) {
-  const s = stateOf(ticket);
-  return <div className={`run-row ${s === "review" ? "is-review" : ""} ${cursor ? "is-cursor" : ""}`}>
-    <button type="button" className="run-row__btn run-cols" onClick={onToggle}>
-      <span className="run-row__id"><span className="caret">{expanded ? "▾" : "▸"}</span><span className="eid stamp-t">{ticket.id}</span></span>
-      <span className="run-row__title">{ticket.title}</span>
-      <span><StateChip ticket={ticket} /></span>
-      <span className="run-row__claim"><ClaimDot /><span className="gap-badge" style={{ borderStyle: "dashed" }}>claim ?</span></span>
-      <span className="run-row__mono" style={{ opacity: .7 }}>{ticket.branch || "—"}</span>
-      <span className="run-row__mono" style={{ opacity: .55 }}>{diagnostic ? diagnostic.worktree : "—"}</span>
-      <span className="run-row__mono" style={{ opacity: .6 }}>{relativeTime(ticket.updated_at)}</span>
-    </button>
-    {expanded && <div className="run-row__detail">
-      <div className="run-row__cols">
-        <div>
-          <div className="kicker">acceptance contract</div>
-          {ticket.sections.acceptance ? <MarkdownContent value={ticket.sections.acceptance} onEntity={onEntity} onSource={onSource} /> : <div className="muted" style={{ fontSize: 12.5 }}>No acceptance block on this contract.</div>}
-        </div>
-        <div>
-          <div className="kicker">verification</div>
-          {ticket.sections.verification ? <MarkdownContent value={ticket.sections.verification} onEntity={onEntity} onSource={onSource} /> : <div className="muted" style={{ fontSize: 12.5 }}>No verification block yet — agent is still working.</div>}
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: 10 }}>
-            {ticket.pull_request && <a className="mono" style={{ fontSize: 11.5 }} href={/^https?:/.test(ticket.pull_request) ? ticket.pull_request : undefined} target="_blank" rel="noreferrer noopener">{ticket.pull_request}</a>}
-            {ticket.branch && <span className="mono" style={{ fontSize: 11.5, opacity: .6 }}>{ticket.branch}</span>}
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => onDiscuss(ticket.id)}>Open thread</button>
-          </div>
-        </div>
-      </div>
-      {s === "review" && <div className="review-actions">
-        <button type="button" className="btn btn-primary btn-sm" disabled>Accept → done</button>
-        <button type="button" className="btn btn-secondary btn-sm" disabled>Request changes</button>
-        <span className="gap-badge">{GAP}</span>
-        <span className="code-inline">a-team ticket accept {ticket.id}</span>
-        <span style={{ fontSize: 11.5, opacity: .6 }}>— no review endpoint yet; the UI hands you the exact command.</span>
-      </div>}
-      {ticket.blocked && <div className="blocked-note"><b style={{ textTransform: "uppercase", letterSpacing: ".07em", fontSize: 10.5 }}>Blocked</b> — {ticket.resolution || "waiting on a dependency or decision."}</div>}
-    </div>}
-  </div>;
+function firstLine(value?: string): string {
+  return (value ?? "").split("\n").map((line) => line.trim()).find(Boolean) ?? "";
 }
 
-function RunStage({ workspace, packageMap, ticketMap, onEntity, onSource, onDiscuss, onOpenMigration, driftOpen, setDriftOpen }: {
-  workspace: Workspace; packageMap: Map<string, Package>; ticketMap: Map<string, Ticket>; onEntity: (id: string) => void; onSource: (r: SourceReference) => void; onDiscuss: (id: string) => void; onOpenMigration: () => void; driftOpen: boolean; setDriftOpen: (v: boolean) => void;
-}) {
-  const [openRow, setOpenRow] = useState<string | null>(null);
-  const [selectedPkg, setSelectedPkg] = useState<string | null>(null);
-  const diagnostics = workspace.diagnostics ?? [];
-  const diagById = new Map(diagnostics.map((d) => [d.id, d]));
-  const runTickets = workspace.tickets.filter((t) => ["active", "review"].includes(t.status) || t.blocked);
-  const activeCount = runTickets.filter((t) => t.status === "active" && !t.blocked).length;
-  const reviewCount = runTickets.filter((t) => t.status === "review").length;
-  const blockedCount = runTickets.filter((t) => t.blocked).length;
-
-  const runPackages = workspace.packages.filter((p) => p.status === "active" || runTickets.some((t) => t.package === p.id));
-  const firstRunPkg = runPackages.find((p) => p.tickets.some((id) => runTickets.some((t) => t.id === id)))?.id ?? null;
-  const looseTickets = runTickets.filter((t) => !t.package);
-  const migrationCount = workspace.tickets.filter((t) => t.migration?.split).length;
-
-  const renderRow = (t: Ticket) => <RunRow key={t.id} ticket={t} diagnostic={diagById.get(t.id)} expanded={openRow === t.id} onToggle={() => setOpenRow(openRow === t.id ? null : t.id)} onEntity={onEntity} onSource={onSource} onDiscuss={onDiscuss} cursor={false} />;
-
-  return <div>
-    <div className="stage__head">
-      <div style={{ flex: 1 }}><h2>Run</h2><p>What the machine is doing. Claims, branches and worktrees are read from git.</p></div>
-      <div className="run__counts">
-        <span><b>{activeCount}</b> active</span><span><b>{reviewCount}</b> review</span><span><b>{blockedCount}</b> blocked</span>
-        <span className={diagnostics.length ? "hot" : ""}><b>{diagnostics.length}</b> drift</span>
+/* ══ Decisions ═════════════════════════════════════════ */
+export function DecisionsView({ board, onOpen }: { board: Board; onOpen: (id: string) => void }) {
+  const decisions = [...board.decisions].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? "") || b.id.localeCompare(a.id));
+  return <div className="view">
+    <div className="view__head">
+      <div>
+        <h2>Decisions</h2>
+        <p>Not a stage in the chain — but not a flat list either. A decision can be narrowed or continued by a later one, and reading it alone then gives the wrong answer.</p>
       </div>
+      <div className="view__note">.a-team/decisions/<br />never deleted, only narrowed</div>
     </div>
-
-    {diagnostics.length > 0 && <div className="drift">
-      <div className="drift__bar">
-        <b>State drift · {diagnostics.length}</b>
-        <span className="desc"><Eid id={diagnostics[0].id} /> — {diagnostics[0].message}</span>
-        <button type="button" className="btn btn-danger btn-sm" style={{ marginLeft: "auto" }} onClick={() => setDriftOpen(!driftOpen)}>{driftOpen ? "Hide" : "Inspect"}</button>
-      </div>
-      {driftOpen && <div className="drift__detail">
-        {diagnostics.map((d) => <div key={d.id} className="drift__cmp" style={{ marginBottom: 10 }}>
-          <div>
-            <div className="kicker">canonical files say</div>
-            <div className="drift__kv"><span className="k">ticket</span><span className="v"><Eid id={d.id} /></span></div>
-            <div className="drift__kv"><span className="k">state</span><span className="v">{ticketMap.get(d.id)?.status ?? "—"}</span></div>
-          </div>
-          <div>
-            <div className="kicker git">git says</div>
-            <div className="drift__kv"><span className="k">worktree</span><span className="v git mono">{d.worktree}</span></div>
-            <div className="drift__kv"><span className="k">detail</span><span className="v git">{d.message}</span></div>
-          </div>
-        </div>)}
-        <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 10, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 12, opacity: .7 }}>The UI will not pick a story. Reconcile with the CLI:</span>
-          <span className="code-inline">a-team ticket reconcile {diagnostics[0].id}</span>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => onDiscuss("workspace")}>Discuss in thread</button>
-        </div>
-      </div>}
-    </div>}
-
-    {runPackages.length === 0 && looseTickets.length === 0 && <div className="pane-empty" style={{ padding: "24px 22px" }}>Nothing is running. Launch a defined package from Packages.</div>}
-
-    {runPackages.map((p) => {
-      const members = p.tickets.map((id) => ticketMap.get(id)).filter((t): t is Ticket => Boolean(t));
-      const rows = members.filter((t) => ["active", "review"].includes(t.status) || Boolean(t.blocked));
-      if (rows.length === 0) return null;
-      const done = members.filter((t) => t.status === "done").length;
-      const selected = (selectedPkg ?? firstRunPkg) === p.id;
-      return <div key={p.id} className={`run-pkg ${selected ? "is-selected" : ""}`}>
-        <button type="button" className="run-pkg__head" onClick={() => setSelectedPkg(p.id)}>
-          <span className="caret">{selected ? "▾" : "▸"}</span>
-          <Eid id={p.id} dark /><span className="title">{p.title}</span><span className="mode">{pkgModeSummary(p)}</span>
-          <span className="right">
-            <span className="progress-txt">{done}/{p.tickets.length} done · {rows.filter((t) => t.status === "active").length} active · {rows.filter((t) => t.status === "review").length} review</span>
-            <span className="ghost-btn" role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); onDiscuss(p.id); }} onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onDiscuss(p.id); } }}>Package thread</span>
-          </span>
-        </button>
-        {selected && <div className="run-pkg__graph">
-          <div className="pkg-block__head"><b>Execution order</b><span>derived from depends_on · columns run in parallel</span></div>
-          <WaveGraph members={members} onEntity={onEntity} />
-        </div>}
-        <div className="run-head-row run-cols"><span>id</span><span>ticket</span><span>state</span><span>claim</span><span>branch</span><span>worktree</span><span>activity</span></div>
-        {rows.map(renderRow)}
-      </div>;
+    {decisions.length === 0 && <p className="view__empty">No decision recorded yet. One is written with <code>a-team decision create --from &lt;file&gt; --approve</code>.</p>}
+    {decisions.map((decision) => {
+      const referenced = [...new Set((decision.sections.decision ?? "").match(new RegExp(`\\bD-(?:\\d+|${MINTED_BODY})\\b`, "g")) ?? [])].filter((id) => id !== decision.id);
+      return <EntityButton key={decision.id} id={decision.id} className="dec" onOpen={onOpen}>
+        <span className="dec__date">{decision.date ?? "—"}</span>
+        <span className="dec__body">
+          <span className="dec__title">{decision.title}<Tail id={decision.id} /></span>
+          {referenced.length > 0 && <span className="dec__refs">reads with {referenced.map((id) => titleOf(id) ?? displayId(id)).join(" · ")}</span>}
+        </span>
+      </EntityButton>;
     })}
-
-    {looseTickets.length > 0 && <div>
-      <div className="loose__head"><b>Loose work</b><span>Active outside any package — no batch semantics, no stop-on-failure.</span></div>
-      <div className="run-head-row run-cols"><span>id</span><span>ticket</span><span>state</span><span>claim</span><span>branch</span><span>worktree</span><span>activity</span></div>
-      {looseTickets.map(renderRow)}
-    </div>}
-
-    {workspace.migration && migrationCount > 0 && <div className="migration-bar">
-      <span className="badge">migration mode</span>
-      <span>{migrationCount} ticket{migrationCount === 1 ? "" : "s"} carry a split stamp from the legacy lanes. Kept out of the default flow.</span>
-      <button type="button" className="btn btn-ghost btn-sm" onClick={onOpenMigration}>Open split-audit log →</button>
-    </div>}
+    <p className="view__foot">A decision is cross-cutting: it is quoted in the brief of everything that references it, together with whatever narrows or continues it. Nothing here is a stage, and nothing here is ever deleted.</p>
   </div>;
 }
 
-/* ══ Done stage ════════════════════════════════════════ */
-export function DoneStage({ workspace, onEntity }: { workspace: Workspace; onEntity: (id: string) => void }) {
-  const [query, setQuery] = useState("");
-  const done = workspace.tickets.filter((t) => t.status === "done");
-  const filtered = done.filter((t) => { const n = query.toLowerCase().trim(); return !n || `${t.id} ${t.title} ${t.migration?.legacy_id ?? ""}`.toLowerCase().includes(n); });
-  return <div>
-    <div className="stage__head">
-      <div style={{ flex: 1 }}><h2>Done</h2><p>Archive. Searchable, read-only, provenance intact.</p></div>
-      <input className="input" style={{ maxWidth: 300 }} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search T-042, O-38, title…" />
-    </div>
-    <div className="done-wrap">
-      {filtered.length === 0 ? <div className="pane-empty" style={{ padding: 0 }}>No resolved work{query ? " matches your search" : ""}.</div> : <table className="table">
-        <thead><tr><th style={{ width: 70 }}>id</th><th>title</th><th style={{ width: 100 }}>type</th><th style={{ width: 90 }}>package</th><th style={{ width: 120 }}>resolution</th></tr></thead>
-        <tbody>{filtered.map((t) => <tr key={t.id}>
-          <td><Eid id={t.id} onClick={() => onEntity(t.id)} /></td>
-          <td style={{ lineHeight: 1.3 }}>{t.title}</td>
-          <td><span className="tag tag-neutral">{t.types[0] ?? "ticket"}</span></td>
-          <td>{t.package ? <Eid id={t.package} onClick={() => onEntity(t.package!)} /> : "—"}</td>
-          <td style={{ opacity: .7, fontSize: 12 }}>{t.resolution || "resolved"}</td>
-        </tr>)}</tbody>
-      </table>}
-    </div>
+/* ══ Derivation ════════════════════════════════════════
+   `came from` and `goes with` name their target by title; a link with nothing behind
+   it is drawn as `dangling reference` — the one place a bare id is the message. */
+type Link = { id: string; title: string | null; note?: string };
+function Dangling({ field, id }: { field: string; id: string }) {
+  return <div className="dangling">
+    <div className="dangling__kind">dangling reference</div>
+    <div className="dangling__text"><code>{field}: {id}</code> — no such entity on disk. The link is recorded but the file is gone.</div>
   </div>;
 }
-
-/* ══ Chat dock ═════════════════════════════════════════ */
-function ChatDock({ open, setOpen, threads, order, activeId, setActiveId, agents, onDraft, onAgent, onStarter, onSend, onEntity, onSource, status }: {
-  open: boolean; setOpen: (v: boolean) => void; threads: Record<string, Thread>; order: string[]; activeId: string; setActiveId: (id: string) => void; agents: AgentAvailability;
-  onDraft: (id: string, draft: string) => void; onAgent: (id: string, agent: Agent) => void; onStarter: (id: string, prompt: string) => void; onSend: (id: string) => void; onEntity: (id: string) => void; onSource: (r: SourceReference) => void; status: string;
-}) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const active = threads[activeId];
-  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [active?.messages]);
-  const meta = active ? threadMeta(active.scope, active.kind) : null;
-  const running = active?.messages.some((m) => m.streaming) ?? false;
-  const chip = (scope: string, kind: ThreadKind) => (kind === "workspace" ? "WORKSPACE" : scope);
-  const dotFor = (t: Thread) => (t.messages.some((m) => m.streaming) ? "codex" : t.agent);
-
-  if (!open) return <div className="dock-collapsed">
-    <button type="button" className="dock-collapsed__toggle" onClick={() => setOpen(true)}><span className="mono">▲</span> Chat dock</button>
-    <div className="dock-collapsed__pills scroll">{order.map((id) => { const t = threads[id]; if (!t) return null; return <button key={id} type="button" className={`dock-pill ${id === activeId ? "is-active" : ""}`} onClick={() => { setActiveId(id); setOpen(true); }}><span className={`eid stamp-${kindStampSuffix(t.kind)} on-dark`}>{chip(t.scope, t.kind)}</span><span style={{ opacity: .65 }}>{t.agent}</span></button>; })}</div>
-    <span className="dock-collapsed__status">{status}</span>
-  </div>;
-
-  const onKey = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); onSend(activeId); } };
-
-  return <div className="dock">
-    <div className="dock__threads">
-      <div className="dock__threads-head"><b>Threads</b><button type="button" className="btn btn-secondary btn-sm" onClick={() => setOpen(false)}>Collapse ▼</button></div>
-      <div className="dock__threads-list scroll">{order.map((id) => { const t = threads[id]; if (!t) return null; const m = threadMeta(t.scope, t.kind); const last = t.messages[t.messages.length - 1];
-        return <button key={id} type="button" className={`dock-thread ${id === activeId ? "is-active" : ""}`} onClick={() => setActiveId(id)}>
-          <div className="dock-thread__top"><span className={`dock-thread__chip eid stamp-${kindStampSuffix(t.kind)}`}>{chip(t.scope, t.kind)}</span><span className="dock-thread__level">{t.kind}</span><span className={`dot dot-${dotFor(t)}`} style={{ marginLeft: "auto" }} /></div>
-          <div className="dock-thread__title">{m.title}</div>
-          <div className="dock-thread__preview">{last ? snippet(last.body, 60) || "…" : m.starters[0]}</div>
-        </button>; })}</div>
-      <div className="dock__gap"><div className="kicker">{GAP}</div><div>Threads are in-memory today. Spec: persist per entity under .a-team/threads/.</div></div>
-    </div>
-    <div className="dock__conv">
-      {active && meta && <>
-        <div className="dock__conv-head">
-          <span className={`chip eid stamp-${kindStampSuffix(active.kind)}`}>{chip(active.scope, active.kind)}</span><span className="title">{meta.title}</span><span className="ctx">{meta.context}</span>
-          <span className="dock__route">
-            <span className="kicker">route to</span>
-            <button type="button" className={`route-btn ${active.agent === "codex" ? "is-active" : ""}`} disabled={running || !agents.codex} onClick={() => onAgent(activeId, "codex")}><span className="dot dot-codex" />codex</button>
-            <button type="button" className={`route-btn ${active.agent === "claude" ? "is-active" : ""}`} disabled={running || !agents.claude} onClick={() => onAgent(activeId, "claude")}><span className="dot dot-claude" />claude {!agents.claude && <em>off</em>}</button>
-          </span>
-        </div>
-        <div className="dock__msgs scroll" ref={scrollRef}>
-          {active.messages.map((m) => <div key={m.id} className="dock-msg">
-            <div className={`dock-msg__who ${m.role === "user" ? "operator" : "agent"}`}>{m.role === "user" ? "operator" : (m.agent ?? "agent")}</div>
-            <div className={`dock-msg__body ${m.role === "user" ? "operator" : ""}`}><MarkdownContent value={m.body} onEntity={onEntity} onSource={onSource} className={m.role === "user" ? "" : ""} />{m.streaming && <span className="stream-caret">▍</span>}</div>
-          </div>)}
-          {active.messages.length === 0 && <div className="dock-starters">{meta.starters.map((s) => <button key={s} type="button" className="btn btn-secondary btn-sm" onClick={() => onStarter(activeId, s)}>{s}</button>)}</div>}
-        </div>
-        <div className="dock__composer">
-          <div className="dock__composer-main">
-            <textarea className="input" value={active.draft} onChange={(e) => onDraft(activeId, e.target.value)} onKeyDown={onKey} placeholder={meta.placeholder} />
-            <div className="dock__composer-meta"><span>{meta.contextNote}</span><span className="mono">⌘↵ send</span></div>
-          </div>
-          <button type="button" className="btn btn-primary" style={{ padding: "11px 16px" }} disabled={!active.draft.trim() || running} onClick={() => onSend(activeId)}>Send</button>
-        </div>
-      </>}
-    </div>
-  </div>;
+function LinkRow({ link, onOpen }: { link: Link; onOpen: (id: string) => void }) {
+  return <EntityButton id={link.id} className="deriv__link" onOpen={onOpen}>
+    <span className="deriv__link-title">{link.title ?? displayId(link.id)}</span>
+    <Tail id={link.id} />
+    {link.note && <span className="deriv__link-note">{link.note}</span>}
+  </EntityButton>;
 }
 
-/* ══ Overlays ══════════════════════════════════════════ */
-function ShortcutSheet({ onClose }: { onClose: () => void }) {
-  const shortcuts = [
-    ["g i / g s", "Jump to Inbox / Shape"], ["g p / g r", "Jump to Packages / Run"], ["g d", "Jump to Done"],
-    ["j / k", "Move down / up the current list"], ["v", "Validate the focused backlog ticket"],
-    ["c", "Toggle the chat dock"], ["/", "Jump to Done search"], ["?", "This sheet"], ["esc", "Close overlays"],
-  ];
-  return <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-    <div className="sheet">
-      <div className="sheet__head"><b>Keyboard</b><span>Every shortcut has a clickable equivalent.</span><button type="button" onClick={onClose}>✕</button></div>
-      <div className="sheet__body">{shortcuts.map(([keys, what]) => <div key={keys} className="kb-row"><span className="keys">{keys}</span><span className="what">{what}</span></div>)}</div>
-    </div>
-  </div>;
-}
+export function DerivationPanel({ id, board, onOpen }: { id: string; board: Board; onOpen: (id: string) => void }) {
+  const ticket = board.ticketById.get(id);
+  const pkg = board.packageById.get(id);
+  const finding = board.findingById.get(id);
 
-function SourceDrawer({ reference, onClose, onEntity, onSource }: { reference: SourceReference; onClose: () => void; onEntity: (id: string) => void; onSource: (r: SourceReference) => void }) {
-  const [document, setDocument] = useState<SourceDocument | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    const controller = new AbortController();
-    const params = new URLSearchParams();
-    if (reference.id) params.set("id", reference.id);
-    if (reference.path) params.set("path", reference.path);
-    setDocument(null); setError(null);
-    fetch(`/api/source?${params}`, { signal: controller.signal })
-      .then(async (response) => { const result = await response.json() as SourceDocument & { ok?: boolean; error?: string }; if (!response.ok || result.ok === false) throw new Error(result.error ?? `Source lookup failed (HTTP ${response.status}).`); setDocument(result); })
-      .catch((reason) => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : String(reason)); });
-    return () => controller.abort();
-  }, [reference.id, reference.path]);
-  useEffect(() => { const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose(); window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); }, [onClose]);
-  return <div className="overlay overlay--right" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-    <aside className="drawer scroll" role="dialog" aria-modal="true" aria-label="Historical source" style={{ position: "relative" }}>
-      <button type="button" className="btn btn-secondary btn-icon drawer__close" onClick={onClose} aria-label="Close">✕</button>
-      <div className="drawer__eyebrow"><span className="tag tag-outline">read-only source</span>{document?.id && <span>{document.id}</span>}</div>
-      {error ? <div className="inline-error"><b>SOURCE UNAVAILABLE</b><p style={{ margin: "6px 0 0" }}>{error}</p></div>
-        : document ? <><h2>{document.title}</h2><p className="drawer__path">{document.path}</p><MarkdownContent value={document.content} onEntity={onEntity} onSource={onSource} /></>
-          : <div className="boot" style={{ height: "auto", marginTop: 40 }}><div className="boot__spin" /><div className="boot__mark">Reading historical contract…</div></div>}
-    </aside>
-  </div>;
-}
-
-function MigrationDrawer({ migration, onClose, onEntity, onSource }: { migration: Migration; onClose: () => void; onEntity: (id: string) => void; onSource: (r: SourceReference) => void }) {
-  useEffect(() => { const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose(); window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); }, [onClose]);
-  return <div className="overlay overlay--right" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-    <aside className="drawer scroll" role="dialog" aria-modal="true" aria-label="Migration decisions" style={{ position: "relative" }}>
-      <button type="button" className="btn btn-secondary btn-icon drawer__close" onClick={onClose} aria-label="Close">✕</button>
-      <div className="drawer__eyebrow"><span className="tag tag-outline">migration log</span><span>{migration.split_audit.length} decisions</span></div>
-      <h2>Where the old board changed shape</h2>
-      <p style={{ opacity: .75, marginTop: -8 }}>Source truth is preserved. Compound work becomes packages or independent tickets; nothing is silently promoted to Defined.</p>
-      <section style={{ borderTop: 0 }}>{migration.split_audit.map((split) => <div key={split.legacy_id} className="split-item">
-        <div className="split-item__top"><button type="button" className="inline-entity mono" onClick={() => onEntity(split.legacy_id)}>{split.legacy_id}</button><span className="disp">{split.disposition}</span></div>
-        <MarkdownContent value={split.reason} onEntity={onEntity} onSource={onSource} />
-        <div className="split-item__targets">{split.targets.length ? split.targets.map((t) => <button key={t} type="button" className="inline-entity mono" onClick={() => onEntity(t)}>{t}</button>) : <span style={{ color: "var(--accent-400)" }}>→ package</span>}</div>
-      </div>)}</section>
-    </aside>
-  </div>;
-}
-
-/* ── Entity detail drawer ────────────────────────────── */
-const ID_SPLIT = new RegExp(`(\\b${ENTITY_SOURCE}\\b)`, "g");
-const ID_TEST = new RegExp(`^${ENTITY_SOURCE}$`);
-function titleCase(value: string): string {
-  return value.replace(/\b\w/g, (c) => c.toUpperCase());
-}
-function InlineIds({ text, onEntity }: { text: string; onEntity: (id: string) => void }) {
-  return <>{text.split(ID_SPLIT).map((part, i) => ID_TEST.test(part)
-    ? <button key={i} type="button" className="inline-entity mono" title={entityLabel(part)} onClick={() => onEntity(part)}>{displayId(part)}</button>
-    : part)}</>;
-}
-function EntityDrawer({ id, workspace, onClose, onEntity, onSource, onDiscuss }: {
-  id: string; workspace: Workspace; onClose: () => void; onEntity: (id: string) => void; onSource: (r: SourceReference) => void; onDiscuss: (id: string) => void;
-}) {
-  useEffect(() => { const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose(); window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); }, [onClose]);
-  const ticket = workspace.tickets.find((t) => t.id === id);
-  const pkg = workspace.packages.find((p) => p.id === id);
-  const finding = workspace.findings.find((f) => f.id === id);
-  const entity = ticket ?? pkg ?? finding;
-  if (!entity) return null;
-  const kind = ticket ? "ticket" : pkg ? "package" : "finding";
-  const drift = (workspace.diagnostics ?? []).filter((d) => d.id === entity.id);
-  const chips: Array<[string, string]> = [];
+  // came from
+  let came: ReactNode = <p className="deriv__none">Nothing records where this came from.</p>;
   if (ticket) {
-    chips.push(["status", ticket.status], ["priority", `P·${ticket.priority}`], ["risk", ticket.risk]);
-    if (ticket.types?.length) chips.push(["type", ticket.types.join(", ")]);
-    chips.push(["package", ticket.package ?? "unpackaged"]);
-    if (ticket.depends_on?.length) chips.push(["depends on", ticket.depends_on.join(" ")]);
-    if (ticket.branch) chips.push(["branch", ticket.branch]);
-    if (ticket.blocked) chips.push(["blocked", "yes"]);
-    if (ticket.resolution) chips.push(["resolution", ticket.resolution]);
+    const source = ticket.source_finding;
+    came = !source
+      ? <p className="deriv__none">No <code>source_finding</code> recorded — written straight as a contract.</p>
+      : board.findingById.has(source)
+        ? <LinkRow link={{ id: source, title: titleOf(source), note: `disposition: contract · ${board.findingById.get(source)?.finding_type}` }} onOpen={onOpen} />
+        : <Dangling field="source_finding" id={source} />;
   } else if (finding) {
-    chips.push(["status", finding.status], ["type", finding.finding_type], ["severity", finding.severity], ["confidence", finding.confidence]);
-    if (finding.discovered_during) chips.push(["discovered during", finding.discovered_during]);
-    if (finding.became) chips.push(["became", finding.became]);
-    if (finding.resolution) chips.push(["disposition", finding.resolution]);
+    const during = finding.discovered_during;
+    came = !during
+      ? <p className="deriv__none">Not discovered during a contract — reported straight into the queue.</p>
+      : board.ticketById.has(during)
+        ? <LinkRow link={{ id: during, title: titleOf(during), note: "seen during this contract" }} onOpen={onOpen} />
+        : <Dangling field="discovered_during" id={during} />;
   } else if (pkg) {
-    chips.push(["status", pkg.status], ["kind", pkg.kind], ["members", (pkg.tickets ?? []).join(" ") || "—"]);
-    if (pkg.execution?.mode) chips.push(["execution", `${pkg.execution.mode} · parallelism ${pkg.execution.parallelism ?? "?"} · ${pkg.execution.stop_on_failure ? "stop on failure" : "continue on failure"}`]);
+    came = <p className="deriv__none">A batch is written, not derived — it groups contracts by reason.</p>;
   }
-  return <div className="overlay overlay--right" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-    <aside className="drawer scroll" role="dialog" aria-modal="true" aria-label={`${kind} detail`} style={{ position: "relative" }}>
-      <button type="button" className="btn btn-secondary btn-icon drawer__close" onClick={onClose} aria-label="Close">✕</button>
-      <div className="drawer__eyebrow"><span className="tag tag-outline">{kind}</span><span className="mono">{entity.id}</span></div>
-      <h2 style={{ marginTop: 4 }}>{entity.title}</h2>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "12px 0 4px" }}>
-        {chips.map(([k, v]) => <span key={k} className="tag tag-neutral" style={{ fontWeight: 500 }}><span style={{ opacity: .55 }}>{k}: </span><InlineIds text={v} onEntity={onEntity} /></span>)}
+
+  // goes with
+  let goes: ReactNode = <p className="deriv__none">Nothing else goes with this.</p>;
+  if (ticket) {
+    const batch = ticket.package;
+    const target = batch ? board.packageById.get(batch) : null;
+    goes = !batch
+      ? <p className="deriv__none">Not in a batch — nothing else has to be solved together with it.</p>
+      : !target
+        ? <Dangling field="package" id={batch} />
+        : <>
+          <LinkRow link={{ id: target.id, title: target.title, note: firstLine(target.sections.goal) }} onOpen={onOpen} />
+          <div className="deriv__siblings">
+            {target.tickets.filter((member) => member !== ticket.id).map((member) => {
+              const sibling = board.ticketById.get(member);
+              return sibling
+                ? <EntityButton key={member} id={member} className="deriv__sibling" onOpen={onOpen}>
+                  <span>{sibling.title}</span><StateTag state={sibling.status} />
+                </EntityButton>
+                : <div key={member} className="deriv__sibling"><Dangling field="tickets" id={member} /></div>;
+            })}
+          </div>
+        </>;
+  } else if (finding) {
+    const became = finding.became;
+    goes = !became
+      ? <p className="deriv__none">No contract was written from this yet.</p>
+      : board.ticketById.has(became)
+        ? <LinkRow link={{ id: became, title: titleOf(became), note: "became this contract" }} onOpen={onOpen} />
+        : <Dangling field="became" id={became} />;
+  } else if (pkg) {
+    goes = <div className="deriv__siblings">
+      {pkg.tickets.length === 0 && <p className="deriv__none">No member contracts.</p>}
+      {pkg.tickets.map((member) => {
+        const sibling = board.ticketById.get(member);
+        return sibling
+          ? <EntityButton key={member} id={member} className="deriv__sibling" onOpen={onOpen}>
+            <span>{sibling.title}</span><StateTag state={sibling.status} />
+          </EntityButton>
+          : <div key={member} className="deriv__sibling"><Dangling field="tickets" id={member} /></div>;
+      })}
+    </div>;
+  }
+
+  return <section className="deriv" aria-label="Derivation">
+    <div className="deriv__head"><b>Derivation</b><span>what it came from, what it goes with</span></div>
+    <div className="deriv__block">
+      <div className="deriv__kicker">came from</div>
+      {came}
+    </div>
+    <div className="deriv__arrow" aria-hidden="true">↓</div>
+    <div className="deriv__block deriv__block--self">
+      <div className="deriv__kicker">this</div>
+      <div className="deriv__self">{titleOf(id) ?? id}<Tail id={id} /></div>
+    </div>
+    <div className="deriv__arrow" aria-hidden="true">↓</div>
+    <div className="deriv__block">
+      <div className="deriv__kicker">goes with</div>
+      {goes}
+    </div>
+  </section>;
+}
+
+/* ══ Entity drawer ═════════════════════════════════════ */
+/** Escape closes, focus enters on open and returns to the invoking row on close. */
+function useDialog(onClose: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    const invoker = document.activeElement as HTMLElement | null;
+    ref.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      close.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      invoker?.focus?.();
+    };
+  }, []);
+  return ref;
+}
+function titleCase(value: string): string {
+  return value.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function EntityDrawer({ id, workspace, board, onClose, onOpen }: {
+  id: string; workspace: Workspace; board: Board; onClose: () => void; onOpen: (id: string) => void;
+}) {
+  const ref = useDialog(onClose);
+  const ticket = board.ticketById.get(id);
+  const pkg = board.packageById.get(id);
+  const finding = board.findingById.get(id);
+  const decision = board.decisions.find((d) => d.id === id);
+  const entity = ticket ?? pkg ?? finding ?? decision;
+  const kind = ticket ? "contract" : pkg ? "batch" : finding ? "observation" : decision ? "decision" : "entity";
+  const drift = (workspace.diagnostics ?? []).filter((d) => d.id === id);
+
+  const fields: Array<[string, string]> = [];
+  if (ticket) {
+    fields.push(["state", stateLabel(ticket.status)], ["source_finding", ticket.source_finding ?? "—"], ["package", ticket.package ?? "—"],
+      ["claim", ticket.assigned_agent ?? "—"], ["branch", ticket.branch ?? "—"], ["priority", ticket.priority], ["risk", ticket.risk]);
+    if (ticket.depends_on?.length) fields.push(["depends_on", ticket.depends_on.join(" ")]);
+    if (ticket.resolution) fields.push(["resolution", ticket.resolution]);
+    if (ticket.migration?.legacy_id) fields.push(["legacy id", ticket.migration.legacy_id]);
+  } else if (finding) {
+    fields.push(["state", finding.status], ["type", finding.finding_type], ["severity", finding.severity], ["confidence", finding.confidence],
+      ["discovered_during", finding.discovered_during ?? "—"], ["became", finding.became ?? "—"], ["created", finding.created_at ?? "—"]);
+  } else if (pkg) {
+    fields.push(["state", pkg.status], ["kind", pkg.kind], ["members", String(pkg.tickets.length)],
+      ["mode", pkg.execution?.mode ?? "dependency-aware"], ["parallelism", String(pkg.execution?.parallelism ?? 2)]);
+  } else if (decision) {
+    fields.push(["date", decision.date ?? "—"]);
+  }
+
+  return <div className="scrim" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div className="drawer scroll" role="dialog" aria-modal="true" aria-label={`${kind}: ${entity?.title ?? id}`} tabIndex={-1} ref={ref}>
+      <div className="drawer__bar">
+        <span className="tag tag-outline">{kind}</span>
+        <Tail id={id} />
+        <button type="button" className="drawer__close" onClick={onClose}>Close · esc</button>
       </div>
-      {drift.length > 0 && <div className="callout-fail" style={{ marginTop: 10 }}><div className="kicker">state drift</div>{drift.map((d, i) => <div key={i} className="mono" style={{ fontSize: 12.5 }}>{d.message} · {d.worktree}</div>)}</div>}
-      {Object.entries(entity.sections ?? {}).map(([name, body]) => body && body.trim()
-        ? <section key={name}><div className="kicker">{titleCase(name)}</div><MarkdownContent value={body} onEntity={onEntity} onSource={onSource} /></section>
-        : null)}
-      <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={() => onDiscuss(entity.id)}>Discuss</button>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={() => onSource({ id: entity.id })}>Raw source</button>
-      </div>
-    </aside>
+      {!entity
+        ? <div className="drawer__gone"><Dangling field="reference" id={id} /></div>
+        : <>
+          <h2 className="drawer__title">{entity.title}</h2>
+          {drift.length > 0 && <div className="drawer__drift" role="alert">
+            <div className="dangling__kind">state drift</div>
+            {drift.map((d, i) => <div key={i} className="contra__line">{d.message} · {d.worktree}</div>)}
+          </div>}
+          <dl className="drawer__fields">
+            {fields.map(([key, value]) => <div key={key}>
+              <dt>{key}</dt>
+              <dd>{ID_TEST.test(value) && titleOf(value) ? <>{titleOf(value)} <Tail id={value} /></> : value}</dd>
+            </div>)}
+          </dl>
+          <DerivationPanel id={id} board={board} onOpen={onOpen} />
+          {Object.entries(entity.sections ?? {}).map(([name, body]) => body && body.trim()
+            ? <section key={name} className="drawer__section">
+              <div className="drawer__section-head">{titleCase(name)}</div>
+              <MarkdownContent value={body} onEntity={onOpen} />
+            </section>
+            : null)}
+        </>}
+    </div>
   </div>;
 }
 
-/* ── Thread metadata (seeded context + starters) ─────── */
-function threadMeta(scope: string, kind: ThreadKind): { title: string; context: string; placeholder: string; contextNote: string; starters: string[] } {
-  if (kind === "workspace") return { title: "What should I do next?", context: "no entity attached · repo context", placeholder: "Ask about the whole workspace…", contextNote: "Workspace context", starters: ["Summarize state", "What should I do next?", "Draft a finding"] };
-  if (kind === "package") return { title: scope, context: "package goal + members", placeholder: `Message about ${scope}…`, contextNote: "Package context — members, execution mode", starters: ["What belongs together?", "Plan the launch", "Intervene in the run"] };
-  if (kind === "finding") return { title: scope, context: "finding evidence", placeholder: `Discuss ${scope}…`, contextNote: "Finding context — evidence, provenance", starters: ["Is this a real bug?", "Draft a ticket from this", "What's the smallest fix?"] };
-  return { title: scope, context: "ticket contract + repo", placeholder: `Message about ${scope}…`, contextNote: "Ticket context attached — contract, branch, worktree", starters: ["Investigate & propose", "Start implementation", "Tighten acceptance"] };
+/* ══ The run ═══════════════════════════════════════════ */
+export function RunOverlay({ board, onClose, onOpen }: { board: Board; onClose: () => void; onOpen: (id: string) => void }) {
+  const ref = useDialog(onClose);
+  const recent = [...board.tickets]
+    .filter((t) => t.updated_at)
+    .sort((a, b) => (parseDate(b.updated_at) ?? 0) - (parseDate(a.updated_at) ?? 0))
+    .slice(0, 12);
+  return <div className="run" role="dialog" aria-modal="true" aria-label="The run" tabIndex={-1} ref={ref}>
+    <div className="run__bar">
+      <span className="pulse is-live" aria-hidden="true" />
+      <h2>The run</h2>
+      <span className="run__note">Read-only. Nothing here edits anything.</span>
+      <button type="button" className="run__close" onClick={onClose}>Close · esc</button>
+    </div>
+    <div className="run__body">
+      <div className="run__batches scroll">
+        {board.activeBatches.length === 0 && board.running.length === 0 && <p className="run__empty">Nothing is running. A batch starts with <code>a-team package start &lt;id&gt;</code>, a single contract with <code>a-team ticket execute &lt;id&gt; --agent codex</code>.</p>}
+        {board.activeBatches.map((pkg) => {
+          const members = pkg.tickets.map((id) => board.ticketById.get(id)).filter((t): t is Ticket => Boolean(t));
+          const done = members.filter((t) => t.status === "done").length;
+          const rows = members.filter((t) => t.status === "active" || t.status === "review");
+          return <section key={pkg.id} className="run__batch">
+            <div className="run__batch-head">
+              <h3>{pkg.title}</h3>
+              <Tail id={pkg.id} />
+              <span className="run__progress">{done}/{pkg.tickets.length}</span>
+              <span className="bar bar--dark"><span style={{ width: `${pkg.tickets.length ? (done / pkg.tickets.length) * 100 : 0}%` }} /></span>
+            </div>
+            {rows.map((ticket) => <EntityButton key={ticket.id} id={ticket.id} className="run__row" onOpen={onOpen}>
+              <span className="run__row-title">{ticket.title}</span>
+              <StateTag state={ticket.status} />
+              <span className="run__row-claim"><ClaimDot agent={ticket.assigned_agent} />{ticket.assigned_agent ?? "no claim"} · {ticket.branch ?? "no branch"}</span>
+              <span className="run__row-act">{relativeTime(ticket.updated_at)}</span>
+            </EntityButton>)}
+          </section>;
+        })}
+        {board.running.filter((t) => !t.package).length > 0 && <section className="run__batch">
+          <div className="run__batch-head"><h3>Outside every batch</h3></div>
+          {board.running.filter((t) => !t.package).map((ticket) => <EntityButton key={ticket.id} id={ticket.id} className="run__row" onOpen={onOpen}>
+            <span className="run__row-title">{ticket.title}</span>
+            <StateTag state={ticket.status} />
+            <span className="run__row-claim"><ClaimDot agent={ticket.assigned_agent} />{ticket.assigned_agent ?? "no claim"} · {ticket.branch ?? "no branch"}</span>
+            <span className="run__row-act">{relativeTime(ticket.updated_at)}</span>
+          </EntityButton>)}
+        </section>}
+        <p className="run__foot">Nothing on this screen can be edited. Planning happens on the other side — home, the chain, the menu.</p>
+      </div>
+      <div className="run__side">
+        <div className="run__side-head">Latest movements</div>
+        <div className="run__ticker scroll">
+          {recent.map((ticket) => <div key={ticket.id} className="run__tick">
+            <span className="run__tick-time">{relativeTime(ticket.updated_at)}</span>
+            <span className="run__tick-text">{stateLabel(ticket.status)} · {ticket.title}</span>
+          </div>)}
+          {recent.length === 0 && <p className="run__empty">No dated movement on record.</p>}
+          <p className="run__side-note">Derived from <code>updated_at</code> in the frontmatter — the board reads state, not an event stream.</p>
+        </div>
+      </div>
+    </div>
+  </div>;
 }
-function scopeKind(id: string): ThreadKind {
-  if (id === "workspace") return "workspace";
-  if (/^P-/.test(id)) return "package";
-  if (/^F-/.test(id)) return "finding";
-  return "ticket";
+
+/* ══ The CLI sheet ═════════════════════════════════════ */
+export function CliSheet({ onClose }: { onClose: () => void }) {
+  const ref = useDialog(onClose);
+  const groups: Array<{ label: string; rows: Array<[string, string]> }> = [
+    { label: "observations", rows: [
+      ["a-team finding new --title … --type …", "record what was noticed"],
+      ["a-team finding resolve <id> --disposition … --approve", "reject it, or turn it into a contract"],
+    ] },
+    { label: "contracts", rows: [
+      ["a-team ticket ready <id> --approve", "backlog → defined; validates the contract"],
+      ["a-team ticket execute <id> --agent codex", "run a defined contract in a fresh context"],
+      ["a-team ticket close <id> --approve", "review → done"],
+    ] },
+    { label: "batches", rows: [
+      ["a-team package start <id>", "start it; claims and worktrees per member"],
+      ["a-team package close <id> --approve", "every member is done"],
+    ] },
+    { label: "decisions and checks", rows: [
+      ["a-team decision create --from <file> --approve", "record one; it gets quoted where referenced"],
+      ["a-team validate", "what does not add up, exactly as the board shows it"],
+    ] },
+  ];
+  return <div className="scrim" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div className="sheet" role="dialog" aria-modal="true" aria-label="The CLI does the writing" tabIndex={-1} ref={ref}>
+      <div className="sheet__head">
+        <b>The CLI does the writing</b>
+        <button type="button" className="drawer__close" onClick={onClose}>Close · esc</button>
+      </div>
+      <p className="sheet__lede">This board reads. Every state change happens through one of these — nothing on a row writes.</p>
+      {groups.map((group) => <div key={group.label} className="sheet__group">
+        <div className="sheet__kicker">{group.label}</div>
+        {group.rows.map(([command, what]) => <div key={command} className="sheet__row"><code>{command}</code><span>{what}</span></div>)}
+      </div>)}
+      <div className="sheet__keys"><span>? — this sheet</span><span>w — watch the run</span><span>esc — close</span></div>
+    </div>
+  </div>;
 }
 
 /* ══ App ═══════════════════════════════════════════════ */
 export function App() {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [stage, setStage] = useState<Stage>("inbox");
-  const [cursor, setCursor] = useState(0);
-  const [agents, setAgents] = useState<AgentAvailability>({ codex: false, claude: false });
-  const [refreshed, setRefreshed] = useState(0);
-  const [validated, setValidated] = useState<Record<string, ValidationState>>({});
-  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
-  const [sourceReference, setSourceReference] = useState<SourceReference | null>(null);
+  const [view, setView] = useState<View>("home");
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [showMigration, setShowMigration] = useState(false);
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [driftOpen, setDriftOpen] = useState(false);
-  // dock
-  const [dockOpen, setDockOpen] = useState(false);
-  const [threads, setThreads] = useState<Record<string, Thread>>({ workspace: { scope: "workspace", kind: "workspace", agent: "claude", draft: "", messages: [], threadId: null } });
-  const [threadOrder, setThreadOrder] = useState<string[]>(["workspace"]);
-  const [activeThread, setActiveThread] = useState("workspace");
-  const controllersRef = useRef(new Set<AbortController>());
-  const pendingKey = useRef<string | null>(null);
+  const [watching, setWatching] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [refreshed, setRefreshed] = useState(0);
+  const [contractFilter, setContractFilter] = useState<Status | "all">("all");
+  const [obsFilter, setObsFilter] = useState<ObsFilter>("waiting");
+  const [query, setQuery] = useState("");
 
-  const refreshWorkspace = useCallback(async (fatal = false) => {
+  /* One request, always the same one: the board never posts. A failed read keeps the last
+     good data on screen and says what failed — a refresh preserves view and drawer. */
+  const refresh = useCallback(async () => {
     try {
-      const response = await fetch("/api/workspace");
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const response = await fetch(WORKSPACE_ENDPOINT);
+      if (!response.ok) throw new Error(`the server answered HTTP ${response.status}`);
       setWorkspace(await response.json() as Workspace);
       setRefreshed(0);
       setError(null);
-    } catch (reason) { if (fatal) setError(String(reason)); }
-  }, []);
-  useEffect(() => { void refreshWorkspace(true); const timer = window.setInterval(() => void refreshWorkspace(false), 1_500); return () => window.clearInterval(timer); }, [refreshWorkspace]);
-  useEffect(() => { const t = window.setInterval(() => setRefreshed((r) => (r + 1) % 60), 1_000); return () => window.clearInterval(t); }, []);
-  useEffect(() => { fetch("/api/agents").then((r) => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))).then(setAgents).catch(() => setAgents({ codex: false, claude: false })); }, []);
-  useEffect(() => () => { controllersRef.current.forEach((c) => c.abort()); controllersRef.current.clear(); }, []);
-
-  const ticketMap = useMemo(() => new Map((workspace?.tickets ?? []).map((t) => [t.id, t])), [workspace]);
-  const packageMap = useMemo(() => new Map((workspace?.packages ?? []).map((p) => [p.id, p])), [workspace]);
-  useMemo(() => {
-    entityTitles.clear();
-    (workspace?.tickets ?? []).forEach((t) => entityTitles.set(t.id, t.title));
-    (workspace?.packages ?? []).forEach((p) => entityTitles.set(p.id, p.title));
-    (workspace?.findings ?? []).forEach((f) => entityTitles.set(f.id, f.title));
-  }, [workspace]);
-
-  const openThread = useCallback((scope: string) => {
-    const kind = scopeKind(scope);
-    setThreads((current) => current[scope] ? current : { ...current, [scope]: { scope, kind, agent: kind === "ticket" ? "codex" : "claude", draft: "", messages: [], threadId: null } });
-    setThreadOrder((order) => order.includes(scope) ? order : [...order, scope]);
-    setActiveThread(scope);
-    setDockOpen(true);
-  }, []);
-
-  const openEntity = useCallback((id: string) => {
-    const ticket = workspace?.tickets.find((t) => t.id === id || t.migration?.legacy_id === id);
-    if (ticket) { setSourceReference(null); setDetailId(ticket.id); return; }
-    const pkg = workspace?.packages.find((p) => p.id === id);
-    if (pkg) { setSourceReference(null); setDetailId(pkg.id); return; }
-    const finding = workspace?.findings.find((f) => f.id === id);
-    if (finding) { setSourceReference(null); setDetailId(finding.id); return; }
-    setSourceReference({ id });
-  }, [workspace]);
-
-  const validate = useCallback(async (ticket: Ticket) => {
-    setValidated((v) => ({ ...v, [ticket.id]: { status: "checking" } }));
-    try {
-      const response = await fetch("/api/ticket/ready", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ticketId: ticket.id }) });
-      const result = await response.json() as { ok?: boolean; errors?: Array<{ code?: string; message?: string }> };
-      if (!response.ok || result.ok === false) {
-        const issues = (result.errors ?? []).map((e) => ({ field: e.code || "ready", text: e.message || e.code || "Definition check failed." }));
-        setValidated((v) => ({ ...v, [ticket.id]: { status: "fail", issues: issues.length ? issues : [{ field: "ready", text: "Definition check failed." }] } }));
-      } else setValidated((v) => ({ ...v, [ticket.id]: { status: "ok" } }));
     } catch (reason) {
-      setValidated((v) => ({ ...v, [ticket.id]: { status: "fail", issues: [{ field: "error", text: reason instanceof Error ? reason.message : String(reason) }] } }));
-    } finally { await refreshWorkspace(false); }
-  }, [refreshWorkspace]);
-
-  const setDraft = (id: string, draft: string) => setThreads((c) => ({ ...c, [id]: { ...c[id], draft } }));
-  const setThreadAgent = (id: string, agent: Agent) => setThreads((c) => ({ ...c, [id]: { ...c[id], agent } }));
-  const applyStarter = (id: string, prompt: string) => setThreads((c) => ({ ...c, [id]: { ...c[id], draft: prompt } }));
-
-  const sendMessage = useCallback(async (scope: string) => {
-    const thread = threads[scope];
-    if (!thread) return;
-    const prompt = thread.draft.trim();
-    if (!prompt || thread.messages.some((m) => m.streaming)) return;
-    const userMessage: ChatMessage = { id: `${Date.now()}-user`, role: "user", body: prompt };
-
-    if (thread.kind !== "ticket") {
-      const note = `**${GAP}** ${thread.kind}-level chat isn't wired to an agent yet — ticket threads stream for real.\n\nTo act on this now, open a ticket thread, or run in an agent session:\n\n\`\`\`\n${thread.kind === "package" ? `/execute-package ${scope}` : thread.kind === "finding" ? `a-team finding show ${scope}` : "a-team --help"}\n\`\`\``;
-      setThreads((c) => ({ ...c, [scope]: { ...c[scope], draft: "", messages: [...c[scope].messages, userMessage, { id: `${Date.now()}-a`, role: "assistant", agent: thread.agent, body: note }] } }));
-      return;
+      setError(reason instanceof Error ? reason.message : String(reason));
     }
+  }, []);
+  useEffect(() => { void refresh(); const timer = window.setInterval(() => void refresh(), 1_500); return () => window.clearInterval(timer); }, [refresh]);
+  useEffect(() => { const t = window.setInterval(() => setRefreshed((r) => (r + 1) % 600), 1_000); return () => window.clearInterval(t); }, []);
 
-    const assistantId = `${Date.now()}-assistant`;
-    let assistantBody = "";
-    let activeThreadId = thread.threadId;
-    const controller = new AbortController();
-    controllersRef.current.add(controller);
-    const push = (streaming: boolean) => setThreads((c) => ({ ...c, [scope]: { ...c[scope], threadId: activeThreadId, draft: "", messages: [...thread.messages, userMessage, { id: assistantId, role: "assistant", agent: thread.agent, body: assistantBody, streaming }] } }));
-    push(true);
-    try {
-      const response = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal, body: JSON.stringify({ ticketId: scope, agent: thread.agent, threadId: thread.threadId, message: prompt }) });
-      if (!response.ok || !response.body) throw new Error(`Chat request failed (HTTP ${response.status}).`);
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      const consume = (line: string) => {
-        if (!line.trim()) return;
-        const event = JSON.parse(line) as { type: string; threadId?: string; delta?: string; message?: string };
-        if (event.type === "thread" && event.threadId) activeThreadId = event.threadId;
-        if (event.type === "delta" && event.delta) { assistantBody += event.delta; push(true); }
-        if (event.type === "error") throw new Error(event.message ?? "Agent response failed.");
-      };
-      while (true) { const { done, value } = await reader.read(); buffer += decoder.decode(value, { stream: !done }); const lines = buffer.split("\n"); buffer = lines.pop() ?? ""; lines.forEach(consume); if (done) break; }
-      consume(buffer); push(false); await refreshWorkspace(false);
-    } catch (err) {
-      if (!controller.signal.aborted) { assistantBody = assistantBody || `Could not get a response: ${err instanceof Error ? err.message : String(err)}`; push(false); }
-    } finally { controllersRef.current.delete(controller); }
-  }, [threads, refreshWorkspace]);
+  const board = useMemo(() => (workspace ? readBoard(workspace) : null), [workspace]);
 
-  // keyboard shortcuts
+  const goto = useCallback((next: View, filter?: Status) => {
+    setView(next);
+    setWatching(false);
+    if (filter) setContractFilter(filter);
+    if (next === "observations") setObsFilter("waiting");
+  }, []);
+
+  // `?` opens the CLI sheet, `w` the run. Overlays own Escape themselves, so it is not handled here.
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
+    const handler = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
       if (target && /input|textarea|select/i.test(target.tagName)) return;
-      const k = e.key;
-      if (pendingKey.current === "g") { pendingKey.current = null; const map: Record<string, Stage> = { i: "inbox", s: "shape", p: "packages", r: "run", d: "done" }; if (map[k]) { e.preventDefault(); setStage(map[k]); setCursor(0); } return; }
-      if (k === "g") { pendingKey.current = "g"; return; }
-      if (k === "?") { e.preventDefault(); setShortcutsOpen((v) => !v); }
-      else if (k === "c") { e.preventDefault(); setDockOpen((v) => !v); }
-      else if (k === "/") { e.preventDefault(); setStage("done"); }
-      else if (k === "j" || k === "k") { e.preventDefault(); setCursor((c) => Math.max(0, c + (k === "j" ? 1 : -1))); }
-      else if (k === "Escape") { setShortcutsOpen(false); setSourceReference(null); setShowMigration(false); }
+      if (event.key === "?") { event.preventDefault(); setHelpOpen((v) => !v); }
+      else if (event.key === "w") { event.preventDefault(); setWatching((v) => !v); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  if (error) return <main className="boot boot--fatal"><b>UI load failed</b><p>{error}</p></main>;
-  if (!workspace) return <main className="boot"><div className="boot__spin" /><div className="boot__mark">Reading canonical files…</div></main>;
-
-  const newFindings = workspace.findings.filter((f) => f.status === "new");
-  const backlog = workspace.tickets.filter((t) => t.status === "backlog");
-  const ready = workspace.tickets.filter((t) => t.status === "ready");
-  const runTickets = workspace.tickets.filter((t) => ["active", "review"].includes(t.status) || t.blocked);
-  const reviewTickets = workspace.tickets.filter((t) => t.status === "review");
-  const blockedTickets = workspace.tickets.filter((t) => t.blocked);
-  const done = workspace.tickets.filter((t) => t.status === "done");
-  const diagnostics = workspace.diagnostics ?? [];
-
-  const counts: Record<Stage, number> = { inbox: newFindings.length, shape: backlog.length + ready.length, packages: workspace.packages.length, run: runTickets.length, done: done.length };
-
-  const needs = [
-    { n: newFindings.length, label: "Findings to disposition", dest: "Inbox", go: () => setStage("inbox") },
-    { n: reviewTickets.length, label: "Review waiting", dest: "Run", go: () => setStage("run") },
-    { n: blockedTickets.length, label: "Blocked", dest: "Run", go: () => setStage("run") },
-    { n: diagnostics.length, label: "State drift", dest: "Run", hot: true, go: () => { setStage("run"); setDriftOpen(true); } },
-  ];
-
   return <div className="app">
-    <Rail project={workspace.project} stage={stage} counts={counts} onStage={setStage} onShortcuts={() => setShortcutsOpen(true)} refreshed={refreshed} />
+    <Rail view={view} onView={goto} board={board} running={Boolean(board?.running.length)} onWatch={() => setWatching(true)} refreshed={refreshed} />
     <div className="content">
-      <NeedsStrip items={needs} running={runTickets.filter((t) => !t.blocked).length} ready={ready.length} onSearch={() => setStage("done")} />
+      <TopBar workspace={workspace} board={board} onHelp={() => setHelpOpen(true)} onRefresh={() => void refresh()} refreshed={refreshed} />
+      {board && <RunningStrip board={board} onWatch={() => setWatching(true)} onOpen={setDetailId} />}
+      {workspace && error && <div className="banner" role="alert">
+        <b>Last read failed.</b> Tried <code>GET {WORKSPACE_ENDPOINT}</code> — {error}. Showing the last good read.
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => void refresh()}>Retry</button>
+      </div>}
       <main className="stage scroll">
-        {stage === "inbox" && <InboxStage workspace={workspace} onRefresh={() => refreshWorkspace(false)} onEntity={openEntity} onSource={setSourceReference} onDiscuss={openThread} cursor={cursor} />}
-        {stage === "shape" && <ShapeStage workspace={workspace} packageMap={packageMap} validated={validated} onValidate={(t) => void validate(t)} onEntity={openEntity} onDiscuss={openThread} cursor={cursor} />}
-        {stage === "packages" && <PackagesStage workspace={workspace} ticketMap={ticketMap} selected={selectedPackage} onSelect={setSelectedPackage} onEntity={openEntity} onSource={setSourceReference} onDiscuss={openThread} onRefresh={async (id) => { await refreshWorkspace(false); if (id) setSelectedPackage(id); }} />}
-        {stage === "run" && <RunStage workspace={workspace} packageMap={packageMap} ticketMap={ticketMap} onEntity={openEntity} onSource={setSourceReference} onDiscuss={openThread} onOpenMigration={() => setShowMigration(true)} driftOpen={driftOpen} setDriftOpen={setDriftOpen} />}
-        {stage === "done" && <DoneStage workspace={workspace} onEntity={openEntity} />}
+        {view === "home" && <HomeView workspace={workspace} board={board} error={workspace ? null : error} onView={goto} onOpen={setDetailId} onRetry={() => void refresh()} />}
+        {view !== "home" && !board && <div className="view"><Placeholder rows={6} label="Reading the workspace…" />
+          {error && <BandError error={error} onRetry={() => void refresh()} />}</div>}
+        {view === "observations" && board && <ObservationsView board={board} filter={obsFilter} onFilter={setObsFilter} onOpen={setDetailId} />}
+        {view === "contracts" && board && <ContractsView board={board} filter={contractFilter} onFilter={setContractFilter} query={query} onQuery={setQuery} onOpen={setDetailId} />}
+        {view === "batches" && board && <BatchesView board={board} onOpen={setDetailId} />}
+        {view === "decisions" && board && <DecisionsView board={board} onOpen={setDetailId} />}
       </main>
-      <ChatDock open={dockOpen} setOpen={setDockOpen} threads={threads} order={threadOrder} activeId={activeThread} setActiveId={setActiveThread} agents={agents}
-        onDraft={setDraft} onAgent={setThreadAgent} onStarter={applyStarter} onSend={(id) => void sendMessage(id)} onEntity={openEntity} onSource={setSourceReference}
-        status={threads[activeThread]?.messages.some((m) => m.streaming) ? `${threads[activeThread].agent} streaming` : "idle"} />
     </div>
-    {shortcutsOpen && <ShortcutSheet onClose={() => setShortcutsOpen(false)} />}
-    {sourceReference && <SourceDrawer reference={sourceReference} onClose={() => setSourceReference(null)} onEntity={openEntity} onSource={setSourceReference} />}
-    {detailId && <EntityDrawer id={detailId} workspace={workspace} onClose={() => setDetailId(null)} onEntity={openEntity} onSource={setSourceReference} onDiscuss={openThread} />}
-    {showMigration && workspace.migration && <MigrationDrawer migration={workspace.migration} onClose={() => setShowMigration(false)} onEntity={openEntity} onSource={setSourceReference} />}
+    {watching && board && <RunOverlay board={board} onClose={() => setWatching(false)} onOpen={(id) => { setWatching(false); setDetailId(id); }} />}
+    {detailId && workspace && board && <EntityDrawer id={detailId} workspace={workspace} board={board} onClose={() => setDetailId(null)} onOpen={setDetailId} />}
+    {helpOpen && <CliSheet onClose={() => setHelpOpen(false)} />}
   </div>;
 }

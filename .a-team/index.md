@@ -16,11 +16,11 @@ None.
 
 ## Active tickets
 
-- T-034-sequential-ids-collide-and-lifecycle-states-duplicate-under-
+None.
 
 ## Review
 
-None.
+- T-034-sequential-ids-collide-and-lifecycle-states-duplicate-under-
 
 ## Blocked
 

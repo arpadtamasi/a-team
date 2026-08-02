@@ -16,11 +16,11 @@ None.
 
 ## Active tickets
 
-- T-021-a-workspace-konyvtar-kotta-elsodlegesseg-a-kodban-es-a-sajat
+None.
 
 ## Review
 
-None.
+- T-021-a-workspace-konyvtar-kotta-elsodlegesseg-a-kodban-es-a-sajat
 
 ## Blocked
 

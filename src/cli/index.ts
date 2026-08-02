@@ -3,7 +3,7 @@ import { Command } from "commander";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { initCommand } from "../commands/init.js";
-import { closeTicket, defineTicket, newTicket, readyTicket, reopenTicket, reviewTicket, startTicket, validateTicket } from "../commands/ticket.js";
+import { briefTicket, cancelTicket, closeTicket, defineTicket, newTicket, readyTicket, reopenTicket, reviewTicket, startTicket, validateTicket } from "../commands/ticket.js";
 import { statusCommand } from "../commands/status.js";
 import { newFinding, resolveFinding, validateFinding } from "../commands/finding.js";
 import { newPackage, packageStatus, readyPackage, startPackage, updatePackageTickets, validatePackage } from "../commands/package.js";
@@ -83,13 +83,39 @@ ticket
   .command("review <id>")
   .requiredOption("--evidence <evidence>")
   .option("--pull-request <identifier>")
+  .option("--deviations <text>", "Declared deviations from the ticket contract; omitted means 'Not declared.'")
+  .option("--findings-created <text>", "Findings created during execution; omitted means 'Not declared.'")
+  .option("--known-concerns <text>", "Known concerns left open; omitted means 'Not declared.'")
   .option("--json")
-  .action((id: string, options: { evidence: string; pullRequest?: string; json?: boolean }) => print(reviewTicket(id, options.evidence, options.pullRequest), Boolean(options.json)));
+  .action((id: string, options: { evidence: string; pullRequest?: string; deviations?: string; findingsCreated?: string; knownConcerns?: string; json?: boolean }) => print(reviewTicket(id, options.evidence, options.pullRequest, { deviations: options.deviations, findingsCreated: options.findingsCreated, knownConcerns: options.knownConcerns }), Boolean(options.json)));
 ticket
   .command("close <id>")
   .option("--approve")
   .option("--json")
   .action((id: string, options: { approve?: boolean; json?: boolean }) => print(closeTicket(id, Boolean(options.approve)), Boolean(options.json)));
+ticket
+  .command("cancel <id>")
+  .description("Retire a backlog or ready ticket into done with a non-completed resolution")
+  .requiredOption("--resolution <resolution>", "duplicate | obsolete | cancelled")
+  .option("--approve")
+  .option("--json")
+  .action((id: string, options: { resolution: string; approve?: boolean; json?: boolean }) => print(cancelTicket(id, options.resolution, Boolean(options.approve)), Boolean(options.json)));
+ticket
+  .command("brief <id>")
+  .description("Assemble the minimal execution context for a ticket (D-009)")
+  .option("--out <path>", "Write the brief to a file instead of stdout")
+  .option("--warn-tokens <count>", "Warn above this approximate token count", (value) => Number(value), 12000)
+  .option("--json")
+  .action((id: string, options: { out?: string; warnTokens: number; json?: boolean }) => {
+    const result = briefTicket(id, { out: options.out, warnTokens: options.warnTokens });
+    if (options.json) {
+      console.log(JSON.stringify(result));
+      return;
+    }
+    if (!options.out) process.stdout.write(result.data.brief);
+    const summary = `brief ${id}: ~${result.data.tokens} tokens (${result.data.sections.length} sections)${result.data.path ? ` → ${result.data.path}` : ""}`;
+    console.error(result.data.warning ? `${summary}\nWARNING: ${result.data.warning}` : summary);
+  });
 ticket
   .command("reopen <id>")
   .option("--approve")

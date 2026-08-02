@@ -151,7 +151,15 @@ export function startTicket(id: string, agent: string) {
   return { ok: true, command: "ticket start", data: { id, branch, worktree } };
 }
 
-export function reviewTicket(id: string, evidence: string, pullRequest?: string) {
+export interface ReviewDeclarations {
+  deviations?: string;
+  findingsCreated?: string;
+  knownConcerns?: string;
+}
+
+const NOT_DECLARED = "Not declared.";
+
+export function reviewTicket(id: string, evidence: string, pullRequest?: string, declarations: ReviewDeclarations = {}) {
   const root = findRepositoryRoot();
   const ticket = findTicket(root, id);
   if (ticket.state !== "active") throw new Error(`Ticket ${id} must be active before review.`);
@@ -170,7 +178,8 @@ export function reviewTicket(id: string, evidence: string, pullRequest?: string)
   const checks = [...acceptance, ...profileChecks];
   const safeEvidence = evidence.replaceAll("|", "\\|").replaceAll("\n", " ");
   const evidenceRows = (checks.length ? checks : ["Ticket acceptance criteria"]).map((check) => `| ${check.replaceAll("|", "\\|")} | ${safeEvidence} |`).join("\n");
-  const reviewEvidence = `\n\n## Review evidence\n\n| Acceptance condition | Evidence |\n|---|---|\n${evidenceRows}\n\n### Verification performed\n\n${evidence}\n\n### Deviations\n\nNone.\n\n### Findings created\n\nNone.\n\n### Known concerns\n\nNone.\n`;
+  const declared = (value: string | undefined) => (value !== undefined && value.trim() ? value.trim() : NOT_DECLARED);
+  const reviewEvidence = `\n\n## Review evidence\n\n| Acceptance condition | Evidence |\n|---|---|\n${evidenceRows}\n\n### Verification performed\n\n${evidence}\n\n### Deviations\n\n${declared(declarations.deviations)}\n\n### Findings created\n\n${declared(declarations.findingsCreated)}\n\n### Known concerns\n\n${declared(declarations.knownConcerns)}\n`;
   const destinationDirectory = join(root, ".a-team/review");
   mkdirSync(destinationDirectory, { recursive: true });
   const destination = join(destinationDirectory, ticket.filename);
@@ -216,6 +225,41 @@ export function closeTicket(id: string, approved: boolean) {
   return { ok: true, command: "ticket close", data: { id, resolution: "completed" } };
 }
 
+const CANCEL_RESOLUTIONS = ["duplicate", "obsolete", "cancelled"] as const;
+
+export function cancelTicket(id: string, resolution: string, approved: boolean, repositoryRoot?: string) {
+  const root = repositoryRoot ?? findRepositoryRoot();
+  if (!CANCEL_RESOLUTIONS.includes(resolution as (typeof CANCEL_RESOLUTIONS)[number])) throw new Error(`Cancel resolution must be one of ${CANCEL_RESOLUTIONS.join(", ")}; got '${resolution}'.`);
+  const ticket = findTicket(root, id);
+  if (!["backlog", "ready"].includes(ticket.state)) throw new Error(`Ticket ${id} can only be cancelled from backlog or ready; ${ticket.state} tickets exit through reopen/close.`);
+  if (!approved) throw new Error("Human cancel approval is required. Re-run with --approve after confirming the ticket should be retired.");
+  const claimPath = join(root, ".a-team/claims", `${id}.yaml`);
+  if (existsSync(claimPath)) throw new Error(`Ticket ${id} has a claim; a claimed ticket cannot be cancelled.`);
+  assertClean(root);
+  const entity = parseMarkdown(readFileSync(ticket.path, "utf8"));
+  entity.data.status = "done";
+  entity.data.resolution = resolution;
+  entity.data.updated_at = new Date().toISOString().slice(0, 10);
+  const doneDirectory = join(root, ".a-team/done");
+  mkdirSync(doneDirectory, { recursive: true });
+  const destination = join(doneDirectory, ticket.filename);
+  const candidate = `${destination}.cancel-${process.pid}.tmp`;
+  writeFileSync(candidate, renderMarkdown(entity.data, entity.content));
+  try {
+    assertValid(validateTicketFile(candidate, "done"));
+    renameSync(candidate, destination);
+  } catch (error) {
+    if (existsSync(candidate)) unlinkSync(candidate);
+    throw error;
+  }
+  unlinkSync(ticket.path);
+  updateContainingPackage(root, id);
+  regenerateIndex(root);
+  git(root, ["add", ".a-team"]);
+  git(root, ["commit", "-m", `chore(a-team): cancel ${id} (${resolution})`]);
+  return { ok: true, command: "ticket cancel", data: { id, resolution, path: destination } };
+}
+
 export function reopenTicket(id: string, approved: boolean) {
   const root = findRepositoryRoot();
   const ticket = findTicket(root, id);
@@ -234,6 +278,112 @@ export function reopenTicket(id: string, approved: boolean) {
   unlinkSync(ticket.path);
   regenerateIndex(root);
   return { ok: true, command: "ticket reopen", data: { id, state: "backlog" } };
+}
+
+export interface BriefSection {
+  name: string;
+  characters: number;
+}
+
+export interface BriefResult {
+  ok: boolean;
+  command: "ticket brief";
+  data: {
+    id: string;
+    state: string;
+    tokens: number;
+    warnTokens: number;
+    warning: string | null;
+    largestSection: string;
+    sections: BriefSection[];
+    decisions: string[];
+    missingDecisions: string[];
+    path: string | null;
+    brief: string;
+  };
+}
+
+/** Approximate token count: stable, documented heuristic (chars / 4, rounded up). */
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Assemble the minimal execution context for one ticket (D-009 / T-026):
+ * the ticket body, the decisions it references, its profile requirements and
+ * its claim — and nothing else. Deterministic: same workspace, same bytes.
+ */
+export function briefTicket(id: string, options: { out?: string; warnTokens?: number } = {}, repositoryRoot?: string): BriefResult {
+  const root = repositoryRoot ?? findRepositoryRoot();
+  const ticket = findTicket(root, id);
+  const entity = parseMarkdown(readFileSync(ticket.path, "utf8"));
+
+  const referenced = [...new Set([...entity.content.matchAll(/\bD-\d{3,}\b/g)].map((match) => match[0]))].sort();
+  const decisionsDirectory = join(root, ".a-team/decisions");
+  const decisions: { id: string; content: string }[] = [];
+  const missingDecisions: string[] = [];
+  for (const decisionId of referenced) {
+    const path = join(decisionsDirectory, `${decisionId}.md`);
+    if (existsSync(path)) decisions.push({ id: decisionId, content: readFileSync(path, "utf8").trim() });
+    else missingDecisions.push(decisionId);
+  }
+
+  const profiles = Array.isArray(entity.data.profiles) ? entity.data.profiles.map(String) : [];
+  const profileBlocks = profiles.flatMap((profile) => {
+    const path = join(root, ".a-team/profiles", `${profile}.yaml`);
+    return existsSync(path) ? [{ profile, content: readFileSync(path, "utf8").trim() }] : [];
+  });
+
+  const claimPath = join(root, ".a-team/claims", `${id}.yaml`);
+  const claim = existsSync(claimPath) ? readFileSync(claimPath, "utf8").trim() : null;
+
+  const dependsOn = Array.isArray(entity.data.depends_on) ? entity.data.depends_on.map(String) : [];
+  const header = [
+    `# Execution brief — ${id}`,
+    "",
+    `- id: ${id}`,
+    `- title: ${String(entity.data.title ?? "")}`,
+    `- state: ${ticket.state}`,
+    `- profiles: ${profiles.length ? profiles.join(", ") : "none"}`,
+    `- depends_on: ${dependsOn.length ? dependsOn.join(", ") : "none"}`,
+    `- branch: ${entity.data.branch ? String(entity.data.branch) : "none"}`,
+    "",
+    "This brief is the complete intent context for executing this ticket (D-009).",
+    "It deliberately EXCLUDES: other tickets' bodies, findings, chat history and the",
+    "coordinator's context. If the work cannot start from this brief plus the code in",
+    "the worktree, that gap is a contract defect — record it, do not silently widen",
+    "the context.",
+  ].join("\n");
+
+  const parts: { name: string; text: string }[] = [
+    { name: "header", text: header },
+    { name: `ticket ${id}`, text: `## Ticket\n\n${entity.content.trim()}` },
+  ];
+  for (const decision of decisions) parts.push({ name: `decision ${decision.id}`, text: `## Decision ${decision.id}\n\n${decision.content}` });
+  if (missingDecisions.length) parts.push({ name: "missing decisions", text: `## Missing decisions\n\nReferenced but not found in .a-team/decisions: ${missingDecisions.join(", ")}` });
+  for (const block of profileBlocks) parts.push({ name: `profile ${block.profile}`, text: `## Profile: ${block.profile}\n\n\`\`\`yaml\n${block.content}\n\`\`\`` });
+  if (claim) parts.push({ name: "claim", text: `## Claim\n\n\`\`\`yaml\n${claim}\n\`\`\`` });
+
+  const brief = parts.map((part) => part.text).join("\n\n") + "\n";
+  const sectionSizes: BriefSection[] = parts.map((part) => ({ name: part.name, characters: part.text.length }));
+  const largestSection = [...sectionSizes].sort((a, b) => b.characters - a.characters)[0]?.name ?? "header";
+  const tokens = estimateTokens(brief);
+  const warnTokens = options.warnTokens ?? 12000;
+  const warning = tokens > warnTokens
+    ? `Brief is ${tokens} tokens (limit ${warnTokens}). Largest section: ${largestSection}. The ticket is probably too large or under-referenced — split it or sharpen it.`
+    : null;
+
+  let outPath: string | null = null;
+  if (options.out) {
+    outPath = resolve(options.out);
+    writeFileSync(outPath, brief);
+  }
+
+  return {
+    ok: true,
+    command: "ticket brief",
+    data: { id, state: ticket.state, tokens, warnTokens, warning, largestSection, sections: sectionSizes, decisions: decisions.map((decision) => decision.id), missingDecisions, path: outPath, brief },
+  };
 }
 
 function updateContainingPackage(root: string, ticketId: string): void {

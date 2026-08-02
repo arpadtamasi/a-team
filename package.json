@@ -1,6 +1,6 @@
 {
   "name": "@arpadtamasi/a-team",
-  "version": "0.1.2",
+  "version": "0.2.2",
   "description": "Repository-native operating system for human-AI development teams",
   "homepage": "https://github.com/arpadtamasi/a-team#readme",
   "repository": {
@@ -28,7 +28,7 @@
   ],
   "scripts": {
     "build": "npm run build:cli && npm run build:ui && npm run build:site",
-    "build:cli": "node scripts/clean.mjs && tsc -p tsconfig.json",
+    "build:cli": "node scripts/clean.mjs && tsc -p tsconfig.json && node scripts/chmod-bin.mjs",
     "build:ui": "vite build --config ui/vite.config.ts",
     "build:site": "vite build --config site/vite.config.ts",
     "dev:ui": "vite --config ui/vite.config.ts",

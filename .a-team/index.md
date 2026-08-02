@@ -30,7 +30,6 @@ None.
 
 - F-004-build-cli-removes-executable-bit-from-linked-a-team-binary
 - F-007-triage-assistant-agent-gather-decision-context-for-a-finding
-- F-008-sequential-ids-collide-and-lifecycle-states-duplicate-under-
 - F-009-ui-has-no-decisions-surface-d-xxx-records-are-invisible-in-t
 - F-010-the-local-ui-is-visually-overcrowded-needs-a-density-hierarc
 - F-011-task-detail-drawer-is-a-flat-wall-large-entities-need-hierar
@@ -47,5 +46,4 @@ None.
 - F-025-progos-as-first-kotta-publisher-mcp-kottas-for-standard-sme-
 - F-028-ugyanannak-a-ticketnek-egyszerre-tobb-igaz-allapota-van-ninc
 - F-030-package-szintu-review-hianyzik-a-ticketek-review-ban-tartasa
-- F-032-a-friss-kontextusu-ticket-vegrehajtas-nincs-parancsban-es-a-
 - F-033-no-component-test-harness-exists-for-the-react-board

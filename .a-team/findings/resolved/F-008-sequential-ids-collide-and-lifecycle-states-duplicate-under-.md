@@ -3,13 +3,16 @@ id: F-008
 title: >-
   Sequential IDs collide and lifecycle states duplicate under concurrent
   worktrees/merges
-status: new
+status: resolved
 origin: agent
 finding_type: bug
 confidence: high
 severity: medium
 discovered_during: null
 created_at: '2026-07-26'
+disposition: create-ticket
+resolved_at: '2026-08-02T12:23:07.215Z'
+ticket: T-034
 ---
 # F-008 — Sequential IDs collide and lifecycle states duplicate under concurrent worktrees/merges
 

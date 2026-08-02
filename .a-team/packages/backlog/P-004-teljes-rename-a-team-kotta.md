@@ -18,7 +18,7 @@ authority:
   reorder_independent_tickets: false
   change_scope: false
 created_at: '2026-08-01'
-updated_at: '2026-08-01'
+updated_at: '2026-08-02'
 ---
 # P-004 — Teljes rename: a-team → kotta
 

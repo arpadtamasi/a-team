@@ -1,7 +1,7 @@
 ---
 id: T-026
 title: 'Kis kontextus: egy ticket végrehajtásához a ticket maga legyen elég'
-status: review
+status: done
 origin: human
 types:
   - feature
@@ -16,6 +16,7 @@ pull_request: null
 created_at: '2026-08-01'
 updated_at: '2026-08-02'
 assigned_agent: claude
+resolution: completed
 ---
 # T-026 — Kis kontextus: egy ticket végrehajtásához a ticket maga legyen elég
 

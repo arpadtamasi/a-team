@@ -23,7 +23,7 @@ None.
 
 ## Review
 
-- T-026-kis-kontextus-egy-ticket-vegrehajtasahoz-a-ticket-maga-legye
+None.
 
 ## Blocked
 

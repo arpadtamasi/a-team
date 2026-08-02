@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-- T-021-a-workspace-konyvtar-kotta-elsodlegesseg-a-kodban-es-a-sajat
+None.
 
 ## Blocked
 
@@ -45,8 +45,8 @@ None.
 - a-decision-cannot-record-that-it-narrows-or-continues-anothe-8pv9r452
 - a-kiadatlan-changelog-bejegyzes-a-regi-binaris-nevet-hasznal-m4m7q531
 - a-markdown-h1-a-teljes-azonositot-hordozza-igy-a-mintazott-u-rb71ckkr
-- nincs-agents-md-semmi-nem-mondja-meg-egy-erkezo-agensnek-hog-pky2an1x
 - a-workspace-konyvtar-atnevezese-uressen-mutatja-a-boardot-am-0n2rjcpt
+- nincs-agents-md-semmi-nem-mondja-meg-egy-erkezo-agensnek-hog-pky2an1x
 - ready-ticket-szovege-nem-javithato-a-define-csak-backlogbol--147t946f
 - schemas-package-schema-json-rejects-every-started-package-an-8et554b5
 - state-drift-has-no-reconcile-command-so-the-board-can-only-p-5mqcvk49

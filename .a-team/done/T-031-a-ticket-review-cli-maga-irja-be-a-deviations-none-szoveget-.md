@@ -3,7 +3,7 @@ id: T-031
 title: >-
   A ticket review CLI maga irja be a 'Deviations: None.' szoveget — az F-019
   hazugsag-mintaja beepitett
-status: review
+status: done
 origin: finding
 types:
   - feature
@@ -19,6 +19,7 @@ created_at: '2026-08-02'
 updated_at: '2026-08-02'
 source_finding: F-026
 assigned_agent: claude
+resolution: completed
 ---
 # T-031 — Hotfix: a review ne írjon kéretlen „Deviations: None."-t
 

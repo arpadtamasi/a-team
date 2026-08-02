@@ -1,7 +1,7 @@
 ---
 id: T-023
 title: A szotar atallitasa es a kotta migrate parancs
-status: ready
+status: active
 origin: human
 types:
   - feature
@@ -12,10 +12,11 @@ package: P-004
 depends_on:
   - T-021
 blocks: []
-branch: null
+branch: feat/T-023-a-szotar-atallitasa-es-a-kotta-migrate-parancs
 pull_request: null
 created_at: '2026-08-01'
 updated_at: '2026-08-02'
+assigned_agent: claude
 ---
 # T-023 — A szótár átállítása és a `kotta migrate` parancs
 

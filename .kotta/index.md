@@ -12,11 +12,11 @@ None.
 
 ## Ready tickets
 
-- T-023-a-tobbi-atnevezes-ready-defined-a-tarolt-allapotban-es-a-d-0
+None.
 
 ## Active tickets
 
-None.
+- T-023-a-tobbi-atnevezes-ready-defined-a-tarolt-allapotban-es-a-d-0
 
 ## Review
 

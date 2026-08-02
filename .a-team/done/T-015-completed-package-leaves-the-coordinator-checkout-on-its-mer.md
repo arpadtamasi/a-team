@@ -1,7 +1,7 @@
 ---
 id: T-015
 title: Completed package leaves the coordinator checkout on its merged branch
-status: review
+status: done
 origin: finding
 types:
   - bug
@@ -19,6 +19,7 @@ created_at: '2026-07-23'
 updated_at: '2026-08-02'
 source_finding: F-003
 assigned_agent: claude
+resolution: completed
 ---
 # T-015 — Manage coordinator branches through the complete package lifecycle
 

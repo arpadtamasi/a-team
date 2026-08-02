@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-- T-015-completed-package-leaves-the-coordinator-checkout-on-its-mer
+None.
 
 ## Blocked
 

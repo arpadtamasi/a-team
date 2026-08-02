@@ -3,7 +3,7 @@ id: T-030
 title: >-
   Backlog-ticketnek nincs duplikatum/torles utja a CLI-ben — a finding resolve
   auto-ticketje utkozott a kezzel irt szerzodessel
-status: active
+status: review
 origin: finding
 types:
   - feature
@@ -65,5 +65,27 @@ A `closeTicket` szerkezete a minta, a git-branch logika nélkül. A validátor `
 `npm run build:cli` zöld; `npx vitest run` teljes készlet zöld; füstteszt egy eldobható repóban.
 
 ## Open decisions
+
+None.
+
+## Review evidence
+
+| Acceptance condition | Evidence |
+|---|---|
+| Ticket acceptance criteria | Acc1: backlog->done duplicate resolutionnel, validate zold — integracios teszt. Acc2: ready->done obsolete OK; active ticketre elutasit ('can only be cancelled from backlog or ready'), helyben marad — teszt. Acc3: --approve nelkul nonzero exit + 'Human cancel approval is required', ticket erintetlen — teszt. Acc4: cancelled done ticket review-evidencia nelkul zold; completed done evidencia nelkul tovabbra is MISSING_REVIEW_EVIDENCE — mindket irany teszttel rogzitve. Acc5: teljes keszlet 15 fajl / 41 passed / 1 skipped, 0 hiba. Implementacio: cancelTicket a closeTicket mintajara git-branch logika nelkul (src/commands/ticket.ts:219-252), validator-feltetel (validation.ts:48-49), CLI-regisztracio, 5 uj integracios teszt. Fusteszt eldobhato repoban zold. DEVIACIOK (friss agens nyilatkozata): +1 orszem-teszt ismeretlen resolutionre (scope-on beluli bovites); assertClean+commit a closeTicket-konvenciot koveti, a brief explicit nem kerte; claim-guard vedekezo ertelmezessel (hibat ad kobor claimre). Brief ~820 token, friss kontextus, D-009 szerint. |
+
+### Verification performed
+
+Acc1: backlog->done duplicate resolutionnel, validate zold — integracios teszt. Acc2: ready->done obsolete OK; active ticketre elutasit ('can only be cancelled from backlog or ready'), helyben marad — teszt. Acc3: --approve nelkul nonzero exit + 'Human cancel approval is required', ticket erintetlen — teszt. Acc4: cancelled done ticket review-evidencia nelkul zold; completed done evidencia nelkul tovabbra is MISSING_REVIEW_EVIDENCE — mindket irany teszttel rogzitve. Acc5: teljes keszlet 15 fajl / 41 passed / 1 skipped, 0 hiba. Implementacio: cancelTicket a closeTicket mintajara git-branch logika nelkul (src/commands/ticket.ts:219-252), validator-feltetel (validation.ts:48-49), CLI-regisztracio, 5 uj integracios teszt. Fusteszt eldobhato repoban zold. DEVIACIOK (friss agens nyilatkozata): +1 orszem-teszt ismeretlen resolutionre (scope-on beluli bovites); assertClean+commit a closeTicket-konvenciot koveti, a brief explicit nem kerte; claim-guard vedekezo ertelmezessel (hibat ad kobor claimre). Brief ~820 token, friss kontextus, D-009 szerint.
+
+### Deviations
+
+None.
+
+### Findings created
+
+None.
+
+### Known concerns
 
 None.

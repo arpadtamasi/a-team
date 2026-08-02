@@ -82,6 +82,25 @@ one is taken, so a second workspace opens without any manual step; the output na
 port it selected. With an explicit `--port <port>` the choice is strict: an occupied port
 fails with an actionable error instead of quietly moving to a neighbour.
 
+## Package coordinator branches
+
+`a-team package start` runs a package on a deterministic coordinator branch, `coord/<package-id>`.
+Started from the configured base branch it creates and checks out that branch and records the
+branch, the base branch, and the base commit in the package file. Starting again on the recorded
+branch is a safe no-op; starting from an unrelated branch is refused rather than guessed.
+
+Completing the last ticket does **not** delete the coordinator branch — its final commit is what
+gets integrated. `a-team package status <id>` reports where the package stands: `active`,
+`done-unintegrated`, `cleanup-pending`, `blocked-*`, or `cleaned`.
+
+Once the branch is merged, `a-team package finalize <id>` performs the cleanup, and only what it
+can prove is safe: it verifies by Git ancestry that the coordinator head is contained in the base
+branch or its remote-tracking ref, switches to the base, fast-forwards it when needed, and deletes
+the merged local branch with `git branch -d`. A dirty worktree, an active claim, a linked ticket
+worktree, a branch held by another worktree, or a diverged base each stop it with an explanation
+and change nothing. It never forces, resets, rebases, or deletes a remote branch, and re-running it
+after success is a no-op.
+
 ## Core safety rules
 
 - A backlog item is not executable until it is valid and explicitly ready.

@@ -13,7 +13,6 @@ None.
 ## Ready tickets
 
 - T-013-add-a-discoverable-bug-reporting-path
-- T-015-completed-package-leaves-the-coordinator-checkout-on-its-mer
 
 ## Active tickets
 
@@ -21,7 +20,7 @@ None.
 
 ## Review
 
-None.
+- T-015-completed-package-leaves-the-coordinator-checkout-on-its-mer
 
 ## Blocked
 

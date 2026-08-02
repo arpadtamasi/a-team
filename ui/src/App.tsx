@@ -21,7 +21,16 @@ type Ticket = {
 type Package = {
   id: string; title: string; status: string; kind: string; tickets: string[]; sections: Record<string, string>;
   execution?: { mode?: string; parallelism?: number; stop_on_failure?: boolean };
+  coordinator?: { branch?: string; base_branch?: string; base_commit?: string; cleaned_at?: string | null } | null;
 };
+
+/** A done package that still records an uncleaned coordinator branch is awaiting `a-team package finalize`. */
+function coordinatorLabel(p: Package): { text: string; tone: string } | null {
+  const branch = p.coordinator?.branch;
+  if (!branch) return null;
+  if (p.status !== "done") return { text: branch, tone: "tag-neutral" };
+  return p.coordinator?.cleaned_at ? { text: "coordinator cleaned", tone: "tag-neutral" } : { text: "cleanup pending", tone: "tag-warn" };
+}
 type Finding = { id: string; title: string; status: "new" | "resolved"; finding_type: string; severity: string; confidence: string; discovered_during?: string | null; resolution?: string; became?: string | null; sections: Record<string, string> };
 type Diagnostic = { entity: string; id: string; worktree: string; message: string };
 type Workspace = { project: string; migration: Migration | null; tickets: Ticket[]; packages: Package[]; findings: Finding[]; diagnostics?: Diagnostic[] };
@@ -558,8 +567,9 @@ function PackagesStage({ workspace, ticketMap, selected, onSelect, onEntity, onS
       {packages.map((p) => {
         const members = p.tickets.map((id) => ticketMap.get(id));
         const done = members.filter((t) => t?.status === "done").length;
+        const coordinator = coordinatorLabel(p);
         return <button key={p.id} type="button" className={`pkg-list__item ${active?.id === p.id ? "is-active" : ""}`} onClick={() => onSelect(p.id)}>
-          <div className="pkg-list__top"><Eid id={p.id} /><span className="tag tag-neutral">{p.status}</span><span className="frac">{done}/{p.tickets.length}</span></div>
+          <div className="pkg-list__top"><Eid id={p.id} /><span className="tag tag-neutral">{p.status}</span>{coordinator && <span className={`tag ${coordinator.tone}`}>{coordinator.text}</span>}<span className="frac">{done}/{p.tickets.length}</span></div>
           <div className="pkg-list__title">{p.title}</div>
           <div className="progress"><i style={{ width: `${p.tickets.length ? (done / p.tickets.length) * 100 : 0}%` }} /></div>
           <div className="pkg-list__mode">{pkgModeSummary(p)}</div>

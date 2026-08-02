@@ -101,6 +101,7 @@ select.input { min-height: 36px; }
 .tag-neutral { background: #f8f4f4; color: var(--neutral-800); }
 .tag-accent { background: var(--accent-100); color: var(--accent-800); }
 .tag-outline { border: 1px solid var(--accent-700); color: var(--accent-700); }
+.tag-warn { background: var(--accent-100); color: var(--accent-800); border: 1px solid var(--accent-700); }
 .state { display: inline-flex; align-items: center; font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; }
 .state-backlog { background: var(--surface); color: var(--neutral-800); border: 1px solid rgba(32,30,29,.35); }
 .state-ready { background: var(--accent-200); color: var(--accent-800); }

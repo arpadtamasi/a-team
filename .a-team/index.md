@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-- T-020-rename-a-team-kotta-npm-cli-workspace-kompatibilitas-dokumen
+None.
 
 ## Blocked
 

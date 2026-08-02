@@ -9,7 +9,7 @@ import { readWorkspace } from "../../src/commands/ui.js";
 import { workspaceIds, type MigrateResult } from "../../src/commands/migrate.js";
 
 /**
- * `kotta migrate` is the only reader of the pre-vocabulary shape, and the next ticket migrates three
+ * `kotta migrate` is the only reader of the pre-vocabulary shape, and the next contract migrates three
  * live neighbour workspaces by running it. Everything asserted here is exercised on a real workspace
  * on disk: the dry run touches nothing, the run validates, a second run is a no-op, an already-current
  * workspace is left alone, every other command refuses the old shape by name, and no identifier moves.

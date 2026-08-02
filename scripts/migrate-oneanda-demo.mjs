@@ -362,6 +362,8 @@ const metadata = {
   status_counts: statusCounts,
   ready_candidate_count: migrationRecords.filter((contract) => contract.ready_candidate).length,
   split_audit: splitAudit,
+  // Frozen artefact keys: `migration.json` records what the legacy import produced and is read back
+  // by the board under exactly these names. The vocabulary rename deliberately stops at this file.
   tickets: migrationRecords,
   findings: observationRecords,
   excluded_terminal: terminalLegacy.map((legacy) => ({ legacy_id: legacy.data.id, legacy_status: legacy.data.status, source_file: `scrum/tickets/${legacy.filename}` })),

@@ -131,6 +131,9 @@ export function readWorkspace(workspaceOption: string) {
   const refFiles = useBase ? refSnapshot(projectRoot, baseInfo.commit, workspaceDirectory) : null;
   // Working-tree state is never cached: one status call per reload, filtered per subpath below.
   const uncommittedAdds = onBase ? uncommittedMdAdds(projectRoot, workspaceDirectory) : [];
+  // `migration.json` is a pre-Kotta import artefact, not part of the entity model: its `tickets` /
+  // `findings` / `packages` keys are frozen at what the importer wrote and deliberately keep the old
+  // words, so an already-imported workspace stays readable. Nothing else in the code says them.
   const migrationPath = join(workspace, "migration.json");
   const migration = existsSync(migrationPath) ? JSON.parse(readFileSync(migrationPath, "utf8")) as { project?: string; tickets?: Array<{ id: string; [key: string]: unknown }> } : null;
   const migrationById = new Map((migration?.tickets ?? []).map((contract) => [contract.id, contract]));

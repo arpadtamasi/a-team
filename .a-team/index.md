@@ -41,6 +41,7 @@ None.
 - F-022-state-gates-are-bypassable-because-the-store-is-the-filesyst
 - F-025-progos-as-first-kotta-publisher-mcp-kottas-for-standard-sme-
 - F-030-package-szintu-review-hianyzik-a-ticketek-review-ban-tartasa
+- a-board-listai-nem-mutatjak-az-entitasok-korat-csak-az-obser-fx05szh7
 - a-decision-cannot-record-that-it-narrows-or-continues-anothe-8pv9r452
 - a-markdown-h1-a-teljes-azonositot-hordozza-igy-a-mintazott-u-rb71ckkr
 - ready-ticket-szovege-nem-javithato-a-define-csak-backlogbol--147t946f

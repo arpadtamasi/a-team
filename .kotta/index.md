@@ -16,11 +16,11 @@ None.
 
 ## Active contracts
 
-- T-023-a-tobbi-atnevezes-ready-defined-a-tarolt-allapotban-es-a-d-0
+None.
 
 ## Review
 
-None.
+- T-023-a-tobbi-atnevezes-ready-defined-a-tarolt-allapotban-es-a-d-0
 
 ## Blocked
 

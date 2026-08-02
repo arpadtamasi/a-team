@@ -50,3 +50,4 @@ None.
 - F-023-the-cli-is-not-reachable-where-the-work-happens-and-the-skil
 - F-024-the-operator-works-in-sweeps-and-batch-decisions-the-tool-is
 - F-025-progos-as-first-kotta-publisher-mcp-kottas-for-standard-sme-
+- F-026-a-ticket-review-cli-maga-irja-be-a-deviations-none-szoveget-

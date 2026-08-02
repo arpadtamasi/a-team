@@ -34,6 +34,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- `decision create` no longer fails with `ENOENT` in a freshly created worktree (T-01kz1g2vra99x0xhw144x6rke4). Git does not
+  carry the empty `.a-team/decisions` directory into a linked worktree, so the writer now creates it
+  before reading, the way every other writer already does. Nothing about a decision's content or id
+  derivation changes.
+
 - An entity a merge left in two state directories is now a named failure with a supported way out
   (T-036, the second root of F-008). `validate` reports it as `DUPLICATE_STATE`, listing every place
   the id was found, and no longer conflates it with a genuine `DUPLICATE_ID` collision inside a single

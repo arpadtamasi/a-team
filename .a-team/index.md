@@ -13,7 +13,6 @@ None.
 ## Ready tickets
 
 - a-team-ui-does-not-open-the-browser-auto-open-the-served-url-yzn4w2gr
-- decision-create-fails-in-a-fresh-worktree-when-a-team-decisi-44x6rke4
 - nincs-cli-ut-egy-csomag-lezarasara-ha-a-ticketjei-a-csomag-f-qdtczv8w
 
 ## Active tickets
@@ -22,7 +21,7 @@ None.
 
 ## Review
 
-None.
+- decision-create-fails-in-a-fresh-worktree-when-a-team-decisi-44x6rke4
 
 ## Blocked
 

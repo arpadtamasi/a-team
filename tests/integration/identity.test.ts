@@ -121,14 +121,19 @@ describe("coordination-free identity (D-003, narrowed by D-010)", () => {
       const source = duplicate
         ? writeSequentialTicket(root, duplicate, "shared-identity")
         : (run(root, ["ticket", "new", "--title", "Shared identity", "--type", "feature"]).data as { path: string }).path;
-      copyFileSync(source, join(root, ".a-team/done", basename(source)));
+      // Two distinct entities claiming one id inside a single state directory. One entity left in two
+      // state directories is a different failure with a deterministic resolution (T-036).
+      const twin = duplicate ? `${duplicate}-second-entity.md` : `second-entity-${basename(source).split("-").pop()}`;
+      copyFileSync(source, join(root, ".a-team/backlog", twin));
 
       const report = attempt(root, ["validate"]);
       expect(report.status).toBe(1);
-      expect(JSON.parse(report.stdout)).toMatchObject({
+      const parsed = JSON.parse(report.stdout) as { ok: boolean; errors: Array<{ code: string }> };
+      expect(parsed).toMatchObject({
         ok: false,
         errors: expect.arrayContaining([expect.objectContaining({ code: "DUPLICATE_ID" })]),
       });
+      expect(parsed.errors.some((error) => error.code === "DUPLICATE_STATE")).toBe(false);
     }
   });
 });

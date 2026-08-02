@@ -4,6 +4,39 @@ import { parseMarkdown } from "../core/markdown.js";
 import { TICKET_ID, filenameMatchesId } from "../core/identity.js";
 
 export const TICKET_STATES = ["backlog", "ready", "active", "review", "done"] as const;
+export const PACKAGE_STATES = ["backlog", "ready", "active", "done"] as const;
+
+export type EntityKind = "ticket" | "package";
+
+export interface EntityCopy {
+  state: string;
+  path: string;
+  filename: string;
+}
+
+/** State directories of an entity kind, in lifecycle order — the later entry is the further-advanced state. */
+export function stateDirectories(kind: EntityKind): Array<{ state: string; directory: string }> {
+  return kind === "ticket"
+    ? TICKET_STATES.map((state) => ({ state, directory: state }))
+    : PACKAGE_STATES.map((state) => ({ state, directory: `packages/${state}` }));
+}
+
+/**
+ * Every file claiming `id`, in lifecycle order. State is encoded by the directory, and Git does not
+ * pair a cross-directory move as delete+add, so a merge can leave one entity in several of them (T-036).
+ */
+export function entityCopies(root: string, kind: EntityKind, id: string): EntityCopy[] {
+  const copies: EntityCopy[] = [];
+  for (const { state, directory } of stateDirectories(kind)) {
+    const path = join(root, ".a-team", directory);
+    if (!existsSync(path)) continue;
+    for (const filename of readdirSync(path).filter((name) => name.endsWith(".md")).sort()) {
+      const file = join(path, filename);
+      if (idFromEntityFile(file, filename) === id) copies.push({ state, path: file, filename });
+    }
+  }
+  return copies;
+}
 
 export interface TicketLocation {
   path: string;

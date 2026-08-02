@@ -11,6 +11,7 @@ import { validateWorkspace } from "../commands/validate.js";
 import { listClaims, releaseClaim } from "../commands/claim.js";
 import { uiCommand } from "../commands/ui.js";
 import { createDecision } from "../commands/decision.js";
+import { dedupeEntity, describeDedupe, type DedupeResult } from "../commands/dedupe.js";
 
 const program = new Command();
 const packagePath = fileURLToPath(new URL("../../package.json", import.meta.url));
@@ -24,6 +25,10 @@ function print(result: unknown, json: boolean): void {
 
 function humanize(result: unknown): string {
   if (typeof result === "object" && result && "command" in result) {
+    const command = String((result as { command: unknown }).command);
+    if ((command === "ticket dedupe" || command === "package dedupe") && "data" in result) {
+      return describeDedupe((result as DedupeResult).data);
+    }
     if ((result as { command: unknown }).command === "decision create" && "data" in result) {
       const data = (result as { data: { id: unknown; path: unknown } }).data;
       return `Recorded decision ${String(data.id)} at ${String(data.path)}.`;
@@ -117,6 +122,12 @@ ticket
     console.error(result.data.warning ? `${summary}\nWARNING: ${result.data.warning}` : summary);
   });
 ticket
+  .command("dedupe <id>")
+  .description("Resolve a ticket a merge left in two state directories: keep the furthest-advanced copy")
+  .option("--approve")
+  .option("--json")
+  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(dedupeEntity("ticket", id, Boolean(options.approve)), Boolean(options.json)));
+ticket
   .command("reopen <id>")
   .option("--approve")
   .option("--json")
@@ -188,6 +199,12 @@ packageCommand
   .command("status <id>")
   .option("--json")
   .action((id: string, options: { json?: boolean }) => print(packageStatus(id), Boolean(options.json)));
+packageCommand
+  .command("dedupe <id>")
+  .description("Resolve a package a merge left in two state directories: keep the furthest-advanced copy")
+  .option("--approve")
+  .option("--json")
+  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(dedupeEntity("package", id, Boolean(options.approve)), Boolean(options.json)));
 packageCommand
   .command("finalize <id>")
   .description("Clean up the coordinator branch of a done package after its integration is proven")

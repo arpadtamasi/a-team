@@ -23,6 +23,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Canonical CLI contract shared by skills, automation, and the future local UI.
 - Git isolation rules for feature branches, claims, protected branches, and parallel worktrees.
 
+### Fixed
+
+- An entity a merge left in two state directories is now a named failure with a supported way out
+  (T-036, the second root of F-008). `validate` reports it as `DUPLICATE_STATE`, listing every place
+  the id was found, and no longer conflates it with a genuine `DUPLICATE_ID` collision inside a single
+  directory. `a-team ticket dedupe <id> --approve` and `a-team package dedupe <id> --approve` resolve
+  it deterministically: the furthest-advanced lifecycle copy is kept, the earlier ones are removed
+  through the CLI (no manual `git rm`) and named in the output together with the frontmatter fields
+  that differed. The resolution never runs without `--approve`, and it stops instead of choosing when
+  the two copies' bodies differ.
+
 ## [0.2.2] - 2026-07-27
 
 ### Added

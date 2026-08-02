@@ -3,7 +3,7 @@ id: T-01kz1g2vvgqvvzef92qdtczv8w
 title: >-
   Nincs CLI-ut egy csomag lezarasara, ha a ticketjei a csomag-folyamaton kivul
   keszultek el
-status: ready
+status: active
 origin: finding
 types:
   - bug
@@ -13,11 +13,13 @@ risk: medium
 package: null
 depends_on: []
 blocks: []
-branch: null
+branch: >-
+  fix/T-01kz1g2vvgqvvzef92qdtczv8w-nincs-cli-ut-egy-csomag-lezarasara-ha-a-ticketjei-a-csomag-f
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
 source_finding: F-01kz1fndr7se26q7bcpv49d2hk
+assigned_agent: claude
 ---
 # T-01kz1g2vvgqvvzef92qdtczv8w — >-
 

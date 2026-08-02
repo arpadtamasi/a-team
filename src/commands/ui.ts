@@ -27,12 +27,68 @@ function readMdFromRef(root: string, ref: string, repoPath: string): string | nu
   const result = git(root, ["show", `${ref}:${repoPath}`]);
   return result.ok ? result.out : null;
 }
-function uncommittedMdAdds(root: string, subpath: string): string[] {
-  const result = git(root, ["status", "--porcelain", "--", `.a-team/${subpath}`]);
+function uncommittedMdAdds(root: string): string[] {
+  const result = git(root, ["status", "--porcelain", "--", ".a-team"]);
   if (!result.ok) return [];
   return result.out.split("\n").filter(Boolean)
     .filter((line) => { const flag = line.slice(0, 2); return flag === "??" || flag.includes("A"); })
     .map((line) => line.slice(3).trim()).filter((path) => path.endsWith(".md"));
+}
+
+// One rev-parse resolves everything the base-ref decision needs: the base commit hash (cache key),
+// the repo toplevel and the current branch. A failed call (no git repo, missing base) means "no base ref".
+function baseRefInfo(root: string, base: string): { commit: string; toplevel: string; branch: string } | null {
+  const result = git(root, ["rev-parse", `${base}^{commit}`, "--show-toplevel", "--abbrev-ref", "HEAD"]);
+  if (!result.ok) return null;
+  const [commit, toplevel, branch] = result.out.split("\n").map((line) => line.trim());
+  return commit && toplevel && branch ? { commit, toplevel, branch } : null;
+}
+
+// Minimal ustar reader for `git archive` output: regular files only, pax path records honored.
+function parseTar(archive: Buffer): Map<string, string> {
+  const files = new Map<string, string>();
+  const field = (block: Buffer, start: number, length: number): string => {
+    const raw = block.subarray(start, start + length);
+    const nul = raw.indexOf(0);
+    return (nul === -1 ? raw : raw.subarray(0, nul)).toString("utf8");
+  };
+  let offset = 0;
+  let paxPath: string | null = null;
+  while (offset + 512 <= archive.length) {
+    const block = archive.subarray(offset, offset + 512);
+    if (block.every((byte) => byte === 0)) break;
+    const size = Number.parseInt(field(block, 124, 12).trim() || "0", 8);
+    const typeflag = String.fromCharCode(block[156] ?? 0);
+    const content = archive.subarray(offset + 512, offset + 512 + size);
+    offset += 512 + Math.ceil(size / 512) * 512;
+    if (typeflag === "x" || typeflag === "X") {
+      const record = /(?:^|\n)\d+ path=([^\n]*)\n/.exec(content.toString("utf8"));
+      if (record?.[1]) paxPath = record[1];
+      continue;
+    }
+    if (typeflag !== "0" && typeflag !== "\0") continue; // pax global headers, directories, links
+    const prefix = field(block, 345, 155);
+    const name = field(block, 0, 100);
+    files.set(paxPath ?? (prefix ? `${prefix}/${name}` : name), content.toString("utf8"));
+    paxPath = null;
+  }
+  return files;
+}
+
+// In-process snapshot of `.a-team/` at the base commit, read with a single `git archive` subprocess
+// and cached on the commit hash: identical hash between reloads means no batch read at all. (T-029)
+let refSnapshotCache: { key: string; files: Map<string, string> } | null = null;
+function refSnapshot(root: string, commit: string): Map<string, string> | null {
+  const key = `${resolve(root)}\0${commit}`;
+  if (refSnapshotCache?.key === key) return refSnapshotCache.files;
+  const result = spawnSync("git", ["archive", "--format=tar", commit, "--", ".a-team"], { cwd: root, maxBuffer: 256 * 1024 * 1024 });
+  if (result.status !== 0 || !Buffer.isBuffer(result.stdout)) {
+    const detail = (result.stderr ?? "").toString().trim() || "unknown error";
+    process.stderr.write(`a-team ui: batch read of .a-team at ${commit} failed (${detail}); falling back to per-file git reads.\n`);
+    return null;
+  }
+  refSnapshotCache = { key, files: parseTar(result.stdout) };
+  return refSnapshotCache.files;
 }
 
 function sectionObject(content: string): Record<string, string> {
@@ -48,10 +104,14 @@ export function readWorkspace(workspaceOption: string) {
   const base = config.git?.base_branch ?? "main";
   // Read from the base ref only when this workspace IS a git repo root with that ref; otherwise (non-git
   // fixtures, example dirs, a nested/uncommitted workspace) fall back to reading the working tree directly.
-  const toplevel = git(projectRoot, ["rev-parse", "--show-toplevel"]);
-  const useBase = toplevel.ok && resolve(toplevel.out.trim()) === resolve(projectRoot)
-    && git(projectRoot, ["rev-parse", "--verify", "--quiet", `${base}^{commit}`]).ok;
-  const onBase = useBase && git(projectRoot, ["rev-parse", "--abbrev-ref", "HEAD"]).out.trim() === base;
+  const baseInfo = baseRefInfo(projectRoot, base);
+  const useBase = baseInfo !== null && resolve(baseInfo.toplevel) === resolve(projectRoot);
+  const onBase = useBase && baseInfo.branch === base;
+  // Batched, cached ref-side content (T-029): one archive subprocess per base commit, memory-cached on
+  // its hash. null (batch failure) falls back to the legacy per-file ls-tree/show path, loudly.
+  const refFiles = useBase ? refSnapshot(projectRoot, baseInfo.commit) : null;
+  // Working-tree state is never cached: one status call per reload, filtered per subpath below.
+  const uncommittedAdds = onBase ? uncommittedMdAdds(projectRoot) : [];
   const migrationPath = join(workspace, "migration.json");
   const migration = existsSync(migrationPath) ? JSON.parse(readFileSync(migrationPath, "utf8")) as { project?: string; tickets?: Array<{ id: string; [key: string]: unknown }> } : null;
   const migrationById = new Map((migration?.tickets ?? []).map((ticket) => [ticket.id, ticket]));
@@ -61,15 +121,18 @@ export function readWorkspace(workspaceOption: string) {
   // primary dir IS on the base branch, union its uncommitted .a-team additions so freshly-created intake
   // shows immediately. Active worktrees are overlaid per ticket below. (T-016 / D-001)
   const readMd = (repoPath: string, fromRef: boolean): string =>
-    (fromRef ? readMdFromRef(projectRoot, base, repoPath) : readFileSync(join(projectRoot, repoPath), "utf8")) ?? "";
+    (fromRef ? (refFiles?.get(repoPath) ?? readMdFromRef(projectRoot, base, repoPath)) : readFileSync(join(projectRoot, repoPath), "utf8")) ?? "";
+  const listRefMd = (subpath: string): string[] => refFiles
+    ? [...refFiles.keys()].filter((path) => path.startsWith(`.a-team/${subpath}/`) && path.endsWith(".md"))
+    : listMdFromRef(projectRoot, base, subpath);
   const gather = (states: readonly string[], sub: (state: string) => string) => {
     const entries: Array<{ state: string; repoPath: string; fromRef: boolean }> = [];
     const seen = new Set<string>();
     for (const state of states) {
       const subpath = sub(state);
       if (useBase) {
-        for (const path of listMdFromRef(projectRoot, base, subpath)) if (!seen.has(path)) { seen.add(path); entries.push({ state, repoPath: path, fromRef: true }); }
-        if (onBase) for (const path of uncommittedMdAdds(projectRoot, subpath)) if (!seen.has(path)) { seen.add(path); entries.push({ state, repoPath: path, fromRef: false }); }
+        for (const path of listRefMd(subpath)) if (!seen.has(path)) { seen.add(path); entries.push({ state, repoPath: path, fromRef: true }); }
+        for (const path of uncommittedAdds.filter((candidate) => candidate.startsWith(`.a-team/${subpath}/`))) if (!seen.has(path)) { seen.add(path); entries.push({ state, repoPath: path, fromRef: false }); }
       } else {
         const dir = join(workspace, subpath);
         if (existsSync(dir)) for (const name of readdirSync(dir).filter((entry) => entry.endsWith(".md"))) {

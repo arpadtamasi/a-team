@@ -3,7 +3,7 @@ id: T-01kz1g2vvgqvvzef92qdtczv8w
 title: >-
   Nincs CLI-ut egy csomag lezarasara, ha a ticketjei a csomag-folyamaton kivul
   keszultek el
-status: review
+status: done
 origin: finding
 types:
   - bug
@@ -20,6 +20,7 @@ created_at: '2026-08-02'
 updated_at: '2026-08-02'
 source_finding: F-01kz1fndr7se26q7bcpv49d2hk
 assigned_agent: claude
+resolution: completed
 ---
 # T-01kz1g2vvgqvvzef92qdtczv8w — >-
 

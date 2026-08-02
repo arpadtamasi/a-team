@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-- nincs-cli-ut-egy-csomag-lezarasara-ha-a-ticketjei-a-csomag-f-qdtczv8w
+None.
 
 ## Blocked
 

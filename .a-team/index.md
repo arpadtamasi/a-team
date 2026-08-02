@@ -20,11 +20,11 @@ None.
 
 ## Active tickets
 
-- T-029-ui-reload-masodpercekig-tart-fajlonkent-kulon-git-show-subpr
+None.
 
 ## Review
 
-None.
+- T-029-ui-reload-masodpercekig-tart-fajlonkent-kulon-git-show-subpr
 
 ## Blocked
 

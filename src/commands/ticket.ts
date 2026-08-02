@@ -392,23 +392,31 @@ export function briefTicket(id: string, options: { out?: string; warnTokens?: nu
   };
 }
 
+/**
+ * Every unfinished package state, not just `active`: tickets executed one by one never take their
+ * package through `package start`, so a package that only ever sat in `backlog` must complete too.
+ */
+const OPEN_PACKAGE_STATES = ["backlog", "ready", "active"] as const;
+
 function updateContainingPackage(root: string, ticketId: string): void {
-  const directory = join(root, ".a-team/packages/active");
-  if (!existsSync(directory)) return;
-  for (const filename of readdirSync(directory).filter((name) => name.endsWith(".md"))) {
-    const path = join(directory, filename);
-    const entity = parseMarkdown(readFileSync(path, "utf8"));
-    const tickets = Array.isArray(entity.data.tickets) ? entity.data.tickets.map(String) : [];
-    if (!tickets.includes(ticketId)) continue;
-    entity.data.updated_at = new Date().toISOString().slice(0, 10);
-    if (tickets.every((id) => findTicket(root, id).state === "done")) {
-      entity.data.status = "done";
-      const done = join(root, ".a-team/packages/done");
-      mkdirSync(done, { recursive: true });
-      writeFileSync(join(done, filename), renderMarkdown(entity.data, entity.content));
-      unlinkSync(path);
-    } else {
-      writeFileSync(path, renderMarkdown(entity.data, entity.content));
+  for (const state of OPEN_PACKAGE_STATES) {
+    const directory = join(root, ".a-team/packages", state);
+    if (!existsSync(directory)) continue;
+    for (const filename of readdirSync(directory).filter((name) => name.endsWith(".md"))) {
+      const path = join(directory, filename);
+      const entity = parseMarkdown(readFileSync(path, "utf8"));
+      const tickets = Array.isArray(entity.data.tickets) ? entity.data.tickets.map(String) : [];
+      if (!tickets.includes(ticketId)) continue;
+      entity.data.updated_at = new Date().toISOString().slice(0, 10);
+      if (tickets.every((id) => findTicket(root, id).state === "done")) {
+        entity.data.status = "done";
+        const done = join(root, ".a-team/packages/done");
+        mkdirSync(done, { recursive: true });
+        writeFileSync(join(done, filename), renderMarkdown(entity.data, entity.content));
+        unlinkSync(path);
+      } else {
+        writeFileSync(path, renderMarkdown(entity.data, entity.content));
+      }
     }
   }
 }

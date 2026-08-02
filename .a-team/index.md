@@ -14,6 +14,7 @@ None.
 
 - decision-create-fails-in-a-fresh-worktree-when-a-team-decisi-44x6rke4
 - nincs-cli-ut-egy-csomag-lezarasara-ha-a-ticketjei-a-csomag-f-qdtczv8w
+- a-team-ui-does-not-open-the-browser-auto-open-the-served-url-yzn4w2gr
 
 ## Active tickets
 
@@ -44,3 +45,4 @@ None.
 - F-030-package-szintu-review-hianyzik-a-ticketek-review-ban-tartasa
 - F-033-no-component-test-harness-exists-for-the-react-board
 - ui-port-cli-tests-silently-assert-nothing-when-4311-is-alrea-nbxc71r5
+- schemas-package-schema-json-rejects-every-started-package-an-8et554b5

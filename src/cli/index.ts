@@ -7,7 +7,7 @@ import { briefTicket, cancelTicket, closeTicket, defineTicket, newTicket, readyT
 import { executeTicket, formatExecution } from "../commands/execute.js";
 import { statusCommand } from "../commands/status.js";
 import { newFinding, resolveFinding, validateFinding } from "../commands/finding.js";
-import { finalizePackage, newPackage, packageStatus, readyPackage, startPackage, updatePackageTickets, validatePackage } from "../commands/package.js";
+import { closePackage, finalizePackage, newPackage, packageStatus, readyPackage, startPackage, updatePackageTickets, validatePackage } from "../commands/package.js";
 import { validateWorkspace } from "../commands/validate.js";
 import { listClaims, releaseClaim } from "../commands/claim.js";
 import { uiCommand } from "../commands/ui.js";
@@ -220,6 +220,12 @@ packageCommand
   .command("status <id>")
   .option("--json")
   .action((id: string, options: { json?: boolean }) => print(packageStatus(id), Boolean(options.json)));
+packageCommand
+  .command("close <id>")
+  .description("Complete a package whose member tickets have all reached done, from any package state")
+  .option("--approve")
+  .option("--json")
+  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(closePackage(id, Boolean(options.approve)), Boolean(options.json)));
 packageCommand
   .command("dedupe <id>")
   .description("Resolve a package a merge left in two state directories: keep the furthest-advanced copy")

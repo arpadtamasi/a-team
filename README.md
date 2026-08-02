@@ -104,6 +104,13 @@ Completing the last ticket does **not** delete the coordinator branch — its fi
 gets integrated. `a-team package status <id>` reports where the package stands: `active`,
 `done-unintegrated`, `cleanup-pending`, `blocked-*`, or `cleaned`.
 
+Completing the last member ticket also completes the package itself, whether or not the package was
+ever started — a package whose tickets ran one by one through `a-team ticket execute` is finished by
+the last `ticket close` or `ticket cancel`, not left in `backlog`. `a-team package close <id> --approve`
+is the explicit path for a package whose tickets reached `done` some other way: it moves the package to
+`packages/done` from any state, refuses while a member ticket is not `done` and names it, never touches
+a ticket, and is a no-op on an already finished package.
+
 Once the branch is merged, `a-team package finalize <id>` performs the cleanup, and only what it
 can prove is safe: it verifies by Git ancestry that the coordinator head is contained in the base
 branch or its remote-tracking ref, switches to the base, fast-forwards it when needed, and deletes
@@ -191,6 +198,7 @@ a-team package validate P-012
 a-team package ready P-012 --approve
 a-team package start P-012 --agent codex
 a-team package status P-012
+a-team package close P-012 --approve
 
 a-team finding new --title "Divergent permission checks" --type inconsistency --evidence "src/a.ts and src/b.ts differ"
 a-team finding validate F-032

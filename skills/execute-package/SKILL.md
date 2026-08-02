@@ -16,6 +16,6 @@ Use `a-team package start` as the canonical package mutation. Never bypass ticke
 7. **Handle execution outcomes through the command:** `agent-failed` (non-zero exit or empty result) keeps the claim and worktree for inspection — retry with `a-team ticket execute <ticket-id> --resume`, which reuses that context instead of creating a second one. A plain repeat `execute` on a claimed ticket refuses by design. `execute` never enters review, merge or close.
 8. For each active ticket, the fresh agent follows the `execute-ticket` contract. Poll with `a-team package status <package-id>` and start newly unblocked work through supported CLI operations.
 9. On failure, stop or continue exactly as configured. Report blocked dependencies and conflicts without weakening validation.
-10. Keep package status current through CLI-backed ticket transitions.
+10. Keep package status current through CLI-backed ticket transitions. Closing or cancelling the last member ticket completes the package on its own, from any package state. If its tickets reached `done` some other way, complete it explicitly with `a-team package close <package-id> --approve`; it refuses while any member is not `done` and never edits a ticket.
 
 One ticket maps to one feature branch and one review target. V1 never auto-merges tickets and does not use a package integration branch.

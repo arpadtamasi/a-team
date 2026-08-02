@@ -18,6 +18,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `a-team package close <id> --approve`: a package whose member tickets all reached `done` can be
+  completed from any package state, so a package is no longer stuck in `backlog` when its tickets were
+  executed one by one instead of through `package start`. Automatic completion now covers every
+  unfinished package state as well — closing or cancelling the last member ticket finishes a package
+  that never went `active`. `close` refuses while a member ticket is not `done`, names that ticket and
+  changes nothing, never edits a ticket, and is a no-op on an already finished package. Coordinator
+  branch cleanup stays with `package finalize`.
 - `a-team ui` opens the served URL in the default browser once the server is listening
   (T-01kz1g2vyhfn5ezzvvyzn4w2gr), including a port picked by the 4311 fallback, so the printed URL no
   longer has to be copied by hand. `--no-open` suppresses it, `--json` never opens because that mode is
@@ -37,6 +44,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Git isolation rules for feature branches, claims, protected branches, and parallel worktrees.
 
 ### Fixed
+
+- `decision create` no longer fails with `ENOENT` in a freshly created worktree (T-01kz1g2vra99x0xhw144x6rke4). Git does not
+  carry the empty `.a-team/decisions` directory into a linked worktree, so the writer now creates it
+  before reading, the way every other writer already does. Nothing about a decision's content or id
+  derivation changes.
 
 - An entity a merge left in two state directories is now a named failure with a supported way out
   (T-036, the second root of F-008). `validate` reports it as `DUPLICATE_STATE`, listing every place

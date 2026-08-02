@@ -123,6 +123,33 @@ describe("durable decision CLI", () => {
     });
   });
 
+  test("records a decision in a linked worktree that has no .a-team/decisions directory", () => {
+    const root = initialize();
+    execFileSync("git", ["add", "-A"], { cwd: root });
+    execFileSync("git", ["-c", "user.email=a-team@example.com", "-c", "user.name=a-team", "commit", "-m", "chore: init"], { cwd: root });
+    const worktree = join(root, ".worktrees/decision");
+    execFileSync("git", ["worktree", "add", worktree, "-b", "feat/decision"], { cwd: root });
+    // Git carries no empty directories into a linked worktree; the writer used to crash with ENOENT here.
+    expect(existsSync(join(worktree, ".a-team/decisions"))).toBe(false);
+
+    const source = join(worktree, "cutover.md");
+    writeFileSync(source, validSource);
+    const created = run(worktree, ["decision", "create", "--from", source, "--approve"]);
+    expect(created.status).toBe(0);
+    const { id, path } = (JSON.parse(created.stdout) as { data: { id: string; path: string } }).data;
+    expect(path.endsWith(join(".worktrees/decision/.a-team/decisions", `${id}.md`))).toBe(true);
+    expect(existsSync(path)).toBe(true);
+    expect(readdirSync(join(worktree, ".a-team/decisions"))).toEqual([`${id}.md`]);
+    // The record lands in the worktree only, not in the main checkout.
+    expect(existsSync(join(root, ".a-team/decisions", `${id}.md`))).toBe(false);
+
+    const validation = run(worktree, ["validate"]);
+    expect(validation.status).toBe(0);
+    expect(JSON.parse(validation.stdout)).toMatchObject({ ok: true, data: { decisions: 1 } });
+
+    execFileSync("git", ["worktree", "remove", worktree, "--force"], { cwd: root });
+  });
+
   test("atomically reserves an id across concurrent writers with different titles", async () => {
     const root = initialize();
     const firstSource = join(root, "first.md");

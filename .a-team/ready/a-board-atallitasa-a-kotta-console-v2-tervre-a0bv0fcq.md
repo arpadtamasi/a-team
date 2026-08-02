@@ -1,7 +1,7 @@
 ---
 id: T-01kz1xrxw4aheeqv1ca0bv0fcq
 title: A board atallitasa a Kotta Console v2 tervre
-status: backlog
+status: ready
 origin: human
 types:
   - feature

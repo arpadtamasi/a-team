@@ -16,11 +16,11 @@ None.
 
 ## Active tickets
 
-- T-013-add-a-discoverable-bug-reporting-path
+None.
 
 ## Review
 
-None.
+- T-013-add-a-discoverable-bug-reporting-path
 
 ## Blocked
 

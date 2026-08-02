@@ -2,7 +2,7 @@
 id: P-004
 kind: batch
 title: 'Teljes rename: a-team → kotta'
-status: backlog
+status: ready
 tickets:
   - T-020
   - T-021

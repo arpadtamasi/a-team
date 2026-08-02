@@ -4,7 +4,7 @@
 
 ## Ready packages
 
-None.
+- P-004-teljes-rename-a-team-kotta
 
 ## Active packages
 

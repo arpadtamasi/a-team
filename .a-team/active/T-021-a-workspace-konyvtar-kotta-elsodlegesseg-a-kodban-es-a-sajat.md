@@ -1,7 +1,7 @@
 ---
 id: T-021
 title: 'A workspace-könyvtár .kotta: elsődlegesség a kódban és a saját repo migrációja'
-status: ready
+status: active
 origin: human
 types:
   - feature
@@ -12,10 +12,11 @@ package: P-004
 depends_on:
   - T-020
 blocks: []
-branch: null
+branch: feat/T-021-a-workspace-konyvtar-kotta-elsodlegesseg-a-kodban-es-a-sajat
 pull_request: null
 created_at: '2026-08-01'
 updated_at: '2026-08-02'
+assigned_agent: claude
 ---
 # T-021 — A workspace-könyvtár .kotta: elsődlegesség a kódban és a saját repo migrációja
 

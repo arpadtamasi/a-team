@@ -1,7 +1,7 @@
 ---
 id: T-014
 title: UI port collision returns raw EADDRINUSE without recovery guidance
-status: ready
+status: active
 origin: finding
 types:
   - bug
@@ -13,11 +13,12 @@ risk: low
 package: P-003
 depends_on: []
 blocks: []
-branch: null
+branch: fix/T-014-ui-port-collision-returns-raw-eaddrinuse-without-recovery-gu
 pull_request: null
 created_at: '2026-07-23'
-updated_at: '2026-07-23'
+updated_at: '2026-08-02'
 source_finding: F-001
+assigned_agent: claude
 ---
 # T-014 — Start the UI on the next available default port
 

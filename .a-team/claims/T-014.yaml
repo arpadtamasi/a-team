@@ -1,0 +1,5 @@
+ticket: T-014
+agent: claude
+branch: fix/T-014-ui-port-collision-returns-raw-eaddrinuse-without-recovery-gu
+worktree: .worktrees/T-014
+started_at: 2026-08-02T10:59:31.999Z

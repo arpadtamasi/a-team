@@ -3,13 +3,16 @@ id: F-01kz23nj69srgr2w13htpyyahh
 title: >-
   A vegrehajto agens jelentese sehova nem kerul — csak az el belole, amit a
   koordinator kezzel atir a review-evidenciaba
-status: new
+status: resolved
 origin: agent
 finding_type: risk
 confidence: high
 severity: medium
 discovered_during: null
 created_at: '2026-08-02'
+disposition: create-ticket
+resolved_at: '2026-08-02T20:47:37.469Z'
+ticket: T-01kz23pvzscenqavzx4tg62x1b
 ---
 # F-01kz23nj69srgr2w13htpyyahh — A vegrehajto agens jelentese sehova nem kerul — csak az el belole, amit a koordinator kezzel atir a review-evidenciaba
 

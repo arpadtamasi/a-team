@@ -4,11 +4,11 @@
 
 ## Ready packages
 
-- P-004-teljes-rename-a-team-kotta
+None.
 
 ## Active packages
 
-None.
+- P-004-teljes-rename-a-team-kotta
 
 ## Ready tickets
 

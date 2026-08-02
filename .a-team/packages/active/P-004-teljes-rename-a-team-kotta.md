@@ -2,7 +2,7 @@
 id: P-004
 kind: batch
 title: 'Teljes rename: a-team → kotta'
-status: ready
+status: active
 tickets:
   - T-020
   - T-021
@@ -19,6 +19,11 @@ authority:
   change_scope: false
 created_at: '2026-08-01'
 updated_at: '2026-08-02'
+coordinator:
+  branch: coord/P-004
+  base_branch: main
+  base_commit: b40be85fde341e05193370f96d243e132b4d7de3
+  cleaned_at: null
 ---
 # P-004 — Teljes rename: a-team → kotta
 

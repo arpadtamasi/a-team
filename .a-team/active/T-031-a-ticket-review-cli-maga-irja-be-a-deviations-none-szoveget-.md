@@ -3,7 +3,7 @@ id: T-031
 title: >-
   A ticket review CLI maga irja be a 'Deviations: None.' szoveget — az F-019
   hazugsag-mintaja beepitett
-status: ready
+status: active
 origin: finding
 types:
   - feature
@@ -13,11 +13,12 @@ risk: medium
 package: null
 depends_on: []
 blocks: []
-branch: null
+branch: feat/T-031-a-ticket-review-cli-maga-irja-be-a-deviations-none-szoveget-
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
 source_finding: F-026
+assigned_agent: claude
 ---
 # T-031 — Hotfix: a review ne írjon kéretlen „Deviations: None."-t
 

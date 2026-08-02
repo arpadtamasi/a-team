@@ -12,11 +12,11 @@ None.
 
 ## Defined contracts
 
-- T-022-a-szomszed-hasznalo-projektek-migracioja-oneanda-crm-kit-flo
+None.
 
 ## Active contracts
 
-None.
+- T-022-a-szomszed-hasznalo-projektek-migracioja-oneanda-crm-kit-flo
 
 ## Review
 

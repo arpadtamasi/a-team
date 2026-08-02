@@ -23,7 +23,7 @@ None.
 
 ## Review
 
-- T-032-the-deviations-field-says-none-while-the-same-ticket-names-d
+None.
 
 ## Blocked
 

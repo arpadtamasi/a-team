@@ -47,7 +47,6 @@ None.
 - F-020-deviations-are-accepted-per-ticket-and-never-summed-a-packag
 - F-021-finding-metadata-is-single-valued-in-practice-severity-confi
 - F-022-state-gates-are-bypassable-because-the-store-is-the-filesyst
-- F-023-the-cli-is-not-reachable-where-the-work-happens-and-the-skil
 - F-024-the-operator-works-in-sweeps-and-batch-decisions-the-tool-is
 - F-025-progos-as-first-kotta-publisher-mcp-kottas-for-standard-sme-
 - F-026-a-ticket-review-cli-maga-irja-be-a-deviations-none-szoveget-

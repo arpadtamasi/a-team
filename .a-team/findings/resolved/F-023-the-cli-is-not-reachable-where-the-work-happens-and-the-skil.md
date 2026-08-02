@@ -3,13 +3,16 @@ id: F-023
 title: >-
   The CLI is not reachable where the work happens, and the skills are bypassed —
   831 a-team commands, 5 skill invocations
-status: new
+status: resolved
 origin: agent
 finding_type: process
 confidence: high
 severity: medium
 discovered_during: null
 created_at: '2026-08-01'
+disposition: create-ticket
+resolved_at: '2026-08-02T02:49:16.110Z'
+ticket: T-028
 ---
 # F-023 — The CLI is not reachable where the work happens, and the skills are bypassed — 831 a-team commands, 5 skill invocations
 

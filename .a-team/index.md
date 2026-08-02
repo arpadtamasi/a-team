@@ -16,11 +16,11 @@ None.
 
 ## Active tickets
 
-- T-015-completed-package-leaves-the-coordinator-checkout-on-its-mer
+None.
 
 ## Review
 
-None.
+- T-015-completed-package-leaves-the-coordinator-checkout-on-its-mer
 
 ## Blocked
 

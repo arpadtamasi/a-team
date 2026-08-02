@@ -62,4 +62,6 @@ CLI-tesztek a brief tartalmára és determinizmusára; egy valós próbafutás j
 
 ## Open decisions
 
-None — a küszöb értéke konfiguráció, nem döntés.
+None.
+
+(A küszöb értéke konfiguráció, nem döntés.)

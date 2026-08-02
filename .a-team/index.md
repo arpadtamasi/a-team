@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-- T-034-sequential-ids-collide-and-lifecycle-states-duplicate-under-
+None.
 
 ## Blocked
 

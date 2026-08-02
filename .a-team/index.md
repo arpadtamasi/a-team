@@ -16,12 +16,11 @@ None.
 - T-013-add-a-discoverable-bug-reporting-path
 - T-014-ui-port-collision-returns-raw-eaddrinuse-without-recovery-gu
 - T-015-completed-package-leaves-the-coordinator-checkout-on-its-mer
-- T-029-ui-reload-masodpercekig-tart-fajlonkent-kulon-git-show-subpr
 - T-030-backlog-ticketnek-nincs-duplikatum-torles-utja-a-cli-ben-a-f
 
 ## Active tickets
 
-None.
+- T-029-ui-reload-masodpercekig-tart-fajlonkent-kulon-git-show-subpr
 
 ## Review
 

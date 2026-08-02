@@ -3,7 +3,7 @@ id: T-029
 title: >-
   UI reload masodpercekig tart — fajlonkent kulon git show subprocess, cache
   nelkul
-status: ready
+status: active
 origin: finding
 types:
   - feature
@@ -13,11 +13,12 @@ risk: medium
 package: null
 depends_on: []
 blocks: []
-branch: null
+branch: feat/T-029-ui-reload-masodpercekig-tart-fajlonkent-kulon-git-show-subpr
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
 source_finding: F-029
+assigned_agent: claude
 ---
 # T-029 — Hotfix: a UI workspace-olvasása batch-elt és cache-elt legyen
 

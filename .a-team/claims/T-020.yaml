@@ -1,0 +1,5 @@
+ticket: T-020
+agent: claude
+branch: feat/T-020-rename-a-team-kotta-npm-cli-workspace-kompatibilitas-dokumen
+worktree: .worktrees/T-020
+started_at: 2026-08-02T20:06:38.701Z

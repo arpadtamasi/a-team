@@ -1,7 +1,7 @@
 ---
 id: T-020
 title: 'Rename: a-team → kotta (npm, CLI, workspace-kompatibilitás, dokumentáció)'
-status: ready
+status: active
 origin: human
 types:
   - feature
@@ -11,10 +11,11 @@ risk: medium
 package: P-004
 depends_on: []
 blocks: []
-branch: null
+branch: feat/T-020-rename-a-team-kotta-npm-cli-workspace-kompatibilitas-dokumen
 pull_request: null
 created_at: '2026-08-01'
 updated_at: '2026-08-02'
+assigned_agent: claude
 ---
 # T-020 — Rename: a-team → kotta (npm, CLI, workspace-kompatibilitás, dokumentáció)
 

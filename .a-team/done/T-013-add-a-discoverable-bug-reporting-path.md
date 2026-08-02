@@ -1,7 +1,7 @@
 ---
 id: T-013
 title: Add a discoverable bug-reporting path
-status: review
+status: done
 origin: human
 types:
   - feature
@@ -18,6 +18,7 @@ pull_request: null
 created_at: '2026-07-23'
 updated_at: '2026-08-02'
 assigned_agent: claude
+resolution: completed
 ---
 # T-013 — Add a discoverable bug-reporting path
 

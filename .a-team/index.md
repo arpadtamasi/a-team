@@ -8,7 +8,7 @@ None.
 
 ## Active packages
 
-- P-003-trustworthy-daily-use-and-feedback-intake
+None.
 
 ## Ready tickets
 
@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-- T-013-add-a-discoverable-bug-reporting-path
+None.
 
 ## Blocked
 

@@ -2,7 +2,7 @@
 id: P-003
 kind: milestone
 title: Trustworthy daily use and feedback intake
-status: active
+status: done
 tickets:
   - T-010
   - T-011

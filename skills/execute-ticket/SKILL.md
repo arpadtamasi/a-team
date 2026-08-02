@@ -7,7 +7,9 @@ description: Implement and verify one active A-Team ticket within its approved c
 
 Work only in the branch and worktree recorded by the ticket's claim. A-Team state mutations belong to the `a-team` CLI; normal product-code edits use the repository's regular tools.
 
-1. Validate the active ticket, claim, branch, worktree, dependencies, and protected-branch safety before editing.
+**Context contract (D-009):** execution starts in a FRESH agent context whose intent input is `a-team ticket brief <id>` — the ticket body, its referenced decisions, its profiles and its claim. The code lives in the worktree. If the brief plus the worktree is not enough to start, that gap is a contract defect: record it (finding or definition contradiction), do not silently pull in wider context.
+
+1. Validate the active ticket, claim, branch, worktree, dependencies, and protected-branch safety before editing. Obtain the contract with `a-team ticket brief <id>`.
 2. Convert acceptance conditions and active-profile done checks into a concrete verification plan.
 3. Make the smallest implementation that produces the ticket outcome. Preserve non-goals and constraints.
 4. Classify discoveries as required for outcome, required for safe implementation, optional improvement, separate finding, or definition contradiction.

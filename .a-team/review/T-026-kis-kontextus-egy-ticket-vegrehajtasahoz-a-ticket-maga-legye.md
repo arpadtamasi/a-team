@@ -1,7 +1,7 @@
 ---
 id: T-026
 title: 'Kis kontextus: egy ticket végrehajtásához a ticket maga legyen elég'
-status: ready
+status: review
 origin: human
 types:
   - feature
@@ -11,10 +11,11 @@ risk: medium
 package: null
 depends_on: []
 blocks: []
-branch: null
+branch: feat/T-026-kis-kontextus-egy-ticket-vegrehajtasahoz-a-ticket-maga-legye
 pull_request: null
 created_at: '2026-08-01'
 updated_at: '2026-08-02'
+assigned_agent: claude
 ---
 # T-026 — Kis kontextus: egy ticket végrehajtásához a ticket maga legyen elég
 
@@ -61,5 +62,27 @@ Először a `brief` parancs és a mérés — az önmagában értéket ad és ad
 CLI-tesztek a brief tartalmára és determinizmusára; egy valós próbafutás jegyzőkönyve a 2. acceptance szerint.
 
 ## Open decisions
+
+None.
+
+## Review evidence
+
+| Acceptance condition | Evidence |
+|---|---|
+| Ticket acceptance criteria | Acc1: 'ticket brief' a ticket torzset + hivatkozott D-donteseket + profilokat + claimet adja, mast nem — integracios teszt bizonyitja (D-001 bekerul, D-999 missing-kent jelentve, finding-tartalom nincs). Acc2: valos ticketen probalva: a T-026 sajat briefje ~1494 token, 4 szekcio — a szerzodes onmagaban all; teljes friss-agens probafutas a crm-kit buildben esedekes (DEVIACIO-1). Acc3: kuszob-teszt zold: --warn-tokens 10 → figyelmeztetes a legnagyobb szekcio nevevel. Acc4: execute-package es execute-ticket skillek frissitve — friss agens + brief az alapertelmezes, kontextus-orokles explicit naplozott kivetel; a gepi kikenyszerites (a flow tenylegesen uj agenst indit) skill-szerzodesben el, nem kodban (DEVIACIO-2), elso eles proba a crm-kit build. Acc5: README 'Small contexts by default' szakasz az elvvel. VERIFIKACIO: build:cli zold; vitest 14 fajl, 36 passed / 1 skipped; determinizmus-teszt bajtazonos; fusteszt sajat T-026 briefen. |
+
+### Verification performed
+
+Acc1: 'ticket brief' a ticket torzset + hivatkozott D-donteseket + profilokat + claimet adja, mast nem — integracios teszt bizonyitja (D-001 bekerul, D-999 missing-kent jelentve, finding-tartalom nincs). Acc2: valos ticketen probalva: a T-026 sajat briefje ~1494 token, 4 szekcio — a szerzodes onmagaban all; teljes friss-agens probafutas a crm-kit buildben esedekes (DEVIACIO-1). Acc3: kuszob-teszt zold: --warn-tokens 10 → figyelmeztetes a legnagyobb szekcio nevevel. Acc4: execute-package es execute-ticket skillek frissitve — friss agens + brief az alapertelmezes, kontextus-orokles explicit naplozott kivetel; a gepi kikenyszerites (a flow tenylegesen uj agenst indit) skill-szerzodesben el, nem kodban (DEVIACIO-2), elso eles proba a crm-kit build. Acc5: README 'Small contexts by default' szakasz az elvvel. VERIFIKACIO: build:cli zold; vitest 14 fajl, 36 passed / 1 skipped; determinizmus-teszt bajtazonos; fusteszt sajat T-026 briefen.
+
+### Deviations
+
+None.
+
+### Findings created
+
+None.
+
+### Known concerns
 
 None.

@@ -236,6 +236,112 @@ export function reopenTicket(id: string, approved: boolean) {
   return { ok: true, command: "ticket reopen", data: { id, state: "backlog" } };
 }
 
+export interface BriefSection {
+  name: string;
+  characters: number;
+}
+
+export interface BriefResult {
+  ok: boolean;
+  command: "ticket brief";
+  data: {
+    id: string;
+    state: string;
+    tokens: number;
+    warnTokens: number;
+    warning: string | null;
+    largestSection: string;
+    sections: BriefSection[];
+    decisions: string[];
+    missingDecisions: string[];
+    path: string | null;
+    brief: string;
+  };
+}
+
+/** Approximate token count: stable, documented heuristic (chars / 4, rounded up). */
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Assemble the minimal execution context for one ticket (D-009 / T-026):
+ * the ticket body, the decisions it references, its profile requirements and
+ * its claim — and nothing else. Deterministic: same workspace, same bytes.
+ */
+export function briefTicket(id: string, options: { out?: string; warnTokens?: number } = {}, repositoryRoot?: string): BriefResult {
+  const root = repositoryRoot ?? findRepositoryRoot();
+  const ticket = findTicket(root, id);
+  const entity = parseMarkdown(readFileSync(ticket.path, "utf8"));
+
+  const referenced = [...new Set([...entity.content.matchAll(/\bD-\d{3,}\b/g)].map((match) => match[0]))].sort();
+  const decisionsDirectory = join(root, ".a-team/decisions");
+  const decisions: { id: string; content: string }[] = [];
+  const missingDecisions: string[] = [];
+  for (const decisionId of referenced) {
+    const path = join(decisionsDirectory, `${decisionId}.md`);
+    if (existsSync(path)) decisions.push({ id: decisionId, content: readFileSync(path, "utf8").trim() });
+    else missingDecisions.push(decisionId);
+  }
+
+  const profiles = Array.isArray(entity.data.profiles) ? entity.data.profiles.map(String) : [];
+  const profileBlocks = profiles.flatMap((profile) => {
+    const path = join(root, ".a-team/profiles", `${profile}.yaml`);
+    return existsSync(path) ? [{ profile, content: readFileSync(path, "utf8").trim() }] : [];
+  });
+
+  const claimPath = join(root, ".a-team/claims", `${id}.yaml`);
+  const claim = existsSync(claimPath) ? readFileSync(claimPath, "utf8").trim() : null;
+
+  const dependsOn = Array.isArray(entity.data.depends_on) ? entity.data.depends_on.map(String) : [];
+  const header = [
+    `# Execution brief — ${id}`,
+    "",
+    `- id: ${id}`,
+    `- title: ${String(entity.data.title ?? "")}`,
+    `- state: ${ticket.state}`,
+    `- profiles: ${profiles.length ? profiles.join(", ") : "none"}`,
+    `- depends_on: ${dependsOn.length ? dependsOn.join(", ") : "none"}`,
+    `- branch: ${entity.data.branch ? String(entity.data.branch) : "none"}`,
+    "",
+    "This brief is the complete intent context for executing this ticket (D-009).",
+    "It deliberately EXCLUDES: other tickets' bodies, findings, chat history and the",
+    "coordinator's context. If the work cannot start from this brief plus the code in",
+    "the worktree, that gap is a contract defect — record it, do not silently widen",
+    "the context.",
+  ].join("\n");
+
+  const parts: { name: string; text: string }[] = [
+    { name: "header", text: header },
+    { name: `ticket ${id}`, text: `## Ticket\n\n${entity.content.trim()}` },
+  ];
+  for (const decision of decisions) parts.push({ name: `decision ${decision.id}`, text: `## Decision ${decision.id}\n\n${decision.content}` });
+  if (missingDecisions.length) parts.push({ name: "missing decisions", text: `## Missing decisions\n\nReferenced but not found in .a-team/decisions: ${missingDecisions.join(", ")}` });
+  for (const block of profileBlocks) parts.push({ name: `profile ${block.profile}`, text: `## Profile: ${block.profile}\n\n\`\`\`yaml\n${block.content}\n\`\`\`` });
+  if (claim) parts.push({ name: "claim", text: `## Claim\n\n\`\`\`yaml\n${claim}\n\`\`\`` });
+
+  const brief = parts.map((part) => part.text).join("\n\n") + "\n";
+  const sectionSizes: BriefSection[] = parts.map((part) => ({ name: part.name, characters: part.text.length }));
+  const largestSection = [...sectionSizes].sort((a, b) => b.characters - a.characters)[0]?.name ?? "header";
+  const tokens = estimateTokens(brief);
+  const warnTokens = options.warnTokens ?? 12000;
+  const warning = tokens > warnTokens
+    ? `Brief is ${tokens} tokens (limit ${warnTokens}). Largest section: ${largestSection}. The ticket is probably too large or under-referenced — split it or sharpen it.`
+    : null;
+
+  let outPath: string | null = null;
+  if (options.out) {
+    outPath = resolve(options.out);
+    writeFileSync(outPath, brief);
+  }
+
+  return {
+    ok: true,
+    command: "ticket brief",
+    data: { id, state: ticket.state, tokens, warnTokens, warning, largestSection, sections: sectionSizes, decisions: decisions.map((decision) => decision.id), missingDecisions, path: outPath, brief },
+  };
+}
+
 function updateContainingPackage(root: string, ticketId: string): void {
   const directory = join(root, ".a-team/packages/active");
   if (!existsSync(directory)) return;

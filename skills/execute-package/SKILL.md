@@ -12,8 +12,9 @@ Use `a-team package start` as the canonical package mutation. Never bypass ticke
 3. Explain the calculated execution order, mode, parallelism, and stop-on-failure behavior.
 4. Run `a-team package start <package-id> --agent <agent>`.
 5. Start no more tickets than the configured parallelism permits. Parallel tickets must have separate claims, branches, and Git worktrees.
-6. For each active ticket, follow the `execute-ticket` contract. Poll with `a-team package status <package-id>` and start newly unblocked work through supported CLI operations.
-7. On failure, stop or continue exactly as configured. Report blocked dependencies and conflicts without weakening validation.
-8. Keep package status current through CLI-backed ticket transitions.
+6. **Fresh context per ticket (D-009, default):** launch every ticket as a NEW agent whose intent context is `a-team ticket brief <id>` — never your own accumulated conversation. The coordinator stays thin: it sequences, gates and records; it never carries ticket implementation in its own context. Record each ticket's brief token count in the run log. Context carry-over is an explicit, logged exception, not a habit.
+7. For each active ticket, the fresh agent follows the `execute-ticket` contract. Poll with `a-team package status <package-id>` and start newly unblocked work through supported CLI operations.
+8. On failure, stop or continue exactly as configured. Report blocked dependencies and conflicts without weakening validation.
+9. Keep package status current through CLI-backed ticket transitions.
 
 One ticket maps to one feature branch and one review target. V1 never auto-merges tickets and does not use a package integration branch.

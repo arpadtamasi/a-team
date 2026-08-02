@@ -104,6 +104,7 @@ a-team ticket define T-014 --from /tmp/T-014-definition.md
 a-team ticket validate T-014
 a-team ticket ready T-014 --approve
 a-team ticket start T-014 --agent codex
+a-team ticket brief T-014 --out /tmp/T-014-brief.md
 a-team ticket review T-014 --evidence "Acceptance tests and visual evidence passed" --pull-request PR-123
 a-team ticket close T-014 --approve
 
@@ -123,6 +124,8 @@ a-team claim release T-014 --force
 ```
 
 Every command supports `--json`. Mutations validate before writing and report both the violated rule and corrective action when rejected.
+
+**Small contexts by default.** Each ticket executes in a fresh agent context whose intent input is `a-team ticket brief <id>` — the ticket body, its referenced decisions, its profiles and its claim, nothing else. The brief is deterministic and reports an approximate token count; above a threshold (`--warn-tokens`, default 12000) it warns that the ticket is probably too large or under-referenced. This is a quality gauge, not a thrift trick: if a ticket cannot be executed from its brief plus the code in the worktree, the contract is incomplete — record the gap instead of widening the context.
 
 A decision draft contains `title` frontmatter and non-empty `Decision`, `Context`, and
 `Consequences` sections. `decision create` requires explicit human approval, assigns the

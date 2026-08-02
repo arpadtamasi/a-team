@@ -52,3 +52,4 @@ None.
 - F-024-the-operator-works-in-sweeps-and-batch-decisions-the-tool-is
 - F-025-progos-as-first-kotta-publisher-mcp-kottas-for-standard-sme-
 - F-028-ugyanannak-a-ticketnek-egyszerre-tobb-igaz-allapota-van-ninc
+- F-030-package-szintu-review-hianyzik-a-ticketek-review-ban-tartasa

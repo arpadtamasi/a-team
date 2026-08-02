@@ -1,7 +1,7 @@
 ---
 id: T-026
 title: 'Kis kontextus: egy ticket végrehajtásához a ticket maga legyen elég'
-status: ready
+status: active
 origin: human
 types:
   - feature
@@ -11,10 +11,11 @@ risk: medium
 package: null
 depends_on: []
 blocks: []
-branch: null
+branch: feat/T-026-kis-kontextus-egy-ticket-vegrehajtasahoz-a-ticket-maga-legye
 pull_request: null
 created_at: '2026-08-01'
 updated_at: '2026-08-02'
+assigned_agent: claude
 ---
 # T-026 — Kis kontextus: egy ticket végrehajtásához a ticket maga legyen elég
 

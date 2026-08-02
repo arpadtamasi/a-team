@@ -1,7 +1,7 @@
 ---
 id: T-01kz1nzpnafm6n5t0fz43g7nwh
 title: Component-test harness for the React board
-status: ready
+status: active
 origin: finding
 types:
   - feature
@@ -11,11 +11,12 @@ risk: medium
 package: null
 depends_on: []
 blocks: []
-branch: null
+branch: feat/T-01kz1nzpnafm6n5t0fz43g7nwh-component-test-harness-for-the-react-board
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
 source_finding: F-033
+assigned_agent: claude
 ---
 # T-01kz1nzpnafm6n5t0fz43g7nwh — Component-test harness for the React board
 

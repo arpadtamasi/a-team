@@ -12,11 +12,11 @@ None.
 
 ## Ready tickets
 
-- no-component-test-harness-exists-for-the-react-board-z43g7nwh
+None.
 
 ## Active tickets
 
-None.
+- no-component-test-harness-exists-for-the-react-board-z43g7nwh
 
 ## Review
 

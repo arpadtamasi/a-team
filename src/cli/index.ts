@@ -204,10 +204,10 @@ program
   .command("ui")
   .description("Serve the local filesystem-backed A-Team board")
   .option("--workspace <path>", "Repository root or .a-team directory", ".")
-  .option("--port <port>", "Local port", "4311")
+  .option("--port <port>", "Local port; omitted starts at 4311 and advances to the next free port")
   .option("--host <host>", "Bind host", "127.0.0.1")
   .option("--json")
-  .action(async (options: { workspace: string; port: string; host: string; json?: boolean }) => uiCommand({ workspace: options.workspace, port: Number(options.port), host: options.host, json: options.json }));
+  .action(async (options: { workspace: string; port?: string; host: string; json?: boolean }) => uiCommand({ workspace: options.workspace, port: options.port === undefined ? undefined : Number(options.port), host: options.host, json: options.json }));
 
 program.configureOutput({ outputError: (message) => process.stderr.write(message) });
 

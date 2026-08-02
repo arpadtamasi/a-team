@@ -13,7 +13,6 @@ None.
 ## Ready tickets
 
 - T-013-add-a-discoverable-bug-reporting-path
-- T-014-ui-port-collision-returns-raw-eaddrinuse-without-recovery-gu
 - T-015-completed-package-leaves-the-coordinator-checkout-on-its-mer
 
 ## Active tickets
@@ -22,7 +21,7 @@ None.
 
 ## Review
 
-None.
+- T-014-ui-port-collision-returns-raw-eaddrinuse-without-recovery-gu
 
 ## Blocked
 

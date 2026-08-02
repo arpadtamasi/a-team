@@ -1,6 +1,6 @@
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createReadStream, existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { createInterface } from "node:readline";
 import { basename, dirname, extname, join, normalize, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -310,7 +310,61 @@ const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png",
 };
 
-export async function uiCommand(options: { workspace: string; port: number; host: string; json?: boolean }): Promise<void> {
+export const DEFAULT_UI_PORT = 4311;
+export const UI_PORT_RETRY_BOUND = 20;
+const MAX_PORT = 65535;
+
+/** 0 stays legal: it asks the OS for an ephemeral port, which callers and tests rely on. */
+export function validateUiPort(port: number): void {
+  if (!Number.isInteger(port) || port < 0 || port > MAX_PORT) throw new Error(`--port must be an integer between 0 and ${MAX_PORT}; got '${port}'.`);
+}
+
+export function isAddressInUse(error: unknown): boolean {
+  return (error as NodeJS.ErrnoException | null)?.code === "EADDRINUSE";
+}
+
+/** Explicit ports are tried once; an omitted port walks upwards from `start` within the retry bound. */
+export function uiPortCandidates(requested?: number, start = DEFAULT_UI_PORT): number[] {
+  if (requested !== undefined) return [requested];
+  const candidates: number[] = [];
+  for (let index = 0; index < UI_PORT_RETRY_BOUND; index += 1) {
+    const candidate = start + index;
+    if (candidate > MAX_PORT) break;
+    candidates.push(candidate);
+  }
+  return candidates;
+}
+
+function listenOnce(server: Server, host: string, port: number): Promise<void> {
+  return new Promise<void>((resolvePromise, reject) => {
+    const onError = (error: Error) => { server.removeListener("listening", onListening); reject(error); };
+    const onListening = () => { server.removeListener("error", onError); resolvePromise(); };
+    server.once("error", onError);
+    server.once("listening", onListening);
+    server.listen(port, host);
+  });
+}
+
+/** Binds `server`, falling back to the next port only for EADDRINUSE on an omitted `--port`. */
+export async function bindUiServer(server: Server, host: string, requested?: number, start = DEFAULT_UI_PORT): Promise<{ port: number; fallback: boolean }> {
+  if (requested !== undefined) validateUiPort(requested);
+  const candidates = uiPortCandidates(requested, start);
+  for (const candidate of candidates) {
+    try {
+      await listenOnce(server, host, candidate);
+      // An explicit 0 asks for an ephemeral port, so report what the OS actually gave us.
+      const bound = (server.address() as { port: number } | null)?.port ?? candidate;
+      return { port: bound, fallback: requested === undefined && candidate !== start };
+    } catch (error) {
+      if (!isAddressInUse(error)) throw error;
+      if (requested !== undefined) throw new Error(`Port ${requested} on ${host} is already in use. Stop the process holding it, or run 'a-team ui' without --port to take the next free port.`);
+    }
+  }
+  const last = candidates[candidates.length - 1] ?? start;
+  throw new Error(`Ports ${start}-${last} on ${host} are all in use. Free one of them, or run 'a-team ui --port <port>' with a port you know is free.`);
+}
+
+export async function uiCommand(options: { workspace: string; port?: number; host: string; json?: boolean }): Promise<void> {
   const initial = readWorkspace(options.workspace);
   const projectRoot = basename(initial.workspace) === ".a-team" ? dirname(initial.workspace) : initial.workspace;
   const agents = { codex: commandAvailable("codex"), claude: commandAvailable("claude") };
@@ -452,11 +506,11 @@ export async function uiCommand(options: { workspace: string; port: number; host
     response.writeHead(200, { "content-type": MIME[extname(safePath)] ?? "application/octet-stream", "cache-control": "no-store" });
     createReadStream(safePath).pipe(response);
   });
-  await new Promise<void>((resolvePromise, reject) => {
-    server.once("error", reject);
-    server.listen(options.port, options.host, resolvePromise);
-  });
+  const { port, fallback } = await bindUiServer(server, options.host, options.port);
   server.on("close", () => codex?.close());
-  const url = `http://${options.host}:${options.port}`;
-  process.stdout.write(options.json ? `${JSON.stringify({ ok: true, command: "ui", data: { url, workspace: initial.workspace } })}\n` : `A-Team UI: ${url}\nWorkspace: ${initial.workspace}\nPress Ctrl+C to stop.\n`);
+  const url = `http://${options.host}:${port}`;
+  const note = fallback ? `Port ${DEFAULT_UI_PORT} was busy; selected ${port}.\n` : "";
+  process.stdout.write(options.json
+    ? `${JSON.stringify({ ok: true, command: "ui", data: { url, host: options.host, port, workspace: initial.workspace, fallback } })}\n`
+    : `A-Team UI: ${url}\nWorkspace: ${initial.workspace}\n${note}Press Ctrl+C to stop.\n`);
 }

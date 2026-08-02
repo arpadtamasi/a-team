@@ -77,6 +77,11 @@ a-team ui
 This uses the current directory by default. To serve another checkout or address its
 workspace directly, pass `--workspace <repository-root>` or `--workspace <repository-root>/.a-team`.
 
+Without `--port`, the board starts at `4311` and advances to the next free port when that
+one is taken, so a second workspace opens without any manual step; the output names the
+port it selected. With an explicit `--port <port>` the choice is strict: an occupied port
+fails with an actionable error instead of quietly moving to a neighbour.
+
 ## Core safety rules
 
 - A backlog item is not executable until it is valid and explicitly ready.

@@ -1,7 +1,7 @@
 ---
 id: T-032
 title: A done-kapu nem békíti ki a próza deviációit a strukturált Deviations mezővel
-status: ready
+status: active
 origin: finding
 types:
   - feature
@@ -11,11 +11,12 @@ risk: low
 package: null
 depends_on: []
 blocks: []
-branch: null
+branch: feat/T-032-a-done-kapu-nem-bekiti-ki-a-proza-deviacioit-a-strukturalt-d
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
 source_finding: F-019
+assigned_agent: claude
 ---
 # T-032 — A done-kapu nem békíti ki a próza deviációit a strukturált Deviations mezővel
 

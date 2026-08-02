@@ -12,8 +12,20 @@ const running: ChildProcess[] = [];
 const held: Server[] = [];
 
 afterEach(async () => {
-  for (const child of running.splice(0)) child.kill();
-  for (const server of held.splice(0)) await new Promise<void>((done) => { server.listening ? server.close(() => done()) : done(); });
+  // Wait for each child to actually exit: a killed-but-alive UI still holds a socket
+  // on the port we are about to close, and server.close() would then never resolve.
+  await Promise.all(running.splice(0).map((child) => new Promise<void>((done) => {
+    if (child.exitCode !== null || child.signalCode !== null) return done();
+    child.once("exit", () => done());
+    child.kill();
+  })));
+  for (const server of held.splice(0)) {
+    await new Promise<void>((done) => {
+      if (!server.listening) return done();
+      server.closeAllConnections?.();
+      server.close(() => done());
+    });
+  }
 });
 
 function initializedRepository(label: string) {

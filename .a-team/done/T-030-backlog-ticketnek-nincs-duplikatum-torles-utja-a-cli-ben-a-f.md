@@ -81,7 +81,7 @@ Acc1: backlog->done duplicate resolutionnel, validate zold — integracios teszt
 
 ### Deviations
 
-None.
+DEVIACIOK (friss agens nyilatkozata): +1 orszem-teszt ismeretlen resolutionre (scope-on beluli bovites); assertClean+commit a closeTicket-konvenciot koveti, a brief explicit nem kerte; claim-guard vedekezo ertelmezessel (hibat ad kobor claimre).
 
 ### Findings created
 

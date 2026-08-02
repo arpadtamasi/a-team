@@ -78,7 +78,7 @@ Acc1: 'ticket brief' a ticket torzset + hivatkozott D-donteseket + profilokat + 
 
 ### Deviations
 
-None.
+DEVIACIO-1: teljes friss-agens probafutas nem tortent — a T-026 sajat briefjen mert ~1494 token / 4 szekcio igazolja, hogy a szerzodes onmagaban all, de az eles proba a crm-kit buildben esedekes. DEVIACIO-2: a gepi kikenyszerites (hogy a flow tenylegesen uj agenst inditson) skill-szerzodesben el, nem kodban; elso eles proba szinten a crm-kit build.
 
 ### Findings created
 

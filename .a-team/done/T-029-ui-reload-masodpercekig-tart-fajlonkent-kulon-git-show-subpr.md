@@ -78,7 +78,7 @@ Acc1: 210-entitasos fixture-on a workspace-osszeallitas legfeljebb 2 git-subproc
 
 ### Deviations
 
-None.
+DEVIACIOK (friss agens nyilatkozata): (a) base-branchen allo elsodleges konyvtarnal +1 git status kell a nem-committed felvetelhez — a szigoru 2-es garancia ref-only osszeallitasra all, on-base reload 3 hivas, kulon teszttel rogzitve; a szerzodes Acc1-e es a Scope frissesseg-kovetelmenye aritmetikailag utkozott, az agens jelezte (helyes feloldas); (b) archive valasztva ls-tree+cat-file helyett, mert az ketto subprocess lenne; (c) +1 fallback-teszt a Constraints alapjan. Tovabba: interaktiv bongeszos fusteszt nem futott (nincs bongeszo a kontextusban) — a readWorkspace-meres dist-bol tortent.
 
 ### Findings created
 

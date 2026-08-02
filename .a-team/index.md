@@ -12,7 +12,7 @@ None.
 
 ## Ready tickets
 
-None.
+- T-034-sequential-ids-collide-and-lifecycle-states-duplicate-under-
 
 ## Active tickets
 

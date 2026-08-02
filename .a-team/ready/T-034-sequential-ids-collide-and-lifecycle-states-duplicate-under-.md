@@ -1,7 +1,7 @@
 ---
 id: T-034
 title: 'Koordinacio-mentes entitas-azonosito, hogy ket ag ne tudjon utkozni'
-status: backlog
+status: ready
 origin: finding
 types:
   - bug

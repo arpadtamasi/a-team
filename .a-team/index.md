@@ -19,11 +19,11 @@ None.
 
 ## Active tickets
 
-- T-032-the-deviations-field-says-none-while-the-same-ticket-names-d
+None.
 
 ## Review
 
-None.
+- T-032-the-deviations-field-says-none-while-the-same-ticket-names-d
 
 ## Blocked
 

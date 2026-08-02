@@ -240,7 +240,9 @@ export function readNotices(projectRoot: string, workspace: string, useBase: boo
   if (legacy.length) {
     notices.push(`This workspace is still on the pre-vocabulary shape (${legacy.map((name) => `${name}/`).join(", ")}). The board reads the current names, so what you see is incomplete. Run 'kotta migrate --dry-run', then 'kotta migrate'.`);
   }
-  if (useBase && fromRef === 0) {
+  // Only when the shape is current: an old-shape workspace reads as empty for the reason above, and
+  // saying "the ref has no entities" about it would be wrong — the ref has them, under the old names.
+  if (!legacy.length && useBase && fromRef === 0) {
     const onDisk = workingTreeEntityCount(workspace);
     if (onDisk > 0) {
       notices.push(`The board reads ${basename(workspace)}/ from the '${base}' ref, not from the working tree. That ref has no entities while the working tree has ${onDisk} — a migration or rename that has not reached '${base}' yet. Commit it and merge it into '${base}'; the board is empty until then, and the workspace is not.`);

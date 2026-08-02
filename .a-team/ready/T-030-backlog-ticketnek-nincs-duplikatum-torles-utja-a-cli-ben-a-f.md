@@ -3,7 +3,7 @@ id: T-030
 title: >-
   Backlog-ticketnek nincs duplikatum/torles utja a CLI-ben — a finding resolve
   auto-ticketje utkozott a kezzel irt szerzodessel
-status: backlog
+status: ready
 origin: finding
 types:
   - feature

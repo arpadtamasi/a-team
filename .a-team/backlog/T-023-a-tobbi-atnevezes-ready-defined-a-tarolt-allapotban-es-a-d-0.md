@@ -36,7 +36,7 @@ The operator's insight shapes this ticket: the migration is **not agent work**. 
 - The `ticket ready` promotion verb is renamed as part of this — `define` is already taken by contract-writing, so the new verb name is part of the work, not an afterthought.
 - The `kind` field is removed from batches, its validation with it.
 - **`kotta migrate`** — one command that takes a workspace from any older shape to the current one: the workspace directory (`.a-team` → `.kotta`), the entity directories, the stored statuses, and every reference between entities. Idempotent. `--dry-run` reports exactly what it would change and touches nothing.
-- Read compatibility for at least one version: the old directory names and status values still load, with a warning naming the migration command.
+- The **migration command** understands the old shape — by definition, since that is what it reads. The rest of the CLI does not: once migrated, no reader carries a fallback. There are four Kotta workspaces in the world (this one, oneanda, crm-kit, flowbench) and all four are migrated in this package, so a general compatibility layer would be insurance for nobody.
 - This repository's own workspace is migrated by running the command — not by hand, not by the agent editing files.
 
 ## Non-goals
@@ -44,7 +44,10 @@ The operator's insight shapes this ticket: the migration is **not agent work**. 
 - Renaming identifiers. Ids stay exactly as they are, per D-010 — this is vocabulary, not identity.
 - Migrating the neighbour workspaces; that is the next ticket, and it will consist of running this command.
 - The two questions D-004 still parks: the assess gate, and whether an open question is a first-class entity.
+- A general backward-compatibility layer for old workspaces. Only the migration command reads the old shape.
 - Any change to what the board displays; its labels are already the new vocabulary.
+
+Note the ordering hazard this creates: between this ticket landing and the neighbours being migrated, those three workspaces are on the old shape with a CLI that refuses it. The refusal names the command, and the next ticket runs it — but the window is real and deliberate.
 
 ## Acceptance
 
@@ -52,7 +55,7 @@ The operator's insight shapes this ticket: the migration is **not agent work**. 
 2. `kotta migrate` on that fixture produces a workspace that `kotta validate` accepts, with every cross-reference still resolving.
 3. Running it a second time changes nothing and says so.
 4. A workspace already in the new shape is left alone.
-5. Old status values and directory names still load, with a warning that names the migration command.
+5. A workspace still in the old shape is refused by the ordinary commands with an error that names `kotta migrate` — and is read correctly by the migration command itself.
 6. No identifier changes anywhere — asserted by diffing ids before and after.
 7. This repository's workspace is migrated by the command; the commit shows the command's output, and `kotta validate` is green afterwards.
 8. A fixture the size of oneanda's (160+ contracts, 100+ observations, 20+ batches) migrates and validates.

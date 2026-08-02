@@ -16,11 +16,11 @@ None.
 
 ## Active tickets
 
-- a-board-atallitasa-a-kotta-console-v2-tervre-a0bv0fcq
+None.
 
 ## Review
 
-None.
+- a-board-atallitasa-a-kotta-console-v2-tervre-a0bv0fcq
 
 ## Blocked
 

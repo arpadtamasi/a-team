@@ -317,6 +317,31 @@ export const DEFAULT_UI_PORT = 4311;
 export const UI_PORT_RETRY_BOUND = 20;
 const MAX_PORT = 65535;
 
+/** The handover seam: tests point this at a harmless binary so no suite ever launches a browser. */
+export const UI_OPEN_COMMAND_ENV = "A_TEAM_UI_OPEN_COMMAND";
+
+/** Hands a URL to the desktop; rejects when the handover itself failed. */
+export type BrowserOpener = (url: string) => Promise<void>;
+
+/** The platform command that hands a URL to whatever browser the desktop already prefers. */
+export function resolveOpenCommand(platform: NodeJS.Platform = process.platform): { command: string; args: string[] } {
+  const override = process.env[UI_OPEN_COMMAND_ENV]?.trim();
+  if (override) return { command: override, args: [] };
+  if (platform === "darwin") return { command: "open", args: [] };
+  // `start` is a shell builtin, and its first quoted argument is the window title, not the URL.
+  if (platform === "win32") return { command: "cmd", args: ["/c", "start", ""] };
+  return { command: "xdg-open", args: [] };
+}
+
+/** Unreferenced so a handover that never exits cannot outlive the server it announced. */
+const openInBrowser: BrowserOpener = (url) => new Promise<void>((settle, fail) => {
+  const { command, args } = resolveOpenCommand();
+  const child = spawn(command, [...args, url], { stdio: "ignore" });
+  child.once("error", (error) => fail(new Error(`${command}: ${error.message}`)));
+  child.once("close", (status) => (status === 0 || status === null ? settle() : fail(new Error(`${command} exited with ${status}.`))));
+  child.unref();
+});
+
 /** 0 stays legal: it asks the OS for an ephemeral port, which callers and tests rely on. */
 export function validateUiPort(port: number): void {
   if (!Number.isInteger(port) || port < 0 || port > MAX_PORT) throw new Error(`--port must be an integer between 0 and ${MAX_PORT}; got '${port}'.`);
@@ -367,7 +392,8 @@ export async function bindUiServer(server: Server, host: string, requested?: num
   throw new Error(`Ports ${start}-${last} on ${host} are all in use. Free one of them, or run 'a-team ui --port <port>' with a port you know is free.`);
 }
 
-export async function uiCommand(options: { workspace: string; port?: number; host: string; json?: boolean }): Promise<void> {
+/** Returns the listening server so callers — tests above all — can shut it down. */
+export async function uiCommand(options: { workspace: string; port?: number; host: string; json?: boolean; open?: boolean }, open: BrowserOpener = openInBrowser): Promise<Server> {
   const initial = readWorkspace(options.workspace);
   const projectRoot = basename(initial.workspace) === ".a-team" ? dirname(initial.workspace) : initial.workspace;
   const agents = { codex: commandAvailable("codex"), claude: commandAvailable("claude") };
@@ -516,4 +542,13 @@ export async function uiCommand(options: { workspace: string; port?: number; hos
   process.stdout.write(options.json
     ? `${JSON.stringify({ ok: true, command: "ui", data: { url, host: options.host, port, workspace: initial.workspace, fallback } })}\n`
     : `A-Team UI: ${url}\nWorkspace: ${initial.workspace}\n${note}Press Ctrl+C to stop.\n`);
+  // --json is for automation, so it never steals focus. A failed handover is a note, not a startup failure.
+  if (!options.json && options.open !== false) {
+    try {
+      await open(url);
+    } catch (error) {
+      process.stderr.write(`Warning: could not open ${url} in a browser (${error instanceof Error ? error.message : String(error)}). Open it yourself.\n`);
+    }
+  }
+  return server;
 }

@@ -18,6 +18,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `a-team ui` opens the served URL in the default browser once the server is listening
+  (T-01kz1g2vyhfn5ezzvvyzn4w2gr), including a port picked by the 4311 fallback, so the printed URL no
+  longer has to be copied by hand. `--no-open` suppresses it, `--json` never opens because that mode is
+  for automation, and a failed handover is a warning that leaves the server and the exit status alone.
 - `a-team ticket execute <id> --agent <agent>` (T-035, D-009): one command performs the start, assembles
   the brief and launches the agent with the brief as its only input, so per-ticket fresh context is the
   default path instead of coordinator discipline. It refuses before any mutation on a non-ready ticket, an

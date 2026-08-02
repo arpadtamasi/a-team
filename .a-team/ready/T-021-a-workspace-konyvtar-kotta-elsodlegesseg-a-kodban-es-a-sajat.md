@@ -1,7 +1,7 @@
 ---
 id: T-021
 title: 'A workspace-könyvtár .kotta: elsődlegesség a kódban és a saját repo migrációja'
-status: backlog
+status: ready
 origin: human
 types:
   - feature
@@ -15,7 +15,7 @@ blocks: []
 branch: null
 pull_request: null
 created_at: '2026-08-01'
-updated_at: '2026-08-01'
+updated_at: '2026-08-02'
 ---
 # T-021 — A workspace-könyvtár .kotta: elsődlegesség a kódban és a saját repo migrációja
 

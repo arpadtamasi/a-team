@@ -12,7 +12,7 @@ None.
 
 ## Ready tickets
 
-None.
+- T-021-a-workspace-konyvtar-kotta-elsodlegesseg-a-kodban-es-a-sajat
 
 ## Active tickets
 

@@ -19,11 +19,11 @@ None.
 
 ## Active tickets
 
-- T-026-kis-kontextus-egy-ticket-vegrehajtasahoz-a-ticket-maga-legye
+None.
 
 ## Review
 
-None.
+- T-026-kis-kontextus-egy-ticket-vegrehajtasahoz-a-ticket-maga-legye
 
 ## Blocked
 

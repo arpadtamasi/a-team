@@ -4,20 +4,20 @@ title: >-
   The CLI is not reachable where the work happens, and the skills are bypassed —
   831 a-team commands, 5 skill invocations
 status: backlog
-origin: finding
+origin: observation
 types:
   - feature
 profiles: []
 priority: medium
 risk: medium
-package: null
+batch: null
 depends_on: []
 blocks: []
 branch: null
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
-source_finding: F-023
+source_observation: F-023
 ---
 # T-028 — A kotta bináris legyen elérhető minden worktree-ben és subshellben
 

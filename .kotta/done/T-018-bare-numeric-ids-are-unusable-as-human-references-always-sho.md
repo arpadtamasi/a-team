@@ -4,20 +4,20 @@ title: >-
   Bare numeric IDs are unusable as human references — always show the title
   alongside the id
 status: done
-origin: finding
+origin: observation
 types:
   - feature
 profiles: []
 priority: high
 risk: low
-package: null
+batch: null
 depends_on: []
 blocks: []
 branch: feat/T-018-bare-numeric-ids-are-unusable-as-human-references-always-sho
 pull_request: null
 created_at: '2026-07-28'
 updated_at: '2026-07-28'
-source_finding: F-012
+source_observation: F-012
 assigned_agent: claude
 resolution: completed
 ---

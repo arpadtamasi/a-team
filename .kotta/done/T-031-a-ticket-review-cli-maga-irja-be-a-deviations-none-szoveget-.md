@@ -4,20 +4,20 @@ title: >-
   A ticket review CLI maga irja be a 'Deviations: None.' szoveget — az F-019
   hazugsag-mintaja beepitett
 status: done
-origin: finding
+origin: observation
 types:
   - feature
 profiles: []
 priority: medium
 risk: medium
-package: null
+batch: null
 depends_on: []
 blocks: []
 branch: feat/T-031-a-ticket-review-cli-maga-irja-be-a-deviations-none-szoveget-
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
-source_finding: F-026
+source_observation: F-026
 assigned_agent: claude
 resolution: completed
 ---

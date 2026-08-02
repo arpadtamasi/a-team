@@ -9,7 +9,7 @@ profiles:
   - workflow
 priority: high
 risk: high
-package: P-002
+batch: P-002
 depends_on: []
 blocks:
   - T-009

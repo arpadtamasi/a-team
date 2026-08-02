@@ -1,4 +1,4 @@
-ticket: T-023
+contract: T-023
 agent: claude
 branch: feat/T-023-a-szotar-atallitasa-es-a-kotta-migrate-parancs
 worktree: .worktrees/T-023

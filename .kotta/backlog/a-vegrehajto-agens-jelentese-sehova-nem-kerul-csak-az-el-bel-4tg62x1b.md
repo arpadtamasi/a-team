@@ -2,7 +2,7 @@
 id: T-01kz23pvzscenqavzx4tg62x1b
 title: A vegrehajto agens jelentese automatikusan a ticketbe kerul
 status: backlog
-origin: finding
+origin: observation
 types:
   - feature
   - workflow
@@ -10,14 +10,14 @@ profiles:
   - workflow
 priority: high
 risk: medium
-package: null
+batch: null
 depends_on: []
 blocks: []
 branch: null
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
-source_finding: F-01kz23nj69srgr2w13htpyyahh
+source_observation: F-01kz23nj69srgr2w13htpyyahh
 ---
 # T-01kz23pvzscenqavzx4tg62x1b — A végrehajtó ágens jelentése automatikusan a ticketbe kerül
 

@@ -2,13 +2,13 @@
 id: T-034
 title: 'Koordinacio-mentes entitas-azonosito, hogy ket ag ne tudjon utkozni'
 status: done
-origin: finding
+origin: observation
 types:
   - bug
 profiles: []
 priority: high
 risk: medium
-package: P-005
+batch: P-005
 depends_on: []
 blocks:
   - T-035
@@ -16,7 +16,7 @@ branch: fix/T-034-koordinacio-mentes-entitas-azonosito-hogy-ket-ag-ne-tudjon-u
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
-source_finding: F-008
+source_observation: F-008
 assigned_agent: claude
 resolution: completed
 ---

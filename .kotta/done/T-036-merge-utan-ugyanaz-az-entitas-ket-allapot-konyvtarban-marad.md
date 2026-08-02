@@ -2,20 +2,20 @@
 id: T-036
 title: Merge utan ugyanaz az entitas ket allapot-konyvtarban marad
 status: done
-origin: finding
+origin: observation
 types:
   - bug
 profiles: []
 priority: high
 risk: medium
-package: P-005
+batch: P-005
 depends_on: []
 blocks: []
 branch: fix/T-036-merge-utan-ugyanaz-az-entitas-ket-allapot-konyvtarban-marad
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
-source_finding: F-008
+source_observation: F-008
 assigned_agent: claude
 resolution: completed
 ---

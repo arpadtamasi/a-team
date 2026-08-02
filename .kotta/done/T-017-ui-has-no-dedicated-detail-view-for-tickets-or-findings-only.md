@@ -2,20 +2,20 @@
 id: T-017
 title: UI has no dedicated detail view for tickets or findings (only packages do)
 status: done
-origin: finding
+origin: observation
 types:
   - feature
 profiles: []
 priority: high
 risk: low
-package: null
+batch: null
 depends_on: []
 blocks: []
 branch: feat/T-017-ui-has-no-dedicated-detail-view-for-tickets-or-findings-only
 pull_request: null
 created_at: '2026-07-27'
 updated_at: '2026-07-27'
-source_finding: F-005
+source_observation: F-005
 assigned_agent: claude
 resolution: completed
 ---

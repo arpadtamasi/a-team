@@ -2,19 +2,19 @@
 
 > Generated file. Do not edit manually.
 
-## Ready packages
+## Defined batches
 
 None.
 
-## Active packages
+## Active batches
 
 - P-004-teljes-rename-a-team-kotta
 
-## Ready tickets
+## Defined contracts
 
 None.
 
-## Active tickets
+## Active contracts
 
 - T-023-a-tobbi-atnevezes-ready-defined-a-tarolt-allapotban-es-a-d-0
 
@@ -26,7 +26,7 @@ None.
 
 None.
 
-## New findings
+## New observations
 
 - F-007-triage-assistant-agent-gather-decision-context-for-a-finding
 - F-009-ui-has-no-decisions-surface-d-xxx-records-are-invisible-in-t

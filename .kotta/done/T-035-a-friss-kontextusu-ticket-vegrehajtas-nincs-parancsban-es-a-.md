@@ -2,7 +2,7 @@
 id: T-035
 title: 'ticket execute: a friss-kontextusu vegrehajtas legyen parancs, ne fegyelem'
 status: done
-origin: finding
+origin: observation
 types:
   - feature
   - workflow
@@ -10,7 +10,7 @@ profiles:
   - workflow
 priority: high
 risk: medium
-package: P-005
+batch: P-005
 depends_on:
   - T-034
 blocks: []
@@ -18,7 +18,7 @@ branch: feat/T-035-ticket-execute-a-friss-kontextusu-vegrehajtas-legyen-parancs
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
-source_finding: F-032
+source_observation: F-032
 assigned_agent: claude
 resolution: completed
 ---

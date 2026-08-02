@@ -2,7 +2,7 @@
 id: T-015
 title: Completed package leaves the coordinator checkout on its merged branch
 status: done
-origin: finding
+origin: observation
 types:
   - bug
 profiles:
@@ -10,14 +10,14 @@ profiles:
   - workflow
 priority: high
 risk: medium
-package: P-003
+batch: P-003
 depends_on: []
 blocks: []
 branch: fix/T-015-completed-package-leaves-the-coordinator-checkout-on-its-mer
 pull_request: null
 created_at: '2026-07-23'
 updated_at: '2026-08-02'
-source_finding: F-003
+source_observation: F-003
 assigned_agent: claude
 resolution: completed
 ---

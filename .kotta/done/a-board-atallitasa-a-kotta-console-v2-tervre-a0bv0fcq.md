@@ -10,7 +10,7 @@ profiles:
   - workflow
 priority: high
 risk: medium
-package: null
+batch: null
 depends_on: []
 blocks: []
 branch: feat/T-01kz1xrxw4aheeqv1ca0bv0fcq-a-board-atallitasa-a-kotta-console-v2-tervre

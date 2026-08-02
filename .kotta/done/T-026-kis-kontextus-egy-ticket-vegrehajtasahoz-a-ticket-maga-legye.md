@@ -8,7 +8,7 @@ types:
 profiles: []
 priority: medium
 risk: medium
-package: null
+batch: null
 depends_on: []
 blocks: []
 branch: feat/T-026-kis-kontextus-egy-ticket-vegrehajtasahoz-a-ticket-maga-legye

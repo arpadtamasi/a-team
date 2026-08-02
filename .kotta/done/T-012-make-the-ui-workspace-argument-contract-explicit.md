@@ -9,7 +9,7 @@ profiles:
   - bug
 priority: medium
 risk: low
-package: P-003
+batch: P-003
 depends_on: []
 blocks: []
 branch: fix/T-012-make-the-ui-workspace-argument-contract-explicit

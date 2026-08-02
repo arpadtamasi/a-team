@@ -10,7 +10,7 @@ profiles:
   - workflow
 priority: medium
 risk: medium
-package: P-003
+batch: P-003
 depends_on: []
 blocks: []
 branch: feat/T-013-add-a-discoverable-bug-reporting-path

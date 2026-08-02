@@ -1,5 +1,5 @@
 ---
-id: F-032
+id: F-033
 title: No component-test harness exists for the React board
 status: new
 origin: agent
@@ -9,7 +9,7 @@ severity: medium
 discovered_during: T-013
 created_at: '2026-08-02'
 ---
-# F-032 — No component-test harness exists for the React board
+# F-033 — No component-test harness exists for the React board
 
 ## Observation
 

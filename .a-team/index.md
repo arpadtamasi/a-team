@@ -47,4 +47,4 @@ None.
 - F-025-progos-as-first-kotta-publisher-mcp-kottas-for-standard-sme-
 - F-028-ugyanannak-a-ticketnek-egyszerre-tobb-igaz-allapota-van-ninc
 - F-030-package-szintu-review-hianyzik-a-ticketek-review-ban-tartasa
-- F-032-no-component-test-harness-exists-for-the-react-board
+- F-033-no-component-test-harness-exists-for-the-react-board

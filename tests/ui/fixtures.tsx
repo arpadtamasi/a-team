@@ -28,7 +28,7 @@ export function decision(id: string, title: string, over: Partial<Decision> = {}
 
 export function workspace(over: Partial<Workspace> = {}): Workspace {
   return {
-    project: "a-team", workspace: "/repo/.a-team", migration: null,
+    project: "kotta", workspace: "/repo/.kotta", migration: null,
     tickets: [], packages: [], findings: [], decisions: [], diagnostics: [], ...over,
   };
 }

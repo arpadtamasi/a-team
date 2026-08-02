@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/arpadtamasi/a-team/schemas/ticket.schema.json",
-  "title": "A-Team ticket frontmatter",
+  "$id": "https://github.com/arpadtamasi/kotta/schemas/ticket.schema.json",
+  "title": "Kotta ticket frontmatter",
   "type": "object",
   "required": ["id", "title", "status", "origin", "types", "profiles", "priority", "risk", "depends_on", "blocks", "created_at", "updated_at"],
   "properties": {

@@ -5,7 +5,7 @@ import { describe, expect, test } from "vitest";
 import { readWorkspace } from "../../src/commands/ui.js";
 
 describe("one&a migration UI data", () => {
-  const migrationWorkspace = resolve("examples/oneanda-migration/.a-team");
+  const migrationWorkspace = resolve("examples/oneanda-migration/.kotta");
 
   test.skipIf(!existsSync(migrationWorkspace))("preserves the reviewed source count without treating a guess as a target", () => {
     const workspace = readWorkspace(migrationWorkspace);
@@ -30,7 +30,7 @@ describe("one&a migration UI data", () => {
   });
 
   test("keeps native workspaces free of migration metadata", () => {
-    const workspace = readWorkspace(resolve("examples/demo-project/.a-team"));
+    const workspace = readWorkspace(resolve("examples/demo-project/.kotta"));
 
     expect(workspace.migration).toBeNull();
     expect(workspace.tickets).toHaveLength(4);
@@ -55,8 +55,9 @@ The effective state is visible.
 `;
   }
 
+  // Legacy-name fixture on purpose (T-020): the board must read a `.a-team/` workspace unchanged.
   function workspaceFixture() {
-    const root = mkdtempSync(join(tmpdir(), "a-team-ui-data-"));
+    const root = mkdtempSync(join(tmpdir(), "kotta-ui-data-"));
     mkdirSync(join(root, ".a-team/ready"), { recursive: true });
     writeFileSync(join(root, ".a-team/config.yaml"), "version: 1\nproject:\n  name: fixture\n");
     writeFileSync(join(root, ".a-team/ready/T-008-effective-ticket.md"), ticket("T-008", "ready"));

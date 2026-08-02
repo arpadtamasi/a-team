@@ -36,7 +36,7 @@ Deliver a filtered export flow with observable job status and auditable requests
 
 - Planning found no dependency cycle; `T-014` and `T-015` could start in
   parallel, up to the limit of two isolated worktrees.
-- `T-014` used branch `a-team/T-014-add-filtered-export` and worktree
+- `T-014` used branch `kotta/T-014-add-filtered-export` and worktree
   `.worktrees/T-014`; both were cleaned after merge.
 - `T-014` is done. `T-015` remains ready. `T-018` depended on `T-014` and is now
   unblocked and ready.

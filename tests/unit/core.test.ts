@@ -80,7 +80,8 @@ describe("core deterministic rules", () => {
   });
 
   test("rejects a duplicate decision without changing the existing record", () => {
-    const root = mkdtempSync(join(tmpdir(), "a-team-decision-duplicate-"));
+    // Legacy-name workspace on purpose (T-020): the decision writer must find `.a-team/` as well.
+    const root = mkdtempSync(join(tmpdir(), "kotta-decision-duplicate-"));
     mkdirSync(join(root, ".a-team/decisions"), { recursive: true });
     const source = join(root, "decision.md");
     writeFileSync(source, "---\ntitle: Cut over\n---\n## Decision\n\nProceed.\n\n## Context\n\nReady.\n\n## Consequences\n\nMonitor.\n");

@@ -37,8 +37,9 @@ function run(root: string, args: string[]): void {
   if (result.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`);
 }
 
+// Legacy-name fixture on purpose (T-020): the batched ref read must work on a `.a-team/` workspace too.
 function bigWorkspace(entities: number, options: { checkoutSideBranch: boolean }): string {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "a-team-ui-batch-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "kotta-ui-batch-")));
   mkdirSync(join(root, ".a-team/ready"), { recursive: true });
   writeFileSync(join(root, ".a-team/config.yaml"), "version: 1\nproject:\n  name: batch-fixture\n");
   for (let index = 1; index <= entities; index++) {

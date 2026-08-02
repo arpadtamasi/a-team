@@ -18,7 +18,7 @@ function git(repository: string, ...args: string[]): void {
 
 describe("ticket execution vertical slice", () => {
   test("defines a complete backlog ticket through the canonical CLI", () => {
-    const repository = mkdtempSync(join(tmpdir(), "a-team-define-"));
+    const repository = mkdtempSync(join(tmpdir(), "kotta-define-"));
     git(repository, "init", "-b", "main");
     writeFileSync(join(repository, "README.md"), "fixture\n");
     run(repository, ["init"]);
@@ -116,7 +116,7 @@ None.
   });
 
   test("rejects unsupported definition metadata without changing the ticket", () => {
-    const repository = mkdtempSync(join(tmpdir(), "a-team-define-reject-"));
+    const repository = mkdtempSync(join(tmpdir(), "kotta-define-reject-"));
     git(repository, "init", "-b", "main");
     writeFileSync(join(repository, "README.md"), "fixture\n");
     run(repository, ["init"]);
@@ -132,9 +132,9 @@ None.
   });
 
   test("moves a valid profiled ticket to ready and starts it in an isolated worktree", () => {
-    const repository = mkdtempSync(join(tmpdir(), "a-team-flow-"));
+    const repository = mkdtempSync(join(tmpdir(), "kotta-flow-"));
     git(repository, "init", "-b", "main");
-    git(repository, "config", "user.name", "A-Team Test");
+    git(repository, "config", "user.name", "Kotta Test");
     git(repository, "config", "user.email", "test@example.com");
     writeFileSync(join(repository, "README.md"), "fixture\n");
     git(repository, "add", ".");
@@ -153,17 +153,17 @@ None.
     ).replace("- Define an observable condition.", "- A filtered export file is produced.")
       .replace("- Explain how acceptance will be checked.", "- Run the export integration test."));
 
-    rmSync(join(repository, ".a-team/ready"), { recursive: true });
+    rmSync(join(repository, ".kotta/ready"), { recursive: true });
     expect(run(repository, ["ticket", "ready", id, "--approve"])).toMatchObject({ ok: true, command: "ticket ready" });
-    expect(existsSync(join(repository, ".a-team/ready", basename(ticket)))).toBe(true);
+    expect(existsSync(join(repository, ".kotta/ready", basename(ticket)))).toBe(true);
     git(repository, "add", ".");
     git(repository, "commit", "-m", "define ready ticket");
 
     const started = run(repository, ["ticket", "start", id, "--agent", "codex"]);
     expect(started).toMatchObject({ ok: true, command: "ticket start", data: { branch: `feat/${id}-ship-export` } });
     const worktree = join(repository, ".worktrees", id);
-    expect(existsSync(join(worktree, ".a-team/active", basename(ticket)))).toBe(true);
-    expect(readFileSync(join(worktree, ".a-team/claims", `${id}.yaml`), "utf8")).toContain("agent: codex");
+    expect(existsSync(join(worktree, ".kotta/active", basename(ticket)))).toBe(true);
+    expect(readFileSync(join(worktree, ".kotta/claims", `${id}.yaml`), "utf8")).toContain("agent: codex");
     expect(run(worktree, ["status"])).toMatchObject({ ok: true, data: { activeTickets: [id] } });
     expect(run(repository, ["claim", "list"])).toMatchObject({ ok: true, data: { claims: [{ ticket: id, agent: "codex" }] } });
   });

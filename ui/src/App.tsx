@@ -46,7 +46,7 @@ export type Workspace = {
 export type View = "home" | "observations" | "contracts" | "batches" | "decisions";
 
 /* Reporting leaves the workspace: the board never writes a report, it hands off to GitHub. */
-const BUG_REPORT_URL = "https://github.com/arpadtamasi/a-team/issues/new?template=bug.yml";
+const BUG_REPORT_URL = "https://github.com/arpadtamasi/kotta/issues/new?template=bug.yml";
 /* The one request the board makes. Named so a test can assert nothing else is ever called. */
 export const WORKSPACE_ENDPOINT = "/api/workspace";
 /* Stored state is `ready`; the board says `defined`, as the design does. Renaming the stored value is P-004. */
@@ -206,18 +206,18 @@ export function readBoard(workspace: Workspace): Board {
     contradictions.push({
       key: `drift:${diagnostic.id}`, kind: "state drift", subject: label(diagnostic.id), subjectId: diagnostic.id,
       title: "A live worktree disagrees with the committed contract",
-      leftLabel: "files say", left: [`state: ${stateLabel(ticket?.status ?? "unknown")}`, `.a-team/${ticket?.status ?? "?"}/`],
+      leftLabel: "files say", left: [`state: ${stateLabel(ticket?.status ?? "unknown")}`, `.kotta/${ticket?.status ?? "?"}/`],
       rightLabel: "git says", right: [diagnostic.worktree, diagnostic.message],
-      command: "a-team validate", action: "Open contract", view: "contracts",
+      command: "kotta validate", action: "Open contract", view: "contracts",
     });
   }
-  // 2. A recorded link with nothing behind it. `a-team validate` reports the same ones it can see.
+  // 2. A recorded link with nothing behind it. `kotta validate` reports the same ones it can see.
   const dangling = (from: string, field: string, target: string, kind: string) => contradictions.push({
     key: `dangling:${from}:${field}:${target}`, kind: "dangling reference", subject: label(from), subjectId: from,
     title: `${field} points at ${kind} that is not on disk`,
     leftLabel: "frontmatter says", left: [`${field}: ${target}`],
     rightLabel: "disk says", right: ["no such file", "the link is recorded, the entity is gone"],
-    command: "a-team validate", action: "Open contract", view: "contracts",
+    command: "kotta validate", action: "Open contract", view: "contracts",
   });
   for (const ticket of tickets) {
     if (ticket.source_finding && !findingById.has(ticket.source_finding)) dangling(ticket.id, "source_finding", ticket.source_finding, "an observation");
@@ -236,7 +236,7 @@ export function readBoard(workspace: Workspace): Board {
       title: "The contract claims a batch that does not list it",
       leftLabel: "the contract says", left: [`package: ${pkg.id}`],
       rightLabel: "the batch says", right: [`tickets: ${pkg.tickets.length ? pkg.tickets.map(displayId).join(", ") : "—"}`],
-      command: `a-team package validate ${pkg.id}`, action: "See batches", view: "batches",
+      command: `kotta package validate ${pkg.id}`, action: "See batches", view: "batches",
     });
   }
   for (const pkg of packages) for (const member of pkg.tickets) {
@@ -246,7 +246,7 @@ export function readBoard(workspace: Workspace): Board {
       title: "The batch lists a contract that belongs elsewhere",
       leftLabel: "the batch says", left: [`tickets: … ${displayId(member)}`],
       rightLabel: "the contract says", right: [`package: ${ticket.package ?? "null"}`],
-      command: `a-team package validate ${pkg.id}`, action: "See batches", view: "batches",
+      command: `kotta package validate ${pkg.id}`, action: "See batches", view: "batches",
     });
   }
 
@@ -257,7 +257,7 @@ export function readBoard(workspace: Workspace): Board {
       id: ticket.id, title: ticket.title, batch: ticket.package,
       why: waiting.length ? `waits on ${waiting.map((id) => titleOf(id) ?? displayId(id)).join(", ")}`
         : unblocks ? `unblocks ${unblocks} other${unblocks === 1 ? "" : "s"}` : "no blockers",
-      command: `a-team ticket execute ${ticket.id} --agent codex`,
+      command: `kotta ticket execute ${ticket.id} --agent codex`,
     };
   });
 
@@ -367,7 +367,7 @@ export function Rail({ view, onView, board, running, onWatch, refreshed }: {
             : "Nothing is running · Watch →"}
         </span>
       </button>
-      <a className="rail__report" href={BUG_REPORT_URL} target="_blank" rel="noreferrer noopener" aria-label="Report a bug — opens the A-Team issue form on GitHub">
+      <a className="rail__report" href={BUG_REPORT_URL} target="_blank" rel="noreferrer noopener" aria-label="Report a bug — opens the Kotta issue form on GitHub">
         <span className="rail__key" aria-hidden="true">!</span> Report a bug <span aria-hidden="true">↗</span>
       </a>
       <div className="rail__report-note">Opens GitHub. Nothing from this workspace is sent — you write and submit the report there.</div>
@@ -396,7 +396,7 @@ export function TopBar({ workspace, board, onHelp, onRefresh, refreshed }: {
       <span className="top__mark">{initials(project)}</span>
       <span className="top__ws-text">
         <span className="top__ws-name">{project}</span>
-        <span className="top__ws-path">{workspace?.workspace ?? ".a-team/"}{typeof window !== "undefined" && window.location.port ? ` · port ${window.location.port}` : ""}</span>
+        <span className="top__ws-path">{workspace?.workspace ?? ".kotta/"}{typeof window !== "undefined" && window.location.port ? ` · port ${window.location.port}` : ""}</span>
       </span>
     </div>
     <div className="top__stats">
@@ -512,7 +512,7 @@ export function HomeView({ workspace, board, error, onView, onOpen, onRetry }: {
           Nothing defined to run. {emptyWorkspace
             ? "This workspace is empty — write the first contract with the CLI:"
             : "Shape a backlog contract until it validates, then define it:"}
-          <br /><code>{emptyWorkspace ? 'a-team ticket new --title "…" --type feature' : "a-team ticket ready <id> --approve"}</code>
+          <br /><code>{emptyWorkspace ? 'kotta ticket new --title "…" --type feature' : "kotta ticket ready <id> --approve"}</code>
         </p>}
         {board?.menu.map((item, index) => <div key={item.id} className={`menu ${index === 0 ? "is-first" : ""}`}>
           <div className="menu__top">
@@ -568,7 +568,7 @@ export function ObservationsView({ board, filter, onFilter, onOpen }: {
       <span className="filters__label">disposition</span>
       {filters.map((f) => <button key={f.key} type="button" className={`filter ${filter === f.key ? "is-active" : ""}`}
         aria-pressed={filter === f.key} onClick={() => onFilter(f.key)}>{f.label}<span>{f.count}</span></button>)}
-      <span className="filters__path">.a-team/findings/</span>
+      <span className="filters__path">.kotta/findings/</span>
     </div>
     {rows.length === 0 && <p className="view__empty">Nothing here — the {filter} list is empty.</p>}
     {rows.map((finding) => {
@@ -618,7 +618,7 @@ export function ContractsView({ board, filter, onFilter, query, onQuery, onOpen 
       <span className="filters__label">state</span>
       {filters.map((f) => <button key={f.key} type="button" className={`filter ${filter === f.key ? "is-active" : ""}`}
         aria-pressed={filter === f.key} onClick={() => onFilter(f.key)}>{f.label}<span>{f.count}</span></button>)}
-      <span className="filters__path">.a-team/&lt;state&gt;/</span>
+      <span className="filters__path">.kotta/&lt;state&gt;/</span>
     </div>
     <div className="ctr__head" aria-hidden="true"><span>contract</span><span>state</span><span>came from</span><span>batch</span><span>claim</span></div>
     {rows.length === 0 && <p className="view__empty">No contract matches this filter{needle ? " and search" : ""}.</p>}
@@ -644,7 +644,7 @@ export function BatchesView({ board, onOpen }: { board: Board; onOpen: (id: stri
       </div>
       <div className="view__note">{board.packages.length} batches · {board.activeBatches.length} active<br />grouped by reason, not by calendar</div>
     </div>
-    {board.packages.length === 0 && <p className="view__empty">No batch on disk. A batch is written with <code>a-team package new</code>.</p>}
+    {board.packages.length === 0 && <p className="view__empty">No batch on disk. A batch is written with <code>kotta package new</code>.</p>}
     <div className="cards">
       {board.packages.map((pkg) => {
         const members = pkg.tickets.map((id) => board.ticketById.get(id)).filter((t): t is Ticket => Boolean(t));
@@ -677,9 +677,9 @@ export function DecisionsView({ board, onOpen }: { board: Board; onOpen: (id: st
         <h2>Decisions</h2>
         <p>Not a stage in the chain — but not a flat list either. A decision can be narrowed or continued by a later one, and reading it alone then gives the wrong answer.</p>
       </div>
-      <div className="view__note">.a-team/decisions/<br />never deleted, only narrowed</div>
+      <div className="view__note">.kotta/decisions/<br />never deleted, only narrowed</div>
     </div>
-    {decisions.length === 0 && <p className="view__empty">No decision recorded yet. One is written with <code>a-team decision create --from &lt;file&gt; --approve</code>.</p>}
+    {decisions.length === 0 && <p className="view__empty">No decision recorded yet. One is written with <code>kotta decision create --from &lt;file&gt; --approve</code>.</p>}
     {decisions.map((decision) => {
       const referenced = [...new Set((decision.sections.decision ?? "").match(new RegExp(`\\bD-(?:\\d+|${MINTED_BODY})\\b`, "g")) ?? [])].filter((id) => id !== decision.id);
       return <EntityButton key={decision.id} id={decision.id} className="dec" onOpen={onOpen}>
@@ -903,7 +903,7 @@ export function RunOverlay({ board, onClose, onOpen }: { board: Board; onClose: 
     </div>
     <div className="run__body">
       <div className="run__batches scroll">
-        {board.activeBatches.length === 0 && board.running.length === 0 && <p className="run__empty">Nothing is running. A batch starts with <code>a-team package start &lt;id&gt;</code>, a single contract with <code>a-team ticket execute &lt;id&gt; --agent codex</code>.</p>}
+        {board.activeBatches.length === 0 && board.running.length === 0 && <p className="run__empty">Nothing is running. A batch starts with <code>kotta package start &lt;id&gt;</code>, a single contract with <code>kotta ticket execute &lt;id&gt; --agent codex</code>.</p>}
         {board.activeBatches.map((pkg) => {
           const members = pkg.tickets.map((id) => board.ticketById.get(id)).filter((t): t is Ticket => Boolean(t));
           const done = members.filter((t) => t.status === "done").length;
@@ -954,21 +954,21 @@ export function CliSheet({ onClose }: { onClose: () => void }) {
   const ref = useDialog(onClose);
   const groups: Array<{ label: string; rows: Array<[string, string]> }> = [
     { label: "observations", rows: [
-      ["a-team finding new --title … --type …", "record what was noticed"],
-      ["a-team finding resolve <id> --disposition … --approve", "reject it, or turn it into a contract"],
+      ["kotta finding new --title … --type …", "record what was noticed"],
+      ["kotta finding resolve <id> --disposition … --approve", "reject it, or turn it into a contract"],
     ] },
     { label: "contracts", rows: [
-      ["a-team ticket ready <id> --approve", "backlog → defined; validates the contract"],
-      ["a-team ticket execute <id> --agent codex", "run a defined contract in a fresh context"],
-      ["a-team ticket close <id> --approve", "review → done"],
+      ["kotta ticket ready <id> --approve", "backlog → defined; validates the contract"],
+      ["kotta ticket execute <id> --agent codex", "run a defined contract in a fresh context"],
+      ["kotta ticket close <id> --approve", "review → done"],
     ] },
     { label: "batches", rows: [
-      ["a-team package start <id>", "start it; claims and worktrees per member"],
-      ["a-team package close <id> --approve", "every member is done"],
+      ["kotta package start <id>", "start it; claims and worktrees per member"],
+      ["kotta package close <id> --approve", "every member is done"],
     ] },
     { label: "decisions and checks", rows: [
-      ["a-team decision create --from <file> --approve", "record one; it gets quoted where referenced"],
-      ["a-team validate", "what does not add up, exactly as the board shows it"],
+      ["kotta decision create --from <file> --approve", "record one; it gets quoted where referenced"],
+      ["kotta validate", "what does not add up, exactly as the board shows it"],
     ] },
   ];
   return <div className="scrim" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>

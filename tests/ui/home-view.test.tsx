@@ -65,8 +65,8 @@ describe("Home — the three bands", () => {
     expect(within(waiting).queryByText(/Define the shaping plan schema/)).toBeNull();
     expect(within(waiting).queryByText(/Introduce a shared mutation lock/)).toBeNull();
     // The affordance names the CLI command; it does not run it.
-    expect(within(menu).getByText("a-team ticket execute T-001 --agent codex")).toBeDefined();
-    expect(within(menu).getByRole("button", { name: "Copy command: a-team ticket execute T-001 --agent codex" })).toBeDefined();
+    expect(within(menu).getByText("kotta ticket execute T-001 --agent codex")).toBeDefined();
+    expect(within(menu).getByRole("button", { name: "Copy command: kotta ticket execute T-001 --agent codex" })).toBeDefined();
   });
 
   it("names the batch of a menu item by its title, with the id only as a marker", () => {
@@ -102,7 +102,7 @@ describe("Home — empty workspace", () => {
     expect(screen.getByText(/Nothing waiting to decide/)).toBeDefined();
     expect(screen.getByText(/Nothing contradictory/)).toBeDefined();
     expect(screen.getByText(/Nothing defined to run/)).toBeDefined();
-    expect(screen.getByText('a-team ticket new --title "…" --type feature')).toBeDefined();
+    expect(screen.getByText('kotta ticket new --title "…" --type feature')).toBeDefined();
     expect(screen.queryByText(/See all/)).toBeNull();
   });
 });
@@ -127,7 +127,7 @@ describe("Doesn't add up", () => {
     const contradictions = band("Doesn't add up");
     expect(within(contradictions).getByText("dangling reference")).toBeDefined();
     expect(within(contradictions).getByText("source_finding: F-404")).toBeDefined();
-    expect(within(contradictions).getByText("a-team validate")).toBeDefined();
+    expect(within(contradictions).getByText("kotta validate")).toBeDefined();
   });
 
   it("shows a batch and a contract that disagree about membership", () => {

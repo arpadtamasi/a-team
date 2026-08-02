@@ -73,7 +73,7 @@ describe("The board does not write", () => {
     expect(rendered).not.toMatch(/<form\b/);
     expect(rendered).not.toMatch(/type="submit"/);
     // What it does offer instead: the command, spelled out.
-    expect(rendered).toContain("a-team ticket execute T-014 --agent codex");
+    expect(rendered).toContain("kotta ticket execute T-014 --agent codex");
   });
 
   it("clicking every control on every view still issues no write", async () => {
@@ -95,7 +95,7 @@ describe("The board does not write", () => {
     fireEvent.click(screen.getByRole("button", { name: /CLI/ }));
     const sheet = await screen.findByRole("dialog", { name: "The CLI does the writing" });
     expect(sheet.textContent).toContain("This board reads. Every state change happens through one of these — nothing on a row writes.");
-    expect(sheet.textContent).toContain("a-team ticket close <id> --approve");
+    expect(sheet.textContent).toContain("kotta ticket close <id> --approve");
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
   });

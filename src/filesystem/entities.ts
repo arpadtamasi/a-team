@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { parseMarkdown } from "../core/markdown.js";
 import { TICKET_ID, filenameMatchesId } from "../core/identity.js";
+import { workspacePath } from "./workspace.js";
 
 export const TICKET_STATES = ["backlog", "ready", "active", "review", "done"] as const;
 export const PACKAGE_STATES = ["backlog", "ready", "active", "done"] as const;
@@ -28,7 +29,7 @@ export function stateDirectories(kind: EntityKind): Array<{ state: string; direc
 export function entityCopies(root: string, kind: EntityKind, id: string): EntityCopy[] {
   const copies: EntityCopy[] = [];
   for (const { state, directory } of stateDirectories(kind)) {
-    const path = join(root, ".a-team", directory);
+    const path = workspacePath(root, directory);
     if (!existsSync(path)) continue;
     for (const filename of readdirSync(path).filter((name) => name.endsWith(".md")).sort()) {
       const file = join(path, filename);
@@ -69,7 +70,7 @@ export function idFromEntityFile(path: string, filename: string): string | null 
 
 export function findTicket(root: string, id: string): TicketLocation {
   for (const state of TICKET_STATES) {
-    const directory = join(root, ".a-team", state);
+    const directory = workspacePath(root, state);
     if (!existsSync(directory)) continue;
     const filename = readdirSync(directory).find((name) => name.endsWith(".md") && filenameMatchesId(name, id));
     if (filename) return { path: join(directory, filename), state, filename };
@@ -97,7 +98,7 @@ export function resolveEffectiveTicket<T>(root: string, id: string, read: (ticke
 }
 
 export function listIds(root: string, entity: "ticket" | "finding" | "package"): string[] {
-  const workspace = join(root, ".a-team");
+  const workspace = workspacePath(root);
   const directories = entity === "ticket"
     ? TICKET_STATES.map(String)
     : entity === "finding" ? ["findings/new", "findings/resolved"] : ["packages/backlog", "packages/ready", "packages/active", "packages/done"];

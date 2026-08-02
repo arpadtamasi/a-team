@@ -1,4 +1,4 @@
-# A-Team Status
+# Kotta Status
 
 > Generated file. Do not edit manually.
 

@@ -28,16 +28,16 @@ interface Report {
 
 function repository(label: string, options: { detectRenames?: boolean } = {}): string {
   // realpath: on macOS the temp directory is a symlink, and the CLI reports resolved paths.
-  const root = realpathSync(mkdtempSync(join(tmpdir(), `a-team-duplicate-${label}-`)));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), `kotta-duplicate-${label}-`)));
   git(root, "init", "-b", "main");
-  git(root, "config", "user.name", "A-Team Test");
+  git(root, "config", "user.name", "Kotta Test");
   git(root, "config", "user.email", "test@example.com");
   // A merge only pairs a cross-directory move as delete+add while rename detection is on; a large
   // merge (or `merge.renames=false`) drops it, and then both copies survive. Both shapes are real.
   if (options.detectRenames === false) git(root, "config", "merge.renames", "false");
   run(root, ["init"]);
   git(root, "add", "-A");
-  git(root, "commit", "-m", "init a-team");
+  git(root, "commit", "-m", "init kotta");
   return root;
 }
 
@@ -67,11 +67,11 @@ describe("one entity in two state directories (T-036)", () => {
     const merge = spawnSync("git", ["merge", "--no-ff", "branch-ready", "-m", "merge"], { cwd: root, encoding: "utf8" });
     expect(`${merge.stdout}${merge.stderr}`).toContain("CONFLICT (rename/rename)");
     keepBothSides(root, [
-      { branch: "branch-ready", path: `.a-team/ready/${filename}` },
-      { branch: "main", path: `.a-team/done/${filename}` },
+      { branch: "branch-ready", path: `.kotta/ready/${filename}` },
+      { branch: "main", path: `.kotta/done/${filename}` },
     ]);
-    const ready = join(root, ".a-team/ready", filename);
-    const done = join(root, ".a-team/done", filename);
+    const ready = join(root, ".kotta/ready", filename);
+    const done = join(root, ".kotta/done", filename);
     expect(existsSync(ready) && existsSync(done)).toBe(true);
 
     // Acceptance 1: the duplicate is its own error case and names both places.
@@ -131,8 +131,8 @@ describe("one entity in two state directories (T-036)", () => {
     expect(`${merge.stdout}${merge.stderr}`).toContain("CONFLICT (modify/delete)");
     git(root, "add", "-A");
     git(root, "commit", "-m", "merge: kept both copies");
-    const backlog = join(root, ".a-team/packages/backlog", filename);
-    const ready = join(root, ".a-team/packages/ready", filename);
+    const backlog = join(root, ".kotta/packages/backlog", filename);
+    const ready = join(root, ".kotta/packages/ready", filename);
     expect(existsSync(backlog) && existsSync(ready)).toBe(true);
 
     const validation = attempt(root, ["validate"]);
@@ -140,7 +140,7 @@ describe("one entity in two state directories (T-036)", () => {
     const duplicate = (JSON.parse(validation.stdout) as Report).errors.find((error) => error.code === "DUPLICATE_STATE");
     expect(duplicate?.message).toContain(backlog);
     expect(duplicate?.message).toContain(ready);
-    expect(duplicate?.message).toContain(`a-team package dedupe ${pkg.id} --approve`);
+    expect(duplicate?.message).toContain(`kotta package dedupe ${pkg.id} --approve`);
 
     expect(attempt(root, ["package", "dedupe", pkg.id]).status).toBe(1);
     expect(existsSync(backlog)).toBe(true);
@@ -182,8 +182,8 @@ describe("one entity in two state directories (T-036)", () => {
     expect(`${merge.stdout}${merge.stderr}`).toContain("CONFLICT (modify/delete)");
     git(root, "add", "-A");
     git(root, "commit", "-m", "merge: kept both copies");
-    const backlog = join(root, ".a-team/backlog", filename);
-    const ready = join(root, ".a-team/ready", filename);
+    const backlog = join(root, ".kotta/backlog", filename);
+    const ready = join(root, ".kotta/ready", filename);
     expect(existsSync(backlog) && existsSync(ready)).toBe(true);
 
     // Acceptance 3: divergent bodies are not a machine decision.
@@ -199,7 +199,7 @@ describe("one entity in two state directories (T-036)", () => {
   test("dedupe refuses an identifier collision inside one state directory", () => {
     const root = repository("collision");
     const ticket = run(root, ["ticket", "new", "--title", "Shared identity", "--type", "feature"]).data as { id: string; path: string };
-    const twin = join(root, ".a-team/backlog", `other-${basename(ticket.path)}`);
+    const twin = join(root, ".kotta/backlog", `other-${basename(ticket.path)}`);
     copyFileSync(ticket.path, twin);
     writeFileSync(twin, readFileSync(twin, "utf8").replace("title: Shared identity", "title: A different entity"));
 

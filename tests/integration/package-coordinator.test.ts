@@ -36,11 +36,11 @@ function definedTicket(root: string, title: string) {
 
 /** An initialized repository whose `main` tracks a bare remote, with one ready package. */
 function workspaceWithPackage(label: string, options: { tickets?: number } = {}) {
-  const remote = mkdtempSync(join(tmpdir(), `a-team-coord-remote-${label}-`));
+  const remote = mkdtempSync(join(tmpdir(), `kotta-coord-remote-${label}-`));
   execFileSync("git", ["init", "--bare", "-b", "main"], { cwd: remote });
-  const root = mkdtempSync(join(tmpdir(), `a-team-coord-${label}-`));
+  const root = mkdtempSync(join(tmpdir(), `kotta-coord-${label}-`));
   git(root, "init", "-b", "main");
-  git(root, "config", "user.name", "A-Team Test");
+  git(root, "config", "user.name", "Kotta Test");
   git(root, "config", "user.email", "test@example.com");
   writeFileSync(join(root, "README.md"), "fixture\n");
   git(root, "add", ".");
@@ -61,7 +61,7 @@ function workspaceWithPackage(label: string, options: { tickets?: number } = {})
 function findPackageFile(root: string, packageId: string): string {
   const suffix = `-${packageId.slice(-8)}.md`;
   for (const state of ["backlog", "ready", "active", "done"]) {
-    const directory = join(root, ".a-team/packages", state);
+    const directory = join(root, ".kotta/packages", state);
     if (!existsSync(directory)) continue;
     const match = readdirSync(directory).find((name) => name.endsWith(suffix));
     if (match) return join(directory, match);
@@ -91,7 +91,7 @@ describe("coordinator helpers", () => {
 
   test("the configured base branch counts as protected even when unlisted", () => {
     const { root, packageId } = workspaceWithPackage("config");
-    const configPath = join(root, ".a-team/config.yaml");
+    const configPath = join(root, ".kotta/config.yaml");
     writeFileSync(configPath, readFileSync(configPath, "utf8").replace("base_branch: main", "base_branch: trunk"));
     const config = readWorkspaceConfig(root);
     expect(config.baseBranch).toBe("trunk");
@@ -190,7 +190,7 @@ describe("package finalize", () => {
     completePackage(root, packageId, ids);
     // Integration happens elsewhere: push the coordinator branch and merge it into the remote base.
     git(root, "push", "origin", `coord/${packageId}`);
-    const integrator = mkdtempSync(join(tmpdir(), "a-team-coord-integrator-"));
+    const integrator = mkdtempSync(join(tmpdir(), "kotta-coord-integrator-"));
     execFileSync("git", ["clone", remote, integrator]);
     execFileSync("git", ["config", "user.name", "Integrator"], { cwd: integrator });
     execFileSync("git", ["config", "user.email", "integrator@example.com"], { cwd: integrator });
@@ -247,7 +247,7 @@ describe("package finalize", () => {
     // Force the package into done while the second ticket is still claimed and checked out.
     const active = findPackageFile(root, packageId);
     writeFileSync(active, readFileSync(active, "utf8").replace("status: active", "status: done"));
-    const doneDirectory = join(root, ".a-team/packages/done");
+    const doneDirectory = join(root, ".kotta/packages/done");
     execFileSync("mkdir", ["-p", doneDirectory]);
     execFileSync("git", ["mv", active, join(doneDirectory, basename(active))], { cwd: root });
     git(root, "add", "-A");
@@ -407,6 +407,6 @@ describe("cleanup never touches unrelated resources", () => {
     attempt(root, ["package", "finalize", packageId]);
     expect(readFileSync(findPackageFile(root, packageId), "utf8")).toBe(packageBefore);
     expect(git(root, "ls-remote", "origin")).toBe(remoteBefore);
-    for (const ticket of tickets) expect(existsSync(join(root, ".a-team/done", ticket.filename))).toBe(true);
+    for (const ticket of tickets) expect(existsSync(join(root, ".kotta/done", ticket.filename))).toBe(true);
   });
 });

@@ -1,12 +1,25 @@
 # Changelog
 
-All notable changes to A-Team will be documented in this file.
+All notable changes to Kotta (called A-Team before 0.3.0) will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
 ### Changed
+
+- **The product is renamed A-Team → Kotta (D-005, D-006), and the rename costs an existing workspace
+  nothing.** The npm package is now `kotta` (0.3.0) and the old `@arpadtamasi/a-team` is deprecated in
+  favour of it; the CLI binary is `kotta`, with `a-team` installed as an alias of the same entrypoint
+  reporting the same version. Workspace discovery is `.kotta/` first, `.a-team/` otherwise, so every
+  existing `.a-team/` workspace keeps working untouched and unmigrated — a symlink in either direction
+  (`ln -s .a-team .kotta` or `ln -s .kotta .a-team`) bridges the two names, and the board resolves to
+  whichever is the real directory so Git plumbing keeps reading it. `kotta init` creates `.kotta/` and
+  refuses to add a second workspace beside an existing one under either name. Environment overrides
+  are `KOTTA_*`, with the `A_TEAM_*` names still read. Documentation, the site (now published at
+  `arpadtamasi.github.io/kotta/`), the schemas and the skills carry the new name; `/setup-a-team` and
+  `/report-a-team-bug` are now `/setup-kotta` and `/report-kotta-bug`. Behaviour is otherwise unchanged:
+  this release renames, it does not change what any command does.
 
 - Entity identifiers are minted without coordination (T-034, D-003 narrowed by D-010): `ticket new`,
   `finding new`, `package new` and `decision create` produce `<type>-<ULID>` instead of scanning the

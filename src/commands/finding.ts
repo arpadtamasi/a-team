@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { findRepositoryRoot, regenerateIndex } from "../filesystem/workspace.js";
+import { findRepositoryRoot, regenerateIndex, workspacePath } from "../filesystem/workspace.js";
 import { findTicket } from "../filesystem/entities.js";
 import { entityFilename, filenameMatchesId, mintId } from "../core/identity.js";
 import { parseMarkdown, renderMarkdown, sections } from "../core/markdown.js";
@@ -12,7 +12,7 @@ function slugify(value: string): string {
 
 function findFinding(root: string, id: string) {
   for (const state of ["new", "resolved"]) {
-    const directory = join(root, ".a-team/findings", state);
+    const directory = workspacePath(root, "findings", state);
     if (!existsSync(directory)) continue;
     const filename = readdirSync(directory).find((name) => name.endsWith(".md") && filenameMatchesId(name, id));
     if (filename) return { state, filename, path: join(directory, filename) };
@@ -24,7 +24,7 @@ export function newFinding(options: { title: string; type: string; evidence: str
   const root = repositoryRoot ?? findRepositoryRoot();
   const id = mintId("F");
   const filename = entityFilename(id, slugify(options.title));
-  const directory = join(root, ".a-team/findings/new");
+  const directory = workspacePath(root, "findings/new");
   mkdirSync(directory, { recursive: true });
   const data = { id, title: options.title, status: "new", origin: "agent", finding_type: options.type, confidence: "high", severity: "medium", discovered_during: options.discoveredDuring ?? null, created_at: new Date().toISOString().slice(0, 10) };
   const content = `# ${id} — ${options.title}\n\n## Observation\n\n${options.title}.\n\n## Evidence\n\n${options.evidence}\n\n## Impact hypothesis\n\nThis may cause incorrect or inconsistent behaviour.\n\n## Confidence\n\nHigh: the evidence is directly observable.\n\n## Suggested disposition\n\nInvestigate and create the smallest appropriate ticket after human approval.\n`;
@@ -44,7 +44,7 @@ export function validateFinding(id: string, repositoryRoot?: string) {
   const title = String(entity.data.title ?? "").trim().toLowerCase();
   const duplicates: string[] = [];
   for (const state of ["new", "resolved"]) {
-    const directory = join(root, ".a-team/findings", state);
+    const directory = workspacePath(root, "findings", state);
     if (!existsSync(directory)) continue;
     for (const filename of readdirSync(directory).filter((name) => name.endsWith(".md") && !filenameMatchesId(name, id))) {
       const candidate = parseMarkdown(readFileSync(join(directory, filename), "utf8"));
@@ -52,7 +52,7 @@ export function validateFinding(id: string, repositoryRoot?: string) {
     }
   }
   for (const state of ["backlog", "ready", "active", "review", "done"]) {
-    const directory = join(root, ".a-team", state);
+    const directory = workspacePath(root, state);
     if (!existsSync(directory)) continue;
     for (const filename of readdirSync(directory).filter((name) => name.endsWith(".md"))) {
       const candidate = parseMarkdown(readFileSync(join(directory, filename), "utf8"));
@@ -86,7 +86,7 @@ export function resolveFinding(id: string, disposition: string, approved: boolea
   entity.data.disposition = disposition;
   entity.data.resolved_at = new Date().toISOString();
   if (ticketId) entity.data.ticket = ticketId;
-  const directory = join(root, ".a-team/findings/resolved");
+  const directory = workspacePath(root, "findings/resolved");
   mkdirSync(directory, { recursive: true });
   const destination = join(directory, finding.filename);
   writeFileSync(destination, renderMarkdown(entity.data, entity.content));

@@ -27,9 +27,9 @@ test("renders the approved content contract in order", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Create your first ticket" })).toHaveAttribute("href", "#install");
   await expect(page.getByRole("link", { name: "See the workflow" })).toHaveAttribute("href", "#how");
   await expect(page.locator("tbody tr")).toHaveCount(4);
-  await expect(page.locator("tbody th")).toHaveText(["Agent chat", "Jira / Linear", "Agent orchestrator", "A-Team"]);
-  await expect(page.locator("#install")).toContainText("@arpadtamasi/a-team@0.1.2");
-  await expect(page.locator("#install")).toContainText("npx skills@1.5.20 add arpadtamasi/a-team");
+  await expect(page.locator("tbody th")).toHaveText(["Agent chat", "Jira / Linear", "Agent orchestrator", "Kotta"]);
+  await expect(page.locator("#install")).toContainText("kotta@0.3.0");
+  await expect(page.locator("#install")).toContainText("npx skills@1.5.20 add arpadtamasi/kotta");
   await expect(page.locator("#install")).toContainText("## Acceptance");
   expect([...responseTypes.entries()].find(([path]) => path.endsWith(".css"))?.[1]).toContain("text/css");
   await expect(page.locator("body")).toHaveCSS("background-color", "rgb(243, 242, 242)");
@@ -65,7 +65,7 @@ for (const viewport of viewports) {
 }
 
 test("offers a keyboard-reachable bug-reporting path at every supported width", async ({ page }) => {
-  const issueForm = "https://github.com/arpadtamasi/a-team/issues/new?template=bug.yml";
+  const issueForm = "https://github.com/arpadtamasi/kotta/issues/new?template=bug.yml";
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
     await page.goto("./");
@@ -83,7 +83,7 @@ test("offers a keyboard-reachable bug-reporting path at every supported width", 
 test("remains readable without JavaScript", async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
-  await page.goto("http://127.0.0.1:4174/a-team/");
+  await page.goto("http://127.0.0.1:4174/kotta/");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.getByRole("link", { name: "Create your first ticket" })).toHaveAttribute("href", "#install");
   await context.close();

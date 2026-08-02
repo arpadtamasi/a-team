@@ -17,7 +17,7 @@ function git(repository: string, ...args: string[]): void {
 }
 
 function fixtureRepository(): { repository: string; id: string } {
-  const repository = mkdtempSync(join(tmpdir(), "a-team-brief-"));
+  const repository = mkdtempSync(join(tmpdir(), "kotta-brief-"));
   git(repository, "init", "-b", "main");
   writeFileSync(join(repository, "README.md"), "fixture\n");
   run(repository, ["init"]);

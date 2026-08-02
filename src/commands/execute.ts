@@ -2,10 +2,11 @@ import { spawn, spawnSync } from "node:child_process";
 import { accessSync, constants, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { findRepositoryRoot } from "../filesystem/workspace.js";
+import { findRepositoryRoot, workspacePath } from "../filesystem/workspace.js";
 import { findTicket } from "../filesystem/entities.js";
 import { assertClean, git } from "../git/git.js";
 import { briefTicket, startTicket } from "./ticket.js";
+import { ENV_PREFIX, readEnv } from "../core/env.js";
 
 /**
  * Arguments a named agent expects around a prompt that arrives on stdin.
@@ -17,7 +18,7 @@ const AGENT_ARGUMENTS: Record<string, string[]> = {
 };
 
 /** The launch seam: tests substitute a deterministic script double for a real agent binary. */
-export const AGENT_COMMAND_ENV = "A_TEAM_AGENT_COMMAND";
+export const AGENT_COMMAND_ENV = `${ENV_PREFIX}AGENT_COMMAND`;
 
 export interface AgentInvocation {
   command: string;
@@ -38,7 +39,7 @@ export interface AgentRun {
 export type AgentLauncher = (invocation: AgentInvocation) => Promise<AgentRun>;
 
 export function resolveAgentCommand(agent: string): { command: string; args: string[] } {
-  const override = process.env[AGENT_COMMAND_ENV]?.trim();
+  const override = readEnv("AGENT_COMMAND")?.trim();
   return { command: override || agent, args: AGENT_ARGUMENTS[agent] ?? [] };
 }
 
@@ -99,7 +100,7 @@ export interface ExecutionContext {
 /** An execution context exists when a claim for the ticket lives in its worktree. */
 export function locateExecutionContext(root: string, id: string): ExecutionContext | null {
   const worktree = join(root, ".worktrees", id);
-  const claimPath = join(worktree, ".a-team/claims", `${id}.yaml`);
+  const claimPath = workspacePath(worktree, "claims", `${id}.yaml`);
   if (!existsSync(claimPath)) return null;
   const claim = parseYaml(readFileSync(claimPath, "utf8")) as Record<string, unknown>;
   return { worktree, branch: String(claim.branch ?? ""), agent: String(claim.agent ?? "") };
@@ -158,7 +159,7 @@ export async function executeTicket(id: string, options: ExecuteOptions, launch:
   const existing = locateExecutionContext(root, id);
 
   if (options.resume) {
-    if (!existing) throw new Error(`Ticket ${id} has no execution context to resume. Run 'a-team ticket execute ${id} --agent <agent>' to create one.`);
+    if (!existing) throw new Error(`Ticket ${id} has no execution context to resume. Run 'kotta ticket execute ${id} --agent <agent>' to create one.`);
     const agent = options.agent?.trim() || existing.agent;
     if (!agent) throw new Error(`Claim for ${id} names no agent; pass --agent <agent> to resume.`);
     const ticket = findTicket(existing.worktree, id);
@@ -171,9 +172,9 @@ export async function executeTicket(id: string, options: ExecuteOptions, launch:
   const ticket = findTicket(root, id);
   if (ticket.state !== "ready") throw new Error(`Ticket ${id} must be ready before execute; it is ${ticket.state}. Nothing was created.`);
   if (existing) {
-    throw new Error(`Ticket ${id} already has an execution context (branch ${existing.branch}, worktree ${existing.worktree}). Execute refuses to start a second agent: retry inside it with '--resume', or release it with 'a-team claim release ${id} --force'.`);
+    throw new Error(`Ticket ${id} already has an execution context (branch ${existing.branch}, worktree ${existing.worktree}). Execute refuses to start a second agent: retry inside it with '--resume', or release it with 'kotta claim release ${id} --force'.`);
   }
-  if (existsSync(join(root, ".a-team/claims", `${id}.yaml`))) throw new Error(`Ticket ${id} already has a claim. Execute refuses to start a second agent.`);
+  if (existsSync(workspacePath(root, "claims", `${id}.yaml`))) throw new Error(`Ticket ${id} already has a claim. Execute refuses to start a second agent.`);
   const agent = options.agent?.trim();
   if (!agent) throw new Error("--agent <agent> is required to create an execution context.");
   assertClean(root);
@@ -202,7 +203,7 @@ async function runAgent(input: {
   launch: AgentLauncher;
 }): Promise<ExecuteResult> {
   const { id, agent, command, args, context, inheritContext, resumed, launch } = input;
-  const contextNote = `Execution context exists: branch ${context.branch}, worktree ${context.worktree}. Inspect it, then retry with '--resume' or release it with 'a-team claim release ${id} --force'.`;
+  const contextNote = `Execution context exists: branch ${context.branch}, worktree ${context.worktree}. Inspect it, then retry with '--resume' or release it with 'kotta claim release ${id} --force'.`;
 
   let brief;
   try {
@@ -263,7 +264,7 @@ function safeTicketState(worktree: string, id: string): string {
 export function formatExecution(result: ExecuteResult): string {
   const data = result.data;
   const lines = [
-    `a-team ticket execute ${data.id}: ${data.state}`,
+    `kotta ticket execute ${data.id}: ${data.state}`,
     `  agent:    ${data.agent} (command: ${data.agentCommand})`,
     `  brief:    ~${data.briefTokens} tokens, ${data.briefSections} sections — the agent's only input`,
     `  branch:   ${data.branch}`,
@@ -272,7 +273,7 @@ export function formatExecution(result: ExecuteResult): string {
     `  ticket:   ${data.ticketState}${data.uncommittedChanges ? " (worktree has uncommitted changes)" : ""}`,
   ];
   if (data.briefWarning) lines.push(`  WARNING:  ${data.briefWarning}`);
-  if (result.ok) lines.push(`Next: verify the work, then 'a-team ticket review ${data.id} --evidence "..."'. Review stays a separate gate.`);
-  else lines.push(`  reason:   ${String(data.reason)}`, `The claim and worktree are preserved. Retry with 'a-team ticket execute ${data.id} --resume' or release with 'a-team claim release ${data.id} --force'.`);
+  if (result.ok) lines.push(`Next: verify the work, then 'kotta ticket review ${data.id} --evidence "..."'. Review stays a separate gate.`);
+  else lines.push(`  reason:   ${String(data.reason)}`, `The claim and worktree are preserved. Retry with 'kotta ticket execute ${data.id} --resume' or release with 'kotta claim release ${data.id} --force'.`);
   return lines.join("\n");
 }

@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a defect in the A-Team CLI, skills, local board, or public site.
+description: Report a defect in the Kotta CLI, skills, local board, or public site.
 title: "[bug]: "
 body:
   - type: markdown
@@ -15,7 +15,7 @@ body:
     attributes:
       label: Summary
       description: One sentence describing the defect.
-      placeholder: "`a-team ticket brief` fails on a ticket with no profiles."
+      placeholder: "`kotta ticket brief` fails on a ticket with no profiles."
     validations:
       required: true
   - type: textarea
@@ -24,9 +24,9 @@ body:
       label: Reproduction steps
       description: The exact steps, in order, that produce the defect.
       placeholder: |
-        1. Run `a-team init` in an empty Git repository.
-        2. Run `a-team ticket new --title "Example" --type feature`.
-        3. Run `a-team ticket brief T-001`.
+        1. Run `kotta init` in an empty Git repository.
+        2. Run `kotta ticket new --title "Example" --type feature`.
+        3. Run `kotta ticket brief T-001`.
     validations:
       required: true
   - type: textarea
@@ -46,8 +46,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: A-Team version
-      description: Output of `a-team --version`. Write "unknown" if it is not safely available.
+      label: Kotta version
+      description: Output of `kotta --version`. Write "unknown" if it is not safely available.
       placeholder: "0.2.2"
     validations:
       required: true

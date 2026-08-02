@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
-import { findRepositoryRoot } from "../filesystem/workspace.js";
+import { findRepositoryRoot, workspacePath } from "../filesystem/workspace.js";
 import { git } from "../git/git.js";
 import { validateClaim } from "../core/claim.js";
 
@@ -13,7 +13,7 @@ function allWorktrees(root: string): string[] {
 
 function claims(root: string): LocatedClaim[] {
   return allWorktrees(root).flatMap((worktree) => {
-    const directory = join(worktree, ".a-team/claims");
+    const directory = workspacePath(worktree, "claims");
     if (!existsSync(directory)) return [];
     return readdirSync(directory).filter((name) => name.endsWith(".yaml")).map((name) => ({ path: join(directory, name), worktree, data: parse(readFileSync(join(directory, name), "utf8")) as Record<string, unknown> }));
   });

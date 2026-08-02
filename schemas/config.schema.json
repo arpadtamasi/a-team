@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/arpadtamasi/a-team/schemas/config.schema.json",
-  "title": "A-Team workspace configuration",
+  "$id": "https://github.com/arpadtamasi/kotta/schemas/config.schema.json",
+  "title": "Kotta workspace configuration",
   "type": "object",
   "required": ["version", "project", "workflow", "git", "packages", "validation"],
   "properties": {

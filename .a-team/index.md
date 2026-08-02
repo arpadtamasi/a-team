@@ -43,7 +43,6 @@ None.
 - F-016-no-per-ticket-cost-metering-token-spend-and-wall-clock-are-i
 - F-017-findings-caused-by-an-earlier-ticket-s-under-specification-a
 - F-018-review-evidence-is-satisfied-by-volume-not-by-fitness-one-b
-- F-019-the-deviations-field-says-none-while-the-same-ticket-names-d
 - F-020-deviations-are-accepted-per-ticket-and-never-summed-a-packag
 - F-021-finding-metadata-is-single-valued-in-practice-severity-confi
 - F-022-state-gates-are-bypassable-because-the-store-is-the-filesyst

@@ -3,13 +3,16 @@ id: F-019
 title: >-
   The Deviations field says "None." while the same ticket names deviations in
   prose — the structured field is the one that lies
-status: new
+status: resolved
 origin: agent
 finding_type: process
 confidence: high
 severity: high
 discovered_during: null
 created_at: '2026-08-01'
+disposition: create-ticket
+resolved_at: '2026-08-02T03:14:31.513Z'
+ticket: T-032
 ---
 # F-019 — The Deviations field says "None." while the same ticket names deviations in prose — the structured field is the one that lies
 

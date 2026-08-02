@@ -3,7 +3,7 @@ id: T-031
 title: >-
   A ticket review CLI maga irja be a 'Deviations: None.' szoveget — az F-019
   hazugsag-mintaja beepitett
-status: backlog
+status: ready
 origin: finding
 types:
   - feature

@@ -21,6 +21,11 @@ authority:
   change_scope: false
 created_at: '2026-07-23'
 updated_at: '2026-08-02'
+coordinator:
+  branch: coord/P-003
+  base_branch: main
+  base_commit: ''
+  cleaned_at: '2026-08-02'
 ---
 # P-003 — Trustworthy daily use and feedback intake
 

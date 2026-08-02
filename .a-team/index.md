@@ -23,7 +23,7 @@ None.
 
 ## Review
 
-- T-033-harom-lezart-ticket-hordozza-az-f-019-mintat-sajat-magaban-t
+None.
 
 ## Blocked
 

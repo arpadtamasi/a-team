@@ -1,0 +1,5 @@
+ticket: T-015
+agent: claude
+branch: fix/T-015-completed-package-leaves-the-coordinator-checkout-on-its-mer
+worktree: .worktrees/T-015
+started_at: 2026-08-02T11:05:25.882Z

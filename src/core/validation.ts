@@ -45,7 +45,8 @@ function validateTicket(path: string, expectedState?: string, requireDefinition 
   if (state === "ready" && bodySections.get("open decisions")?.trim().toLowerCase() !== "none.") {
     errors.push({ code: "OPEN_DECISIONS", message: "A ready ticket must state 'None.' under Open decisions.", path });
   }
-  if (["review", "done"].includes(state) && !bodySections.get("review evidence")?.trim()) errors.push({ code: "MISSING_REVIEW_EVIDENCE", message: `${state} ticket requires review evidence.`, path });
+  const cancelled = state === "done" && ["cancelled", "duplicate", "obsolete"].includes(String(entity.data.resolution));
+  if (["review", "done"].includes(state) && !cancelled && !bodySections.get("review evidence")?.trim()) errors.push({ code: "MISSING_REVIEW_EVIDENCE", message: `${state} ticket requires review evidence.`, path });
   if (state === "done" && !["completed", "cancelled", "duplicate", "obsolete"].includes(String(entity.data.resolution))) errors.push({ code: "MISSING_RESOLUTION", message: "Done ticket requires a final resolution.", path });
   return { valid: errors.length === 0, errors };
 }

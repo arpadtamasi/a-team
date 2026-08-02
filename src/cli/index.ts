@@ -3,7 +3,7 @@ import { Command } from "commander";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { initCommand } from "../commands/init.js";
-import { briefTicket, closeTicket, defineTicket, newTicket, readyTicket, reopenTicket, reviewTicket, startTicket, validateTicket } from "../commands/ticket.js";
+import { briefTicket, cancelTicket, closeTicket, defineTicket, newTicket, readyTicket, reopenTicket, reviewTicket, startTicket, validateTicket } from "../commands/ticket.js";
 import { statusCommand } from "../commands/status.js";
 import { newFinding, resolveFinding, validateFinding } from "../commands/finding.js";
 import { newPackage, packageStatus, readyPackage, startPackage, updatePackageTickets, validatePackage } from "../commands/package.js";
@@ -90,6 +90,13 @@ ticket
   .option("--approve")
   .option("--json")
   .action((id: string, options: { approve?: boolean; json?: boolean }) => print(closeTicket(id, Boolean(options.approve)), Boolean(options.json)));
+ticket
+  .command("cancel <id>")
+  .description("Retire a backlog or ready ticket into done with a non-completed resolution")
+  .requiredOption("--resolution <resolution>", "duplicate | obsolete | cancelled")
+  .option("--approve")
+  .option("--json")
+  .action((id: string, options: { resolution: string; approve?: boolean; json?: boolean }) => print(cancelTicket(id, options.resolution, Boolean(options.approve)), Boolean(options.json)));
 ticket
   .command("brief <id>")
   .description("Assemble the minimal execution context for a ticket (D-009)")

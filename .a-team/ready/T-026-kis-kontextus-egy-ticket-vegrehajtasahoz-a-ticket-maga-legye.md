@@ -1,7 +1,7 @@
 ---
 id: T-026
 title: 'Kis kontextus: egy ticket végrehajtásához a ticket maga legyen elég'
-status: backlog
+status: ready
 origin: human
 types:
   - feature
@@ -63,5 +63,3 @@ CLI-tesztek a brief tartalmára és determinizmusára; egy valós próbafutás j
 ## Open decisions
 
 None.
-
-(A küszöb értéke konfiguráció, nem döntés.)

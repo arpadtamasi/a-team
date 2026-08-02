@@ -83,8 +83,11 @@ ticket
   .command("review <id>")
   .requiredOption("--evidence <evidence>")
   .option("--pull-request <identifier>")
+  .option("--deviations <text>", "Declared deviations from the ticket contract; omitted means 'Not declared.'")
+  .option("--findings-created <text>", "Findings created during execution; omitted means 'Not declared.'")
+  .option("--known-concerns <text>", "Known concerns left open; omitted means 'Not declared.'")
   .option("--json")
-  .action((id: string, options: { evidence: string; pullRequest?: string; json?: boolean }) => print(reviewTicket(id, options.evidence, options.pullRequest), Boolean(options.json)));
+  .action((id: string, options: { evidence: string; pullRequest?: string; deviations?: string; findingsCreated?: string; knownConcerns?: string; json?: boolean }) => print(reviewTicket(id, options.evidence, options.pullRequest, { deviations: options.deviations, findingsCreated: options.findingsCreated, knownConcerns: options.knownConcerns }), Boolean(options.json)));
 ticket
   .command("close <id>")
   .option("--approve")

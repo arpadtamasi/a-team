@@ -14,6 +14,8 @@ Use `a-team ticket review` for the lifecycle mutation. Do not move the ticket fi
 5. Record the pull-request identifier or equivalent review target when available.
 6. Add the review evidence required by the CLI: acceptance mapping, verification performed, deviations, findings created, and known concerns.
 7. Run `a-team ticket review <ticket-id>` with supported evidence and pull-request options; use `--json` for automation.
+
+You have a declaration duty for deviations. The CLI never asserts "None." on your behalf: if you omit `--deviations`, the ticket records "Not declared.", which is an incomplete review, not a clean one. Compare the implementation against the ticket contract and pass `--deviations` with an honest statement — every deviation listed explicitly, or exactly "None." only when you verified there are none. The same duty applies to `--findings-created` and `--known-concerns`.
 8. Verify that the ticket is in review and the claim remains in place.
 
 Do not claim acceptance or integration. If checks fail or evidence is incomplete, keep the ticket active and report the corrective action.

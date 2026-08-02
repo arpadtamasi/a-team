@@ -203,7 +203,7 @@ claim
 program
   .command("ui")
   .description("Serve the local filesystem-backed A-Team board")
-  .requiredOption("--workspace <path>", "Repository root or .a-team directory")
+  .option("--workspace <path>", "Repository root or .a-team directory", ".")
   .option("--port <port>", "Local port", "4311")
   .option("--host <host>", "Bind host", "127.0.0.1")
   .option("--json")

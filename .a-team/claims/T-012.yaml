@@ -1,0 +1,5 @@
+ticket: T-012
+agent: codex
+branch: fix/T-012-make-the-ui-workspace-argument-contract-explicit
+worktree: .worktrees/T-012
+started_at: 2026-07-23T18:05:14.891Z

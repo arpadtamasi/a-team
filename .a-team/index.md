@@ -48,3 +48,4 @@ None.
 - F-030-package-szintu-review-hianyzik-a-ticketek-review-ban-tartasa
 - F-033-no-component-test-harness-exists-for-the-react-board
 - decision-create-fails-in-a-fresh-worktree-when-a-team-decisi-1rg6fqm9
+- findticket-resolves-a-merge-duplicated-entity-to-its-earlies-1x2fggq8

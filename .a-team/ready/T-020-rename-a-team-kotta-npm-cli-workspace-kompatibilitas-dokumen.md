@@ -1,7 +1,7 @@
 ---
 id: T-020
 title: 'Rename: a-team → kotta (npm, CLI, workspace-kompatibilitás, dokumentáció)'
-status: backlog
+status: ready
 origin: human
 types:
   - feature
@@ -14,7 +14,7 @@ blocks: []
 branch: null
 pull_request: null
 created_at: '2026-08-01'
-updated_at: '2026-08-01'
+updated_at: '2026-08-02'
 ---
 # T-020 — Rename: a-team → kotta (npm, CLI, workspace-kompatibilitás, dokumentáció)
 
@@ -57,6 +57,8 @@ D-006 szakaszolta a renamet: a GitHub-átnevezés a döntéssel együtt megtört
 
 ## Execution notes
 
+A szakaszolást a D-006 rögzítette — nincs itt eldöntendő.
+
 Sorrend: workspace-felderítés kompatibilitása → bináris-alias → tesztek mindkét útra → dokumentáció-csere → verzió + publish → régi csomag deprecate. A GitHub-átnevezés (D-006/1) már megtörtént, a lokális remote-ok frissítése ide tartozik.
 
 ## Verification
@@ -65,4 +67,4 @@ Teljes tesztkészlet zölden mindkét workspace-néven; kézi füstteszt a onean
 
 ## Open decisions
 
-None — a szakaszolást D-006 rögzítette.
+None.

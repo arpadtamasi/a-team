@@ -12,7 +12,7 @@ None.
 
 ## Ready tickets
 
-None.
+- T-020-rename-a-team-kotta-npm-cli-workspace-kompatibilitas-dokumen
 
 ## Active tickets
 

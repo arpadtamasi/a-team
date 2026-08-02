@@ -12,11 +12,11 @@ None.
 
 ## Ready tickets
 
-- T-013-add-a-discoverable-bug-reporting-path
+None.
 
 ## Active tickets
 
-None.
+- T-013-add-a-discoverable-bug-reporting-path
 
 ## Review
 

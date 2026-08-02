@@ -1,7 +1,7 @@
 ---
 id: T-013
 title: Add a discoverable bug-reporting path
-status: ready
+status: active
 origin: human
 types:
   - feature
@@ -13,10 +13,11 @@ risk: medium
 package: P-003
 depends_on: []
 blocks: []
-branch: null
+branch: feat/T-013-add-a-discoverable-bug-reporting-path
 pull_request: null
 created_at: '2026-07-23'
-updated_at: '2026-07-23'
+updated_at: '2026-08-02'
+assigned_agent: claude
 ---
 # T-013 — Add a discoverable bug-reporting path
 

@@ -1,0 +1,5 @@
+ticket: T-013
+agent: claude
+branch: feat/T-013-add-a-discoverable-bug-reporting-path
+worktree: .worktrees/T-013
+started_at: 2026-08-02T11:56:44.268Z

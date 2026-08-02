@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { initCommand } from "../commands/init.js";
 import { briefTicket, cancelTicket, closeTicket, defineTicket, newTicket, readyTicket, reopenTicket, reviewTicket, startTicket, validateTicket } from "../commands/ticket.js";
+import { executeTicket, formatExecution } from "../commands/execute.js";
 import { statusCommand } from "../commands/status.js";
 import { newFinding, resolveFinding, validateFinding } from "../commands/finding.js";
 import { finalizePackage, newPackage, packageStatus, readyPackage, startPackage, updatePackageTickets, validatePackage } from "../commands/package.js";
@@ -24,6 +25,14 @@ function print(result: unknown, json: boolean): void {
 
 function humanize(result: unknown): string {
   if (typeof result === "object" && result && "command" in result) {
+    if ((result as { command: unknown }).command === "ticket start" && "data" in result) {
+      const data = (result as { data: { id: unknown; branch: unknown; worktree: unknown; nextStep: unknown } }).data;
+      return [
+        `Started ${String(data.id)}: branch ${String(data.branch)}, worktree ${String(data.worktree)}.`,
+        `Next: run the ticket in a fresh agent context (D-009) — ${String(data.nextStep)}.`,
+        `'a-team ticket execute <id> --agent <agent>' does start, brief and agent launch in one command.`,
+      ].join("\n");
+    }
     if ((result as { command: unknown }).command === "decision create" && "data" in result) {
       const data = (result as { data: { id: unknown; path: unknown } }).data;
       return `Recorded decision ${String(data.id)} at ${String(data.path)}.`;
@@ -79,6 +88,18 @@ ticket
   .requiredOption("--agent <agent>")
   .option("--json")
   .action((id: string, options: { agent: string; json?: boolean }) => print(startTicket(id, options.agent), Boolean(options.json)));
+ticket
+  .command("execute <id>")
+  .description("Run a ready ticket in a fresh agent context: start, brief and agent launch in one command (D-009)")
+  .option("--agent <agent>", "Agent to launch; required unless --resume reuses the claim's agent")
+  .option("--resume", "Reuse the existing execution context instead of creating a second one")
+  .option("--inherit-context <reason>", "Explicit, logged exception to the fresh-context default; a reason is required")
+  .option("--json")
+  .action(async (id: string, options: { agent?: string; resume?: boolean; inheritContext?: string; json?: boolean }) => {
+    const result = await executeTicket(id, { agent: options.agent, resume: options.resume, inheritContext: options.inheritContext });
+    process.stdout.write(options.json ? `${JSON.stringify(result)}\n` : `${formatExecution(result)}\n`);
+    if (!result.ok) process.exitCode = 1;
+  });
 ticket
   .command("review <id>")
   .requiredOption("--evidence <evidence>")

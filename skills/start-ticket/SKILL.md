@@ -7,6 +7,8 @@ description: Safely start a ready A-Team ticket with its claim, feature branch, 
 
 The canonical start operation is `a-team ticket start`; do not manually move ticket files or assemble claims, branches, or worktrees.
 
+Prefer `a-team ticket execute <ticket-id> --agent <agent>`: it performs this start and then runs the ticket in a fresh agent context on the brief alone (D-009). Use a bare `ticket start` only when the execution context must exist before the agent runs; then launch it with `a-team ticket execute <ticket-id> --resume`, which the start output names.
+
 1. Read the ready ticket, active profiles, dependencies, constraints, and repository configuration.
 2. Summarize the outcome, in-scope work, non-goals, verification contract, and unresolved risk before execution.
 3. Confirm the repository is clean and the configured base branch is available. Do not implement on `main`, `master`, `develop`, or another protected branch.

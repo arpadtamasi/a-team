@@ -18,6 +18,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `a-team ticket execute <id> --agent <agent>` (T-035, D-009): one command performs the start, assembles
+  the brief and launches the agent with the brief as its only input, so per-ticket fresh context is the
+  default path instead of coordinator discipline. It refuses before any mutation on a non-ready ticket, an
+  existing claim or execution context, a dirty repository and a missing agent command; a non-zero exit or an
+  empty result is reported as `agent-failed` with the claim and worktree preserved; an interrupt terminates
+  the agent and names the manual decision. `--resume` reuses the existing execution context (retry, or a
+  context created by `ticket start`) and `--inherit-context "<reason>"` is the explicit, logged exception to
+  the fresh-context default. The output — human and `--json` — names the brief's token count, the agent, the
+  branch and the worktree, and `ticket start` now names `ticket execute` as its next step.
 - Initial installable skill collection for setup, ticket definition and execution, finding validation, package coordination, review submission, and safe ticket closure.
 - Repository-native workflow model for tickets, packages, findings, profiles, and claims.
 - Canonical CLI contract shared by skills, automation, and the future local UI.

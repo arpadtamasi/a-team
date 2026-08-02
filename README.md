@@ -177,6 +177,8 @@ a-team ticket validate T-014
 a-team ticket ready T-014 --approve
 a-team ticket start T-014 --agent codex
 a-team ticket brief T-014 --out /tmp/T-014-brief.md
+a-team ticket execute T-014 --agent claude
+a-team ticket execute T-014 --resume
 a-team ticket review T-014 --evidence "Acceptance tests and visual evidence passed" --pull-request PR-123
 a-team ticket close T-014 --approve
 
@@ -198,6 +200,12 @@ a-team claim release T-014 --force
 Every command supports `--json`. Mutations validate before writing and report both the violated rule and corrective action when rejected.
 
 **Small contexts by default.** Each ticket executes in a fresh agent context whose intent input is `a-team ticket brief <id>` — the ticket body, its referenced decisions, its profiles and its claim, nothing else. The brief is deterministic and reports an approximate token count; above a threshold (`--warn-tokens`, default 12000) it warns that the ticket is probably too large or under-referenced. This is a quality gauge, not a thrift trick: if a ticket cannot be executed from its brief plus the code in the worktree, the contract is incomplete — record the gap instead of widening the context.
+
+**`ticket execute` is the command that makes that the default (D-009).** `a-team ticket execute <id> --agent <agent>` does the start, assembles the brief and launches the agent with the brief as its only input — the caller's context never reaches it. It refuses before creating anything when the ticket is not ready, a claim or execution context already exists, the repository is dirty, or the agent command is missing, so a missing binary can never leave a half-built worktree. The output — human and `--json` — names the brief's token count, the agent, the branch and the worktree; record the token count per ticket in the run log.
+
+A non-zero exit or an empty result is `agent-failed`: the claim and worktree are kept for inspection and the ticket does not move to review. An interrupt terminates the agent, keeps the claim and worktree, and names what to decide by hand. Retry with `a-team ticket execute <id> --resume`, which reuses the existing execution context (and is also how a context created by `ticket start` gets its agent) — a second plain `execute` always refuses rather than starting a second agent. Context carry-over is an explicit, logged exception: `--inherit-context "<reason>"` requires a reason, appends it to the prompt as a declared deviation and reports it in the output.
+
+The agent binary is resolved from `--agent` (`claude`, `codex`, or any command on `PATH`); `A_TEAM_AGENT_COMMAND` overrides the executable, which is how the test suite drives a deterministic script double instead of a real agent. Review, merge and close stay separate human gates — `execute` never enters them.
 
 A decision draft contains `title` frontmatter and non-empty `Decision`, `Context`, and
 `Consequences` sections. `decision create` requires explicit human approval, assigns the

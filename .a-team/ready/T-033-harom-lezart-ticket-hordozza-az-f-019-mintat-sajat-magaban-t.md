@@ -3,7 +3,7 @@ id: T-033
 title: >-
   Harom lezart ticket Deviations mezojenek kibekitese a sajat prozajaval (T-026,
   T-029, T-030)
-status: backlog
+status: ready
 origin: finding
 types:
   - bug

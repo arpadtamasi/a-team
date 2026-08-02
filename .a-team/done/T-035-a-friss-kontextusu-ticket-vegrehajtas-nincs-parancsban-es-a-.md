@@ -1,7 +1,7 @@
 ---
 id: T-035
 title: 'ticket execute: a friss-kontextusu vegrehajtas legyen parancs, ne fegyelem'
-status: review
+status: done
 origin: finding
 types:
   - feature
@@ -20,6 +20,7 @@ created_at: '2026-08-02'
 updated_at: '2026-08-02'
 source_finding: F-032
 assigned_agent: claude
+resolution: completed
 ---
 # T-035 — `ticket execute`: a friss-kontextusú végrehajtás legyen parancs, ne fegyelem
 

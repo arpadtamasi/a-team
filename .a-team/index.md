@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-- T-035-a-friss-kontextusu-ticket-vegrehajtas-nincs-parancsban-es-a-
+None.
 
 ## Blocked
 

@@ -88,6 +88,11 @@ one is taken, so a second workspace opens without any manual step; the output na
 port it selected. With an explicit `--port <port>` the choice is strict: an occupied port
 fails with an actionable error instead of quietly moving to a neighbour.
 
+Once the server is listening, the selected URL is opened in the default browser. `--no-open`
+prints it without opening, and `--json` never opens anything because that mode is for
+automation. A browser that refuses to open is a warning, never a startup failure — the board
+keeps serving.
+
 ## Package coordinator branches
 
 `a-team package start` runs a package on a deterministic coordinator branch, `coord/<package-id>`.

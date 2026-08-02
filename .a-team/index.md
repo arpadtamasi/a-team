@@ -12,7 +12,7 @@ None.
 
 ## Ready tickets
 
-- a-team-ui-does-not-open-the-browser-auto-open-the-served-url-yzn4w2gr
+None.
 
 ## Active tickets
 
@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-None.
+- a-team-ui-does-not-open-the-browser-auto-open-the-served-url-yzn4w2gr
 
 ## Blocked
 
@@ -43,3 +43,4 @@ None.
 - F-030-package-szintu-review-hianyzik-a-ticketek-review-ban-tartasa
 - F-033-no-component-test-harness-exists-for-the-react-board
 - schemas-package-schema-json-rejects-every-started-package-an-8et554b5
+- ui-port-cli-tests-silently-assert-nothing-when-4311-is-alrea-nbxc71r5

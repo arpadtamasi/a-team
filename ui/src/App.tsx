@@ -40,6 +40,8 @@ type Diagnostic = { entity: string; id: string; worktree: string; message: strin
 export type Workspace = {
   project: string; workspace?: string; migration: Migration | null;
   contracts: Contract[]; batches: Batch[]; observations: Observation[]; decisions?: Decision[]; diagnostics?: Diagnostic[];
+  /* What the reader has to say about itself before the page is believed — see WorkspaceNotices. */
+  notices?: string[];
 };
 
 /** The rail's five destinations. `running` is an overlay over any of them, not a sixth destination. */
@@ -987,6 +989,17 @@ export function CliSheet({ onClose }: { onClose: () => void }) {
   </div>;
 }
 
+/* ══ What the reader says about itself ═══════════
+   An empty board is ambiguous: it can mean an empty workspace, or a workspace whose
+   files have not reached the ref this board reads. The server distinguishes the two
+   (F-01kz25qf318bmn1t860n2rjcpt) and the page prints the answer above everything else. */
+export function WorkspaceNotices({ notices }: { notices: string[] }) {
+  return <div className="banner banner--notice" role="status">
+    <b>The board is not reading what you are editing.</b>
+    {notices.map((notice, index) => <p key={index}>{notice}</p>)}
+  </div>;
+}
+
 /* ══ App ═══════════════════════════════════════════════ */
 export function App() {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
@@ -1042,6 +1055,7 @@ export function App() {
     <div className="content">
       <TopBar workspace={workspace} board={board} onHelp={() => setHelpOpen(true)} onRefresh={() => void refresh()} refreshed={refreshed} />
       {board && <RunningStrip board={board} onWatch={() => setWatching(true)} onOpen={setDetailId} />}
+      {workspace?.notices?.length ? <WorkspaceNotices notices={workspace.notices} /> : null}
       {workspace && error && <div className="banner" role="alert">
         <b>Last read failed.</b> Tried <code>GET {WORKSPACE_ENDPOINT}</code> — {error}. Showing the last good read.
         <button type="button" className="btn btn-secondary btn-sm" onClick={() => void refresh()}>Retry</button>

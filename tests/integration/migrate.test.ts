@@ -1,0 +1,436 @@
+import { createHash } from "node:crypto";
+import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, relative, resolve } from "node:path";
+import matter from "gray-matter";
+import { describe, expect, test } from "vitest";
+import { readWorkspace } from "../../src/commands/ui.js";
+import { workspaceIds, type MigrateResult } from "../../src/commands/migrate.js";
+
+/**
+ * `kotta migrate` is the only reader of the pre-vocabulary shape, and the next ticket migrates three
+ * live neighbour workspaces by running it. Everything asserted here is exercised on a real workspace
+ * on disk: the dry run touches nothing, the run validates, a second run is a no-op, an already-current
+ * workspace is left alone, every other command refuses the old shape by name, and no identifier moves.
+ */
+
+const cli = resolve("dist/cli/index.js");
+const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8" });
+const invoke = (cwd: string, args: string[]) => spawnSync("node", [cli, ...args], { cwd, encoding: "utf8" });
+const run = (cwd: string, args: string[]) => {
+  const result = invoke(cwd, [...args, "--json"]);
+  if (result.status !== 0) throw new Error(result.stdout || result.stderr);
+  return JSON.parse(result.stdout) as { ok: boolean; command: string; data: Record<string, unknown> };
+};
+
+const CONTRACT_BODY = [
+  "## Outcome", "", "The result is observable.", "",
+  "## Scope", "", "What is included.", "",
+  "## Non-goals", "", "What is excluded.", "",
+  "## Acceptance", "", "- The result exists.", "",
+  "## Verification", "", "- Run the integration test.", "",
+  "## Constraints", "", "None.", "",
+  "## Open decisions", "", "None.", "",
+  "## Execution notes", "", "None.", "",
+].join("\n");
+
+const OBSERVATION_BODY = [
+  "## Observation", "", "Something was noticed.", "",
+  "## Evidence", "", "A log line.", "",
+  "## Impact hypothesis", "", "It may mislead.", "",
+  "## Confidence", "", "High: directly observed.", "",
+  "## Suggested disposition", "", "Investigate.", "",
+].join("\n");
+
+const BATCH_BODY = [
+  "## Goal", "", "Ship the slice.", "",
+  "## Completion", "", "Every member contract is accepted.", "",
+  "## Execution notes", "", "Coordinated by a human.", "",
+].join("\n");
+
+function write(path: string, data: Record<string, unknown>, body: string): void {
+  mkdirSync(join(path, ".."), { recursive: true });
+  writeFileSync(path, matter.stringify(`# ${String(data.id)} — ${String(data.title)}\n\n${body}`, data));
+}
+
+/** A git repository holding a workspace in the pre-vocabulary shape, under the pre-rename directory name. */
+function legacyRepository(label: string, directory = ".a-team"): string {
+  // realpath, so the board takes its git base-ref path: `git rev-parse --show-toplevel` reports the
+  // resolved directory, and a mismatch would silently fall back to plain working-tree reads.
+  const root = realpathSync(mkdtempSync(join(tmpdir(), `kotta-migrate-${label}-`)));
+  git(root, "init", "-b", "main");
+  git(root, "config", "user.name", "Kotta Test");
+  git(root, "config", "user.email", "test@example.com");
+  const workspace = join(root, directory);
+  for (const sub of ["backlog", "ready", "active", "review", "done", "findings/new", "findings/resolved", "packages/backlog", "packages/ready", "claims", "decisions", "profiles"]) {
+    mkdirSync(join(workspace, sub), { recursive: true });
+  }
+  writeFileSync(join(workspace, "config.yaml"), [
+    "version: 1",
+    "project:",
+    "  name: legacy-fixture",
+    "workflow:",
+    "  require_human_ready_approval: true",
+    "  require_human_done_approval: true",
+    "  allow_agent_findings: true",
+    "  allow_agent_ready_tickets: false",
+    "git:",
+    "  base_branch: main",
+    "  protected_branches:",
+    "    - main",
+    "packages:",
+    "  default_parallelism: 2",
+    "  stop_on_failure: true",
+    "validation:",
+    "  strict: true",
+    "  require_verification_for_ready: true",
+    "",
+  ].join("\n"));
+  writeFileSync(join(workspace, "index.md"), "# Kotta Status\n");
+
+  write(join(workspace, "backlog/T-001-shape-the-export.md"), {
+    id: "T-001", title: "Shape the export", status: "backlog", origin: "finding", types: ["feature"], profiles: [],
+    priority: "medium", risk: "medium", package: "P-001", source_finding: "F-001", depends_on: [], blocks: [],
+    created_at: "2026-07-01", updated_at: "2026-07-01",
+  }, CONTRACT_BODY);
+  write(join(workspace, "ready/T-002-export-job-api.md"), {
+    id: "T-002", title: "Export job API", status: "ready", origin: "human", types: ["feature"], profiles: [],
+    priority: "medium", risk: "low", package: "P-001", depends_on: ["T-001"], blocks: [],
+    created_at: "2026-07-02", updated_at: "2026-07-02",
+  }, CONTRACT_BODY);
+  write(join(workspace, "active/T-003-export-audit.md"), {
+    id: "T-003", title: "Export audit", status: "active", origin: "human", types: ["feature"], profiles: [],
+    priority: "medium", risk: "low", package: null, depends_on: [], blocks: [],
+    branch: "feat/T-003-export-audit", assigned_agent: "codex", created_at: "2026-07-03", updated_at: "2026-07-03",
+  }, CONTRACT_BODY);
+  writeFileSync(join(workspace, "claims/T-003.yaml"), [
+    "ticket: T-003",
+    "agent: codex",
+    "branch: feat/T-003-export-audit",
+    "worktree: .worktrees/T-003",
+    "started_at: 2026-07-03T09:00:00Z",
+    "",
+  ].join("\n"));
+  write(join(workspace, "findings/new/F-001-divergent-checks.md"), {
+    id: "F-001", title: "Divergent checks", status: "new", origin: "agent", finding_type: "inconsistency",
+    confidence: "high", severity: "medium", discovered_during: "T-003", created_at: "2026-07-04",
+  }, OBSERVATION_BODY);
+  write(join(workspace, "findings/resolved/F-002-duplicate-read.md"), {
+    id: "F-002", title: "Duplicate read", status: "resolved", origin: "agent", finding_type: "performance",
+    confidence: "high", severity: "low", disposition: "create-ticket", ticket: "T-001", related_ticket: "T-001",
+    created_at: "2026-07-05", resolved_at: "2026-07-06T10:00:00.000Z",
+  }, OBSERVATION_BODY);
+  write(join(workspace, "packages/ready/P-001-export-slice.md"), {
+    id: "P-001", kind: "milestone", title: "Export slice", status: "ready", tickets: ["T-001", "T-002"],
+    execution: { mode: "dependency-aware", parallelism: 2, stop_on_failure: true },
+    authority: { create_findings: true, create_subtickets: false, reorder_independent_tickets: false, change_scope: false },
+    created_at: "2026-07-01", updated_at: "2026-07-02",
+  }, BATCH_BODY);
+
+  git(root, "add", ".");
+  git(root, "commit", "-m", "legacy workspace");
+  return root;
+}
+
+/** Content-addressed picture of a directory tree: any write at all changes it. */
+function snapshot(directory: string): Record<string, string> {
+  const files: Record<string, string> = {};
+  const walk = (current: string) => {
+    for (const name of readdirSync(current).sort()) {
+      if (name === ".git") continue;
+      const path = join(current, name);
+      if (statSync(path).isDirectory()) walk(path);
+      else files[relative(directory, path)] = createHash("sha1").update(readFileSync(path)).digest("hex");
+    }
+  };
+  walk(directory);
+  return files;
+}
+
+/** Ids read straight off disk, independently of anything the migration reports about itself. */
+function idsOnDisk(root: string): string[] {
+  const workspace = [".kotta", ".a-team"].map((name) => join(root, name)).find((path) => existsSync(path));
+  return workspaceIds(workspace as string);
+}
+
+describe("kotta migrate", () => {
+  test("--dry-run lists every change and modifies nothing", () => {
+    const root = legacyRepository("dry-run");
+    const before = snapshot(root);
+
+    const result = invoke(root, ["migrate", "--dry-run"]);
+    expect(result.status, result.stderr).toBe(0);
+    expect(snapshot(root)).toEqual(before);
+
+    const report = result.stdout;
+    expect(report).toContain("Nothing was written.");
+    for (const line of [
+      ".a-team → .kotta",
+      ".a-team/ready → .kotta/defined",
+      ".a-team/findings → .kotta/observations",
+      ".a-team/packages → .kotta/batches",
+      ".a-team/batches/ready → .kotta/batches/defined",
+    ]) expect(report).toContain(line);
+    expect(report).toContain("package → batch");
+    expect(report).toContain("source_finding → source_observation");
+    expect(report).toContain("status: ready → defined");
+    expect(report).toContain("kind removed");
+    expect(report).toContain("tickets → contracts");
+    expect(report).toContain("finding_type → observation_type");
+    expect(report).toContain("disposition: create-ticket → create-contract");
+    expect(report).toContain("ticket → contract");
+    expect(report).toContain("6 identifiers, all unchanged");
+  });
+
+  test("the run produces a workspace kotta validate accepts, with every cross-reference resolving", () => {
+    const root = legacyRepository("apply");
+    const before = idsOnDisk(root);
+
+    const migrated = run(root, ["migrate"]).data as MigrateResult["data"];
+    expect(migrated.current).toBe(false);
+    expect(migrated.workspace).toBe(join(root, ".kotta"));
+
+    expect(existsSync(join(root, ".a-team"))).toBe(false);
+    expect(existsSync(join(root, ".kotta/defined/T-002-export-job-api.md"))).toBe(true);
+    expect(existsSync(join(root, ".kotta/observations/new/F-001-divergent-checks.md"))).toBe(true);
+    expect(existsSync(join(root, ".kotta/batches/defined/P-001-export-slice.md"))).toBe(true);
+
+    expect(run(root, ["validate"])).toMatchObject({ ok: true, errors: [] });
+
+    const contract = matter(readFileSync(join(root, ".kotta/defined/T-002-export-job-api.md"), "utf8"));
+    expect(contract.data).toMatchObject({ id: "T-002", status: "defined", batch: "P-001", depends_on: ["T-001"] });
+    expect(contract.data.package).toBeUndefined();
+
+    const backlog = matter(readFileSync(join(root, ".kotta/backlog/T-001-shape-the-export.md"), "utf8"));
+    expect(backlog.data).toMatchObject({ origin: "observation", source_observation: "F-001", batch: "P-001" });
+
+    const batch = matter(readFileSync(join(root, ".kotta/batches/defined/P-001-export-slice.md"), "utf8"));
+    expect(batch.data).toMatchObject({ status: "defined", contracts: ["T-001", "T-002"] });
+    expect(batch.data.kind).toBeUndefined();
+    expect(batch.data.tickets).toBeUndefined();
+    expect(batch.data.authority).toEqual({ create_observations: true, create_subcontracts: false, reorder_independent_contracts: false, change_scope: false });
+
+    const resolved = matter(readFileSync(join(root, ".kotta/observations/resolved/F-002-duplicate-read.md"), "utf8"));
+    expect(resolved.data).toMatchObject({ observation_type: "performance", disposition: "create-contract", contract: "T-001", related_contract: "T-001" });
+
+    const claim = readFileSync(join(root, ".kotta/claims/T-003.yaml"), "utf8");
+    expect(claim).toContain("contract: T-003");
+    expect(claim).not.toContain("ticket: T-003");
+
+    const config = readFileSync(join(root, ".kotta/config.yaml"), "utf8");
+    expect(config).toContain("version: 2");
+    expect(config).toContain("batches:");
+    expect(config).toContain("require_human_sign_approval");
+    expect(config).toContain("allow_agent_observations");
+    expect(config).toContain("allow_agent_defined_contracts");
+    expect(config).toContain("require_verification_for_defined");
+
+    // Every reference still points at something that is on disk. The board reads the base ref, so the
+    // migration has to be committed first — the very gap the notices below are about.
+    git(root, "add", "-A");
+    git(root, "commit", "-m", "migrate");
+    const board = readWorkspace(root);
+    const contractIds = new Set(board.contracts.map((entity) => String(entity.id)));
+    const observationIds = new Set(board.observations.map((entity) => String(entity.id)));
+    const batchIds = new Set(board.batches.map((entity) => String(entity.id)));
+    for (const entity of board.contracts) {
+      if (entity.batch) expect(batchIds).toContain(String(entity.batch));
+      if (entity.source_observation) expect(observationIds).toContain(String(entity.source_observation));
+      for (const reference of (entity.depends_on ?? []) as string[]) expect(contractIds).toContain(reference);
+    }
+    for (const entity of board.batches) for (const member of (entity.contracts ?? []) as string[]) expect(contractIds).toContain(member);
+
+    // Acceptance 6: the id set is identical, asserted from disk rather than from the command's report.
+    expect(idsOnDisk(root)).toEqual(before);
+    expect(before).toEqual(["F-001", "F-002", "P-001", "T-001", "T-002", "T-003"]);
+  });
+
+  test("running it a second time changes nothing and says so", () => {
+    const root = legacyRepository("idempotent");
+    run(root, ["migrate"]);
+    const after = snapshot(root);
+
+    const second = invoke(root, ["migrate"]);
+    expect(second.status, second.stderr).toBe(0);
+    expect(second.stdout).toContain("already on the current shape");
+    expect(snapshot(root)).toEqual(after);
+    expect((run(root, ["migrate"]).data as MigrateResult["data"]).current).toBe(true);
+  });
+
+  test("a workspace already in the new shape is left alone", () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), "kotta-migrate-current-")));
+    git(root, "init", "-b", "main");
+    git(root, "config", "user.name", "Kotta Test");
+    git(root, "config", "user.email", "test@example.com");
+    run(root, ["init"]);
+    const created = run(root, ["contract", "new", "--title", "Fresh contract", "--type", "feature"]).data as { id: string };
+    const before = snapshot(root);
+
+    const result = run(root, ["migrate"]).data as MigrateResult["data"];
+    expect(result.current).toBe(true);
+    expect(result.changes).toEqual([]);
+    expect(result.ids).toContain(created.id);
+    expect(snapshot(root)).toEqual(before);
+  });
+
+  test("an interrupted run is finished by running it again", () => {
+    const root = legacyRepository("interrupted");
+    // What a run killed between two directory moves leaves behind: one name migrated, the rest not.
+    execFileSync("mv", [join(root, ".a-team"), join(root, ".kotta")]);
+    execFileSync("mv", [join(root, ".kotta/findings"), join(root, ".kotta/observations")]);
+
+    const result = run(root, ["migrate"]).data as MigrateResult["data"];
+    expect(result.current).toBe(false);
+    expect(existsSync(join(root, ".kotta/defined/T-002-export-job-api.md"))).toBe(true);
+    expect(existsSync(join(root, ".kotta/observations/new/F-001-divergent-checks.md"))).toBe(true);
+    expect(run(root, ["validate"])).toMatchObject({ ok: true, errors: [] });
+    expect(idsOnDisk(root)).toEqual(["F-001", "F-002", "P-001", "T-001", "T-002", "T-003"]);
+  });
+});
+
+describe("the old shape outside the migration command", () => {
+  test("ordinary commands refuse it and name kotta migrate", () => {
+    const root = legacyRepository("refusal");
+    for (const args of [["validate"], ["status"], ["contract", "validate", "T-002"], ["batch", "validate", "P-001"], ["claim", "list"]]) {
+      const result = invoke(root, args);
+      expect(result.status, `${args.join(" ")} was accepted`).toBe(1);
+      expect(result.stderr).toContain("pre-vocabulary Kotta workspace");
+      expect(result.stderr).toContain("kotta migrate");
+    }
+  });
+
+  test("the migration command itself reads it correctly", () => {
+    const root = legacyRepository("readable");
+    const planned = run(root, ["migrate", "--dry-run"]).data as MigrateResult["data"];
+    expect(planned.ids).toEqual(["F-001", "F-002", "P-001", "T-001", "T-002", "T-003"]);
+    expect(planned.changes.filter((change) => change.kind === "move")).toHaveLength(5);
+  });
+
+  test("the board says why it looks incomplete instead of showing an empty page", () => {
+    const root = legacyRepository("board-notice");
+    const board = readWorkspace(root);
+    expect(board.notices.join("\n")).toContain("pre-vocabulary shape");
+    expect(board.notices.join("\n")).toContain("kotta migrate");
+  });
+
+  test("after migrating, the board explains the base-ref gap until the commit lands (F-01kz25qf318bmn1t860n2rjcpt)", () => {
+    const root = legacyRepository("base-ref");
+    const report = invoke(root, ["migrate"]).stdout;
+    // The command says it before the operator can be surprised by it.
+    expect(report).toContain("reads the workspace from the 'main' ref");
+    expect(report).toContain("Commit the migration");
+
+    // And the board says the same thing while the migration is only in the working tree.
+    const board = readWorkspace(root);
+    expect(board.contracts).toHaveLength(0);
+    expect(board.notices.join("\n")).toContain("from the 'main' ref");
+    expect(board.notices.join("\n")).toContain("the board is empty until then, and the workspace is not");
+
+    // Committing to the base ref closes the gap, and the notice goes away.
+    git(root, "add", "-A");
+    git(root, "commit", "-m", "migrate");
+    const after = readWorkspace(root);
+    expect(after.contracts).toHaveLength(3);
+    expect(after.notices).toEqual([]);
+  });
+});
+
+describe("the removed kind field", () => {
+  test("batch new no longer accepts --kind, and writes none", () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), "kotta-migrate-kind-")));
+    git(root, "init", "-b", "main");
+    git(root, "config", "user.name", "Kotta Test");
+    git(root, "config", "user.email", "test@example.com");
+    run(root, ["init"]);
+    expect(invoke(root, ["batch", "new", "--title", "A batch", "--kind", "sprint"]).status).toBe(1);
+
+    const created = run(root, ["batch", "new", "--title", "A batch", "--goal", "Ship it"]).data as { path: string };
+    expect(matter(readFileSync(created.path, "utf8")).data.kind).toBeUndefined();
+  });
+
+  test("kind is gone from the published schema", () => {
+    const schema = JSON.parse(readFileSync(resolve("schemas/batch.schema.json"), "utf8")) as { required: string[]; properties: Record<string, unknown> };
+    expect(schema.required).not.toContain("kind");
+    expect(schema.properties.kind).toBeUndefined();
+  });
+
+  test("a batch that still carries it loads, with a warning", () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), "kotta-migrate-kind-load-")));
+    git(root, "init", "-b", "main");
+    git(root, "config", "user.name", "Kotta Test");
+    git(root, "config", "user.email", "test@example.com");
+    run(root, ["init"]);
+    const created = run(root, ["contract", "new", "--title", "Member", "--type", "feature"]).data as { id: string };
+    const batch = run(root, ["batch", "new", "--title", "With kind", "--goal", "Ship it"]).data as { id: string; path: string };
+    run(root, ["batch", "add", batch.id, created.id]);
+    const parsed = matter(readFileSync(batch.path, "utf8"));
+    writeFileSync(batch.path, matter.stringify(parsed.content, { ...parsed.data, kind: "sprint" }));
+
+    const result = invoke(root, ["batch", "validate", batch.id, "--json"]);
+    expect(result.status).toBe(0);
+    const report = JSON.parse(result.stdout) as { ok: boolean; data: { warnings: string[] } };
+    expect(report.ok).toBe(true);
+    expect(report.data.warnings.join("\n")).toContain("still carries the removed 'kind' field");
+    expect(result.stderr).toContain("kotta migrate");
+  });
+});
+
+describe("a workspace the size of a real one", () => {
+  test("165 contracts, 105 observations and 21 batches migrate and validate", () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), "kotta-migrate-large-")));
+    git(root, "init", "-b", "main");
+    git(root, "config", "user.name", "Kotta Test");
+    git(root, "config", "user.email", "test@example.com");
+    const workspace = join(root, ".a-team");
+    for (const sub of ["backlog", "ready", "findings/new", "packages/backlog", "claims", "decisions", "profiles"]) {
+      mkdirSync(join(workspace, sub), { recursive: true });
+    }
+    writeFileSync(join(workspace, "config.yaml"), "version: 1\nproject:\n  name: large\ngit:\n  base_branch: main\npackages:\n  default_parallelism: 2\n");
+    writeFileSync(join(workspace, "index.md"), "# Kotta Status\n");
+
+    const contractIds: string[] = [];
+    for (let index = 1; index <= 165; index += 1) {
+      const id = `T-${String(index).padStart(3, "0")}`;
+      contractIds.push(id);
+      const state = index % 3 === 0 ? "ready" : "backlog";
+      write(join(workspace, state, `${id}-contract-${index}.md`), {
+        id, title: `Contract ${index}`, status: state === "ready" ? "ready" : "backlog", origin: "human",
+        types: ["feature"], profiles: [], priority: "medium", risk: "medium",
+        package: `P-${String(Math.floor((index - 1) / 8) + 1).padStart(3, "0")}`,
+        depends_on: [], blocks: [], created_at: "2026-07-01", updated_at: "2026-07-01",
+      }, CONTRACT_BODY);
+    }
+    for (let index = 1; index <= 105; index += 1) {
+      const id = `F-${String(index).padStart(3, "0")}`;
+      write(join(workspace, "findings/new", `${id}-observation-${index}.md`), {
+        id, title: `Observation ${index}`, status: "new", origin: "agent", finding_type: "bug",
+        confidence: "high", severity: "medium", created_at: "2026-07-01",
+      }, OBSERVATION_BODY);
+    }
+    for (let index = 1; index <= 21; index += 1) {
+      const id = `P-${String(index).padStart(3, "0")}`;
+      write(join(workspace, "packages/backlog", `${id}-batch-${index}.md`), {
+        id, title: `Batch ${index}`, status: "backlog", kind: "batch",
+        tickets: contractIds.slice((index - 1) * 8, index * 8),
+        execution: { mode: "dependency-aware", parallelism: 2, stop_on_failure: true },
+        authority: { create_findings: true, create_subtickets: false, reorder_independent_tickets: false, change_scope: false },
+        created_at: "2026-07-01", updated_at: "2026-07-01",
+      }, BATCH_BODY);
+    }
+    git(root, "add", ".");
+    git(root, "commit", "-m", "large legacy workspace");
+
+    const before = idsOnDisk(root);
+    expect(before).toHaveLength(165 + 105 + 21);
+
+    const result = run(root, ["migrate"]).data as MigrateResult["data"];
+    expect(result.current).toBe(false);
+    expect(result.ids).toHaveLength(before.length);
+    expect(idsOnDisk(root)).toEqual(before);
+    expect(run(root, ["validate"])).toMatchObject({ ok: true, errors: [] });
+    expect(readdirSync(join(root, ".kotta/observations/new"))).toHaveLength(105);
+    expect(readdirSync(join(root, ".kotta/batches/backlog"))).toHaveLength(21);
+    expect(run(root, ["migrate"]).data).toMatchObject({ current: true });
+  }, 120_000);
+});

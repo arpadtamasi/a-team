@@ -338,6 +338,10 @@ code { font-family: var(--font-mono); }
   border-bottom: 2px solid var(--color-accent);
 }
 
+/* The board explaining its own emptiness reads as a block, not as a one-line alert. */
+.banner--notice { display: block; }
+.banner--notice p { margin: var(--space-1) 0 0; max-width: 88ch; }
+
 /* ── Entity marks, states, claims ────────────────────── */
 .tail {
   font-family: var(--font-mono); font-size: 11px; font-weight: 600; padding: 0 4px; flex: none;

@@ -13,7 +13,7 @@ import { newObservation, resolveObservation } from "./observation.js";
 import { newBatch, updateBatchContracts } from "./batch.js";
 import { signContract } from "./contract.js";
 import { ENV_PREFIX, readEnv } from "../core/env.js";
-import { WORKSPACE_DIRECTORIES, hasWorkspace, workspaceDirectoryName } from "../filesystem/workspace.js";
+import { WORKSPACE_DIRECTORIES, hasWorkspace, legacyStateDirectories, workspaceDirectoryName } from "../filesystem/workspace.js";
 
 const CONTRACT_STATES = ["backlog", "defined", "active", "review", "done"];
 const BATCH_STATES = ["backlog", "defined", "active", "done"];
@@ -206,7 +206,44 @@ export function readWorkspace(workspaceOption: string) {
       sections: sectionObject(parsed.content),
     };
   });
-  return { workspace, project: migration?.project ?? config.project?.name ?? "Kotta workspace", migration, contracts, batches, observations, decisions, diagnostics, generatedAt: new Date().toISOString() };
+  const notices = readNotices(projectRoot, workspace, useBase, base, contracts.length + batches.length + observations.length);
+  return { workspace, project: migration?.project ?? config.project?.name ?? "Kotta workspace", migration, contracts, batches, observations, decisions, diagnostics, notices, generatedAt: new Date().toISOString() };
+}
+
+/** Entity files sitting in the working tree, under either vocabulary — the counterweight to the ref read. */
+function workingTreeEntityCount(workspace: string): number {
+  const directories = [
+    ...CONTRACT_STATES, "ready",
+    "observations/new", "observations/resolved", "findings/new", "findings/resolved",
+    ...["backlog", "ready", "defined", "active", "done"].flatMap((state) => [`batches/${state}`, `packages/${state}`]),
+  ];
+  return directories.reduce((total, directory) => {
+    const path = join(workspace, directory);
+    return existsSync(path) ? total + readdirSync(path).filter((name) => name.endsWith(".md")).length : total;
+  }, 0);
+}
+
+/**
+ * What the board must say out loud instead of rendering an empty page (F-01kz25qf318bmn1t860n2rjcpt).
+ *
+ * The board reads the configured base ref through git plumbing, not the working tree, so a directory
+ * or vocabulary migration that has not reached that ref yet produces a header path that looks right
+ * above no content at all. That is indistinguishable from an empty workspace — unless the reader says
+ * which side it read and why the other side is fuller.
+ */
+export function readNotices(projectRoot: string, workspace: string, useBase: boolean, base: string, fromRef: number): string[] {
+  const notices: string[] = [];
+  const legacy = legacyStateDirectories(projectRoot);
+  if (legacy.length) {
+    notices.push(`This workspace is still on the pre-vocabulary shape (${legacy.map((name) => `${name}/`).join(", ")}). The board reads the current names, so what you see is incomplete. Run 'kotta migrate --dry-run', then 'kotta migrate'.`);
+  }
+  if (useBase && fromRef === 0) {
+    const onDisk = workingTreeEntityCount(workspace);
+    if (onDisk > 0) {
+      notices.push(`The board reads ${basename(workspace)}/ from the '${base}' ref, not from the working tree. That ref has no entities while the working tree has ${onDisk} — a migration or rename that has not reached '${base}' yet. Commit it and merge it into '${base}'; the board is empty until then, and the workspace is not.`);
+    }
+  }
+  return notices;
 }
 
 function json(response: ServerResponse, status: number, value: unknown): void {

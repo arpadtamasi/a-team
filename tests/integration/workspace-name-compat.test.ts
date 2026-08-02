@@ -4,12 +4,14 @@ import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 import { readWorkspace } from "../../src/commands/ui.js";
-import { workspaceDirectoryName } from "../../src/filesystem/workspace.js";
+import { duplicateWorkspaceWarning, hasWorkspace, workspaceDirectoryName } from "../../src/filesystem/workspace.js";
 
 /**
- * The rename (T-020 / D-006) may not cost an existing workspace anything: `.a-team/` keeps working
- * untouched, the `a-team` binary name keeps working, and a symlink bridges the two directory names
- * in either direction. `init` creates the new name. Every claim here is exercised, not asserted.
+ * `.kotta/` is the primary workspace directory (T-021 / D-007): `init` creates it and discovery finds
+ * it first. The rename still may not cost an existing workspace anything: `.a-team/` keeps working
+ * untouched, the `a-team` binary name keeps working, and a symlink bridges the two directory names in
+ * either direction. Two real directories are the one ambiguous case, and the CLI says so out loud.
+ * Every claim here is exercised, not asserted.
  */
 
 const cli = resolve("dist/cli/index.js");
@@ -152,13 +154,51 @@ describe("a symlink bridges the two directory names", () => {
     expect(readWorkspace(join(root, ".a-team")).tickets).toHaveLength(1);
   });
 
-  test("two real directories resolve to .kotta", () => {
+  test("two real directories resolve to .kotta, and the CLI says so on stderr", () => {
     const root = repository("both");
     renameSync(join(root, ".kotta"), join(root, ".a-team"));
     expect(run(root, ["validate"])).toMatchObject({ ok: true });
     execFileSync("cp", ["-R", join(root, ".a-team"), join(root, ".kotta")]);
     expect(workspaceDirectoryName(root)).toBe(".kotta");
     expect(readWorkspace(root).workspace).toBe(join(root, ".kotta"));
+
+    // Acceptance 4 (D-007): ambiguity is never silent. The warning goes to stderr, so `--json`
+    // stdout stays parseable, and it names the winner, the ignored directory and the way out.
+    const result = invoke(root, ["status"]);
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain(".kotta/ and .a-team/ as real directories");
+    expect(result.stderr).toContain("uses .kotta/ and ignores .a-team/");
+    expect(result.stderr).toContain("ln -s .kotta .a-team");
+    expect(() => JSON.parse(result.stdout)).not.toThrow();
+    // Once per process, not once per path join.
+    expect(result.stderr.match(/contains both/g)).toHaveLength(1);
+  });
+
+  test("a symlinked bridge is not the ambiguous case and stays silent", () => {
+    const linked = repository("quiet-link");
+    symlinkSync(".kotta", join(linked, ".a-team"));
+    expect(duplicateWorkspaceWarning(linked)).toBeUndefined();
+    expect(invoke(linked, ["status"]).stderr).toBe("");
+
+    const single = repository("quiet-single", ".a-team");
+    expect(duplicateWorkspaceWarning(single)).toBeUndefined();
+    expect(invoke(single, ["status"]).stderr).toBe("");
+  });
+});
+
+describe(".kotta is the primary name", () => {
+  test("discovery answers .kotta for a repository that has no workspace yet", () => {
+    const empty = realpathSync(mkdtempSync(join(tmpdir(), "kotta-compat-empty-")));
+    expect(workspaceDirectoryName(empty)).toBe(".kotta");
+    expect(hasWorkspace(empty)).toBe(false);
+  });
+
+  test("a fresh workspace is discovered under the new name and nothing points at the old one", () => {
+    const root = repository("primary");
+    expect(workspaceDirectoryName(root)).toBe(".kotta");
+    expect(readWorkspace(root).workspace).toBe(join(root, ".kotta"));
+    const status = run(root, ["status"]).data as { workspace?: string };
+    expect(status.workspace).toBe(join(root, ".kotta"));
   });
 });
 

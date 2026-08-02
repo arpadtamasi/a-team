@@ -10,5 +10,7 @@ export function statusCommand() {
     if (!existsSync(path)) return [];
     return readdirSync(path).filter((name) => name.endsWith(".md")).map((name) => idFromEntityFile(join(path, name), name)).filter((id): id is string => id !== null);
   };
-  return { ok: true, command: "status", data: { readyTickets: byDirectory("ready"), activeTickets: byDirectory("active"), reviewTickets: byDirectory("review"), newFindings: byDirectory("findings/new"), allTickets: listIds(root, "ticket") } };
+  // The discovered workspace path is part of the answer: with two directory names in play, "which
+  // directory did you read?" must be visible without guessing (D-007).
+  return { ok: true, command: "status", data: { workspace: workspacePath(root), readyTickets: byDirectory("ready"), activeTickets: byDirectory("active"), reviewTickets: byDirectory("review"), newFindings: byDirectory("findings/new"), allTickets: listIds(root, "ticket") } };
 }

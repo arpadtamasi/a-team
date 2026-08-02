@@ -101,7 +101,7 @@ function sectionObject(content: string): Record<string, string> {
 /**
  * Where the board reads from: the workspace directory, the repository root above it, and the
  * repo-relative directory name Git plumbing must use. `--workspace` may name either the repository
- * root or the workspace directory itself, under either name (`.kotta` or `.a-team`, T-020).
+ * root or the workspace directory itself, under any name in `WORKSPACE_DIRECTORIES`.
  */
 export function resolveWorkspaceLocation(workspaceOption: string): { workspace: string; projectRoot: string; directory: string } {
   const candidate = resolve(workspaceOption);

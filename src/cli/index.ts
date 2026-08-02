@@ -38,6 +38,15 @@ function humanize(result: unknown): string {
         `'kotta ticket execute <id> --agent <agent>' does start, brief and agent launch in one command.`,
       ].join("\n");
     }
+    if (command === "status" && "data" in result) {
+      // The workspace path leads: with `.kotta/` and `.a-team/` both readable, the directory that
+      // answered is the first thing a reader needs (D-007).
+      const data = (result as { data: { workspace: unknown; readyTickets: unknown[]; activeTickets: unknown[]; reviewTickets: unknown[]; newFindings: unknown[] } }).data;
+      return [
+        `Workspace: ${String(data.workspace)}`,
+        `Ready ${data.readyTickets.length}, active ${data.activeTickets.length}, review ${data.reviewTickets.length}, new findings ${data.newFindings.length}.`,
+      ].join("\n");
+    }
     if ((result as { command: unknown }).command === "decision create" && "data" in result) {
       const data = (result as { data: { id: unknown; path: unknown } }).data;
       return `Recorded decision ${String(data.id)} at ${String(data.path)}.`;

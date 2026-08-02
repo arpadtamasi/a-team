@@ -64,39 +64,51 @@ commands. The CLI never treats a validation failure as a ready ticket.
 
 ## Renamed from A-Team
 
-The product was called **A-Team** until 2026-08 (D-005, D-006). The rename costs an existing
-workspace nothing — there is no migration step, and nothing in your repository has to change:
+The product was called **A-Team** until 2026-08 (D-005, D-006, D-007). This section is the one
+place that compatibility is described; nothing else in the repository restates it.
 
 | Surface | Now | Pre-rename name |
 | --- | --- | --- |
 | npm package | `kotta` | `@arpadtamasi/a-team` (deprecated, points here) |
 | CLI binary | `kotta` | `a-team` — still installed, same entrypoint, same version |
-| Workspace directory | `.kotta/` — what `kotta init` creates | `.a-team/` — still discovered and used as-is |
+| Workspace directory | `.kotta/` — what `kotta init` creates and what discovery finds first | the pre-rename directory — still discovered and used as-is |
 | GitHub repository | `arpadtamasi/kotta` | `arpadtamasi/a-team` (redirects) |
 | Environment overrides | `KOTTA_*` | `A_TEAM_*` — still read |
 
-Directory discovery is one rule: **`.kotta/` if it is there, otherwise `.a-team/`.** The CLI
-never renames a workspace behind your back, and `init` refuses to create a second one beside
-an existing directory under either name.
+Directory discovery is one rule: **the new name if it is there, the old one otherwise.** The CLI
+never renames a workspace behind your back, and `init` refuses to create a second one beside an
+existing directory under either name. Nothing forces you to migrate; a pre-rename workspace keeps
+working untouched for as long as the compatibility read stays (its removal is a separate, later
+decision).
 
-If a project needs both names to resolve — a script, a tool, or a teammate's checkout expects
-the other one — bridge them with a symlink instead of renaming:
+### Migrating a workspace
+
+Renaming the directory is a two-command commit, and it is what this repository did to its own
+workspace:
 
 ```bash
-# an existing .a-team/ workspace that should also answer to the new name
-ln -s .a-team .kotta
-
-# a .kotta/ workspace that must keep answering to the old name
+git mv .a-team .kotta
 ln -s .kotta .a-team
 ```
 
-Both directions work, in the CLI and on the board. Only one of the two is a real directory,
-and that is the one Git tracks and the board reads through Git plumbing; the symlink is a
-convenience for humans and scripts, so commit it only if your team wants it committed.
+`git mv` keeps every blob and every rename detectable, so `git log --follow` still reaches back
+through the old path. The committed symlink keeps pre-rename scripts, bookmarks and older `a-team`
+installs resolving against the same files. Move the `index.md merge=union` line in `.gitattributes`
+to the new path at the same time.
 
-The second direction is also how a project renames its directory without waiting for everyone:
-after `mv .a-team .kotta && ln -s .kotta .a-team`, an older `a-team` install that knows nothing
-about the new name keeps working against the same files.
+The bridge works in either direction — `ln -s .a-team .kotta` lets an unmigrated workspace answer
+to the new name too. Only one of the two is ever a real directory, and that is the one Git tracks
+and the board reads through Git plumbing; a symlinked name always loses to a real sibling, so both
+directions resolve to the same files.
+
+On Windows, a checkout without symlink support materialises the committed link as a small regular
+file rather than a link. That is harmless: discovery prefers the real directory, so the CLI and the
+board still read the migrated workspace. Only scripts that reach through the old path break, and
+they break visibly.
+
+If both names are real directories — two separate workspaces, not a bridge — the CLI uses `.kotta/`
+and prints a warning naming the directory it ignored. Merge them and replace the leftover with a
+symlink; the warning is not a state to live in.
 
 ## How it works
 

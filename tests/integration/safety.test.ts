@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 
 const cli = resolve("dist/cli/index.js");
@@ -28,28 +28,27 @@ function completeTemplate(root: string, path: string): void {
 describe("mutation safety", () => {
   test("unknown profiles cannot move a ticket out of backlog", () => {
     const root = repository();
-    run(root, ["ticket", "new", "--title", "Unsafe ticket", "--type", "feature", "--profile", "invented"]);
-    const backlog = join(root, ".a-team/backlog/T-001-unsafe-ticket.md");
+    const created = (run(root, ["ticket", "new", "--title", "Unsafe ticket", "--type", "feature", "--profile", "invented"]) as { data: { id: string; path: string } }).data;
+    const backlog = created.path;
     completeTemplate(root, backlog);
-    const result = invoke(root, ["ticket", "ready", "T-001", "--approve"]);
+    const result = invoke(root, ["ticket", "ready", created.id, "--approve"]);
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout)).toMatchObject({ ok: false });
     expect(existsSync(backlog)).toBe(true);
-    expect(existsSync(join(root, ".a-team/ready/T-001-unsafe-ticket.md"))).toBe(false);
+    expect(existsSync(join(root, ".a-team/ready", basename(backlog)))).toBe(false);
   });
 
   test("dirty repositories and duplicate starts are rejected without reusing a worktree", () => {
     const root = repository();
-    run(root, ["ticket", "new", "--title", "Safe start", "--type", "feature"]);
-    const backlog = join(root, ".a-team/backlog/T-001-safe-start.md");
-    completeTemplate(root, backlog);
-    run(root, ["ticket", "ready", "T-001", "--approve"]);
+    const created = (run(root, ["ticket", "new", "--title", "Safe start", "--type", "feature"]) as { data: { id: string; path: string } }).data;
+    completeTemplate(root, created.path);
+    run(root, ["ticket", "ready", created.id, "--approve"]);
     git(root, "add", "."); git(root, "commit", "-m", "ready");
     writeFileSync(join(root, "dirty.txt"), "pending\n");
-    expect(invoke(root, ["ticket", "start", "T-001", "--agent", "codex"]).status).toBe(1);
-    expect(existsSync(join(root, ".worktrees/T-001"))).toBe(false);
+    expect(invoke(root, ["ticket", "start", created.id, "--agent", "codex"]).status).toBe(1);
+    expect(existsSync(join(root, ".worktrees", created.id))).toBe(false);
     unlinkSync(join(root, "dirty.txt"));
-    run(root, ["ticket", "start", "T-001", "--agent", "codex"]);
-    expect(invoke(root, ["ticket", "start", "T-001", "--agent", "other"]).status).toBe(1);
+    run(root, ["ticket", "start", created.id, "--agent", "codex"]);
+    expect(invoke(root, ["ticket", "start", created.id, "--agent", "other"]).status).toBe(1);
   });
 });

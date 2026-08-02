@@ -189,16 +189,16 @@ describe("maintainer triage of a submitted issue", () => {
       "--title", "a-team ticket brief fails without profiles",
       "--type", "bug",
       "--evidence", `${issueUrl} — reported: \`a-team ticket brief T-001\` exits 1 on a ticket with no profiles. Reported version 0.2.2.`,
-    ]);
-    expect(created).toMatchObject({ ok: true, data: { id: "F-001" } });
+    ]) as { ok: boolean; data: { id: string; path: string } };
+    expect(created.ok).toBe(true);
+    const findingId = created.data.id;
 
-    const findingPath = join(root, ".a-team/findings/new/F-001-a-team-ticket-brief-fails-without-profiles.md");
-    const finding = readFileSync(findingPath, "utf8");
+    const finding = readFileSync(created.data.path, "utf8");
     expect(finding).toContain(issueUrl);
     expect(finding).toContain("Reported version 0.2.2");
     expect(finding).toContain("finding_type: bug");
     expect(finding).toContain("status: new");
-    expect(run(root, ["finding", "validate", "F-001"])).toMatchObject({ ok: true });
+    expect(run(root, ["finding", "validate", findingId])).toMatchObject({ ok: true });
 
     // The issue exists; scheduled work does not follow from that alone.
     for (const state of ["backlog", "ready", "active", "review", "done"]) {
@@ -207,12 +207,15 @@ describe("maintainer triage of a submitted issue", () => {
     }
 
     // Only an explicitly approved disposition may schedule work.
-    const unapproved = spawnSync("node", [cli, "finding", "resolve", "F-001", "--disposition", "create-ticket", "--json"], { cwd: root, encoding: "utf8" });
+    const unapproved = spawnSync("node", [cli, "finding", "resolve", findingId, "--disposition", "create-ticket", "--json"], { cwd: root, encoding: "utf8" });
     expect(unapproved.status).not.toBe(0);
     expect(`${unapproved.stdout}${unapproved.stderr}`).toMatch(/approval/i);
     expect(readdirSync(join(root, ".a-team/backlog")).filter((name) => name.endsWith(".md"))).toEqual([]);
 
-    expect(run(root, ["finding", "resolve", "F-001", "--disposition", "create-ticket", "--approve"])).toMatchObject({ ok: true, data: { ticketId: "T-001" } });
-    expect(readFileSync(join(root, ".a-team/backlog/T-001-a-team-ticket-brief-fails-without-profiles.md"), "utf8")).toContain("source_finding: F-001");
+    const resolved = run(root, ["finding", "resolve", findingId, "--disposition", "create-ticket", "--approve"]) as { ok: boolean; data: { ticketId: string } };
+    expect(resolved.ok).toBe(true);
+    const ticketFile = readdirSync(join(root, ".a-team/backlog")).filter((name) => name.endsWith(".md"));
+    expect(ticketFile).toEqual([`a-team-ticket-brief-fails-without-profiles-${resolved.data.ticketId.slice(-8)}.md`]);
+    expect(readFileSync(join(root, ".a-team/backlog", ticketFile[0]), "utf8")).toContain(`source_finding: ${findingId}`);
   });
 });

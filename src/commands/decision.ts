@@ -1,6 +1,7 @@
 import { existsSync, linkSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { decisionDraftFromSource, nextDecisionId, renderDecision, validateDecision, validateDecisionFile } from "../core/decision.js";
+import { decisionDraftFromSource, renderDecision, validateDecision, validateDecisionFile } from "../core/decision.js";
+import { mintId } from "../core/identity.js";
 import { findRepositoryRoot } from "../filesystem/workspace.js";
 
 export interface CreateDecisionOptions {
@@ -18,7 +19,7 @@ export function createDecision(options: CreateDecisionOptions, repositoryRoot?: 
   if (!existsSync(workspace)) throw new Error(`No .a-team workspace exists at ${root}. Run a-team init first.`);
   const sourcePath = resolve(options.from);
   if (!existsSync(sourcePath)) throw new Error(`Decision source was not found: ${sourcePath}`);
-  const id = options.id ?? nextDecisionId(root);
+  const id = options.id ?? mintId("D");
   const draft = decisionDraftFromSource(readFileSync(sourcePath, "utf8"), id, new Date().toISOString().slice(0, 10));
   const errors = validateDecision(draft);
   if (errors.length) throw new Error(errors.map((error) => error.message).join("\n"));

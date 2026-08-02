@@ -39,10 +39,16 @@ Then open an existing Git repository in the supported host and run:
 by checking the generated ticket and workspace:
 
 ```bash
-a-team ticket validate T-001
+a-team ticket validate <ticket-id>
 a-team validate
 a-team status
 ```
+
+Every command that creates an entity prints its identifier. New identifiers are minted
+without coordination — `T-` plus a time-sortable ULID — so two agents on two branches can
+never mint the same one, and their branches merge without renumbering. Identifiers created
+before this rule (`T-034`, `F-008`, `P-005`, `D-003`) keep their sequential form forever; a
+workspace with both kinds is valid and stays that way.
 
 With Node, Git, and Codex already installed, this path is designed to take no more than five
 minutes; the release canary records the measured result.

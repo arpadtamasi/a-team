@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 
 const cli = resolve("dist/cli/index.js");
@@ -17,11 +17,18 @@ describe("finding disposition", () => {
     execFileSync("git", ["init", "-b", "main"], { cwd: root });
     writeFileSync(join(root, "README.md"), "fixture\n");
     run(root, ["init"]);
-    expect(run(root, ["finding", "new", "--title", "Divergent permission checks", "--type", "inconsistency", "--evidence", "src/a.ts and src/b.ts differ"])).toMatchObject({ ok: true, data: { id: "F-001" } });
-    expect(run(root, ["finding", "validate", "F-001"])).toMatchObject({ ok: true });
-    expect(run(root, ["finding", "resolve", "F-001", "--disposition", "create-ticket", "--approve"])).toMatchObject({ ok: true, data: { ticketId: "T-001" } });
-    expect(existsSync(join(root, ".a-team/findings/resolved/F-001-divergent-permission-checks.md"))).toBe(true);
-    const ticket = join(root, ".a-team/backlog/T-001-divergent-permission-checks.md");
-    expect(readFileSync(ticket, "utf8")).toContain("source_finding: F-001");
+    const created = run(root, ["finding", "new", "--title", "Divergent permission checks", "--type", "inconsistency", "--evidence", "src/a.ts and src/b.ts differ"]) as { ok: boolean; data: { id: string; path: string } };
+    expect(created.ok).toBe(true);
+    const findingId = created.data.id;
+    expect(findingId).toMatch(/^F-[0-9a-hjkmnp-tv-z]{26}$/);
+    expect(basename(created.data.path)).toBe(`divergent-permission-checks-${findingId.slice(-8)}.md`);
+    expect(run(root, ["finding", "validate", findingId])).toMatchObject({ ok: true });
+    const resolved = run(root, ["finding", "resolve", findingId, "--disposition", "create-ticket", "--approve"]) as { ok: boolean; data: { ticketId: string } };
+    expect(resolved.ok).toBe(true);
+    const ticketId = resolved.data.ticketId;
+    expect(ticketId).toMatch(/^T-[0-9a-hjkmnp-tv-z]{26}$/);
+    expect(existsSync(join(root, ".a-team/findings/resolved", basename(created.data.path)))).toBe(true);
+    const ticket = join(root, ".a-team/backlog", `divergent-permission-checks-${ticketId.slice(-8)}.md`);
+    expect(readFileSync(ticket, "utf8")).toContain(`source_finding: ${findingId}`);
   });
 });

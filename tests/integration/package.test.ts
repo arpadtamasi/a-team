@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 import { readWorkspace } from "../../src/commands/ui.js";
 
@@ -19,15 +19,18 @@ describe("dependency-aware package", () => {
     git(root, "init", "-b", "main");
     writeFileSync(join(root, "README.md"), "fixture\n");
     run(root, ["init"]);
-    expect(run(root, ["package", "new", "--title", "Launch batch", "--kind", "milestone", "--goal", "Ship the first slice", "--parallelism", "1"])).toMatchObject({ ok: true, data: { id: "P-001" } });
-    const packageFile = readFileSync(join(root, ".a-team/packages/backlog/P-001-launch-batch.md"), "utf8");
+    const pkg = (run(root, ["package", "new", "--title", "Launch batch", "--kind", "milestone", "--goal", "Ship the first slice", "--parallelism", "1"]) as { ok: boolean; data: { id: string; path: string } });
+    expect(pkg.ok).toBe(true);
+    expect(pkg.data.id).toMatch(/^P-[0-9a-hjkmnp-tv-z]{26}$/);
+    expect(basename(pkg.data.path)).toBe(`launch-batch-${pkg.data.id.slice(-8)}.md`);
+    const packageFile = readFileSync(pkg.data.path, "utf8");
     expect(packageFile).toContain("parallelism: 1");
     expect(packageFile).toContain("create_findings: true");
-    run(root, ["ticket", "new", "--title", "Prepare release", "--type", "feature"]);
-    expect(run(root, ["package", "add", "P-001", "T-001"])).toMatchObject({ ok: true, data: { tickets: ["T-001"] } });
-    expect(readFileSync(join(root, ".a-team/backlog/T-001-prepare-release.md"), "utf8")).toContain("package: P-001");
-    expect(run(root, ["package", "remove", "P-001", "T-001"])).toMatchObject({ ok: true, data: { tickets: [] } });
-    expect(readFileSync(join(root, ".a-team/backlog/T-001-prepare-release.md"), "utf8")).toContain("package: null");
+    const ticket = (run(root, ["ticket", "new", "--title", "Prepare release", "--type", "feature"]) as { data: { id: string; path: string } }).data;
+    expect(run(root, ["package", "add", pkg.data.id, ticket.id])).toMatchObject({ ok: true, data: { tickets: [ticket.id] } });
+    expect(readFileSync(ticket.path, "utf8")).toContain(`package: ${pkg.data.id}`);
+    expect(run(root, ["package", "remove", pkg.data.id, ticket.id])).toMatchObject({ ok: true, data: { tickets: [] } });
+    expect(readFileSync(ticket.path, "utf8")).toContain("package: null");
   });
 
   test("plans all dependency layers and starts only currently executable tickets", () => {
@@ -35,37 +38,37 @@ describe("dependency-aware package", () => {
     git(root, "init", "-b", "main"); git(root, "config", "user.name", "A-Team Test"); git(root, "config", "user.email", "test@example.com");
     writeFileSync(join(root, "README.md"), "fixture\n"); git(root, "add", "."); git(root, "commit", "-m", "initial");
     run(root, ["init"]);
+    const tickets: Array<{ id: string; filename: string }> = [];
     for (const title of ["Build parser", "Expose command"]) {
-      const created = run(root, ["ticket", "new", "--title", title, "--type", "feature"]);
-      const id = (created.data as { id: string }).id;
-      const slug = title.toLowerCase().replace(" ", "-");
-      const path = join(root, `.a-team/backlog/${id}-${slug}.md`);
+      const created = run(root, ["ticket", "new", "--title", title, "--type", "feature"]) as { data: { id: string; path: string } };
+      const path = created.data.path;
       writeFileSync(path, readFileSync(path, "utf8").replace("Describe the observable outcome.", `${title} works.`).replace("- Define an observable condition.", `- ${title} is observable.`).replace("- Explain how acceptance will be checked.", "- Run integration tests."));
-      run(root, ["ticket", "ready", id, "--approve"]);
+      run(root, ["ticket", "ready", created.data.id, "--approve"]);
+      tickets.push({ id: created.data.id, filename: basename(path) });
     }
-    const second = join(root, ".a-team/ready/T-002-expose-command.md");
-    writeFileSync(second, readFileSync(second, "utf8").replace("depends_on: []", "depends_on:\n  - T-001"));
-    run(root, ["package", "new", "--title", "Parser slice", "--kind", "sprint", "--goal", "Deliver a parser slice"]);
-    run(root, ["package", "add", "P-001", "T-001"]);
-    run(root, ["package", "add", "P-001", "T-002"]);
-    const blocked = join(root, ".a-team/ready/T-002-expose-command.md");
-    const blockedBacklog = join(root, ".a-team/backlog/T-002-expose-command.md");
-    writeFileSync(blockedBacklog, readFileSync(blocked, "utf8").replace("status: ready", "status: backlog"));
-    unlinkSync(blocked);
-    expect(run(root, ["package", "ready", "P-001", "--approve"])).toMatchObject({ ok: true, command: "package ready" });
-    git(root, "add", "."); git(root, "commit", "-m", "define package"); git(root, "checkout", "-b", "coord/P-001");
+    const [parser, command] = tickets;
+    const second = join(root, ".a-team/ready", command.filename);
+    writeFileSync(second, readFileSync(second, "utf8").replace("depends_on: []", `depends_on:\n  - ${parser.id}`));
+    const packageId = (run(root, ["package", "new", "--title", "Parser slice", "--kind", "sprint", "--goal", "Deliver a parser slice"]) as { data: { id: string } }).data.id;
+    run(root, ["package", "add", packageId, parser.id]);
+    run(root, ["package", "add", packageId, command.id]);
+    const blockedBacklog = join(root, ".a-team/backlog", command.filename);
+    writeFileSync(blockedBacklog, readFileSync(second, "utf8").replace("status: ready", "status: backlog"));
+    unlinkSync(second);
+    expect(run(root, ["package", "ready", packageId, "--approve"])).toMatchObject({ ok: true, command: "package ready" });
+    git(root, "add", "."); git(root, "commit", "-m", "define package"); git(root, "checkout", "-b", `coord/${packageId}`);
 
-    expect(run(root, ["package", "validate", "P-001"])).toMatchObject({ ok: true, data: { waves: [["T-001"], ["T-002"]] } });
-    expect(run(root, ["package", "start", "P-001", "--agent", "codex"])).toMatchObject({ ok: true, data: { started: ["T-001"], waiting: ["T-002"] } });
-    expect(existsSync(join(root, ".worktrees/T-001/.a-team/claims/T-001.yaml"))).toBe(true);
-    expect(existsSync(join(root, ".worktrees/T-002"))).toBe(false);
-    expect(run(root, ["package", "status", "P-001"])).toMatchObject({
+    expect(run(root, ["package", "validate", packageId])).toMatchObject({ ok: true, data: { waves: [[parser.id], [command.id]] } });
+    expect(run(root, ["package", "start", packageId, "--agent", "codex"])).toMatchObject({ ok: true, data: { started: [parser.id], waiting: [command.id] } });
+    expect(existsSync(join(root, ".worktrees", parser.id, ".a-team/claims", `${parser.id}.yaml`))).toBe(true);
+    expect(existsSync(join(root, ".worktrees", command.id))).toBe(false);
+    expect(run(root, ["package", "status", packageId])).toMatchObject({
       ok: true,
-      data: { status: "active", tickets: [{ id: "T-001", state: "active", worktree: expect.stringContaining(".worktrees/T-001") }, { id: "T-002", state: "backlog" }] },
+      data: { status: "active", tickets: [{ id: parser.id, state: "active", worktree: expect.stringContaining(`.worktrees/${parser.id}`) }, { id: command.id, state: "backlog" }] },
     });
     const workspace = readWorkspace(root);
-    expect(workspace.tickets.filter((ticket) => ticket.id === "T-001")).toEqual([
-      expect.objectContaining({ id: "T-001", status: "active", branch: "feat/T-001-build-parser", assigned_agent: "codex" }),
+    expect(workspace.tickets.filter((ticket) => ticket.id === parser.id)).toEqual([
+      expect.objectContaining({ id: parser.id, status: "active", branch: `feat/${parser.id}-build-parser`, assigned_agent: "codex" }),
     ]);
   });
 });

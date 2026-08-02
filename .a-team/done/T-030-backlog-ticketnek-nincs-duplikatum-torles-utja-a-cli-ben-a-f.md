@@ -3,7 +3,7 @@ id: T-030
 title: >-
   Backlog-ticketnek nincs duplikatum/torles utja a CLI-ben — a finding resolve
   auto-ticketje utkozott a kezzel irt szerzodessel
-status: review
+status: done
 origin: finding
 types:
   - feature
@@ -19,6 +19,7 @@ created_at: '2026-08-02'
 updated_at: '2026-08-02'
 source_finding: F-027
 assigned_agent: claude
+resolution: completed
 ---
 # T-030 — Hotfix: ticket cancel — legális kivezetés backlog/ready állapotból
 

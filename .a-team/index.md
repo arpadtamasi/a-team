@@ -24,7 +24,7 @@ None.
 
 ## Review
 
-- T-030-backlog-ticketnek-nincs-duplikatum-torles-utja-a-cli-ben-a-f
+None.
 
 ## Blocked
 

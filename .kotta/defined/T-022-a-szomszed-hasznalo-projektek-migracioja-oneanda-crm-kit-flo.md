@@ -1,7 +1,7 @@
 ---
 id: T-022
 title: A szomszed workspace-ek migracioja a kotta migrate paranccsal
-status: backlog
+status: defined
 origin: human
 types:
   - feature
@@ -15,7 +15,7 @@ blocks: []
 branch: null
 pull_request: null
 created_at: '2026-08-01'
-updated_at: '2026-08-01'
+updated_at: '2026-08-02'
 ---
 # T-022 — A szomszéd workspace-ek migrációja a `kotta migrate` paranccsal
 

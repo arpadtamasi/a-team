@@ -12,7 +12,7 @@ None.
 
 ## Defined contracts
 
-None.
+- T-022-a-szomszed-hasznalo-projektek-migracioja-oneanda-crm-kit-flo
 
 ## Active contracts
 

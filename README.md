@@ -228,6 +228,20 @@ when a caller needs to reserve a specific stable identity; an existing identity 
 overwritten. The canonical filename is the identity alone (`D-001.md`), so different
 titles cannot race around the identity reservation.
 
+## Tests
+
+`npx vitest run` runs the whole suite in one command. `tests/unit` and `tests/integration`
+cover the CLI and run in Node. `tests/ui` holds component tests for the React board: they
+render a real component from `ui/src/` with `@testing-library/react` in `jsdom`, and assert
+what the user sees plus how the surface reacts to a click or an input. No browser is started —
+`site/tests` is the separate Playwright suite, run with `npm run test:site`.
+
+To add a UI test, copy [`tests/ui/done-stage.test.tsx`](tests/ui/done-stage.test.tsx). The
+first line, `// @vitest-environment jsdom`, is what puts that file in a browser-like
+environment; everything without it stays in Node, so a CLI test can never drift into `jsdom`.
+Export the component you want to render from `ui/src/App.tsx` and keep the fixture local to
+the test.
+
 ## Maintainer releases
 
 `package.json#version` is the only release version source. Merge a reviewed version bump to

@@ -33,7 +33,7 @@ function coordinatorLabel(p: Package): { text: string; tone: string } | null {
 }
 type Finding = { id: string; title: string; status: "new" | "resolved"; finding_type: string; severity: string; confidence: string; discovered_during?: string | null; resolution?: string; became?: string | null; sections: Record<string, string> };
 type Diagnostic = { entity: string; id: string; worktree: string; message: string };
-type Workspace = { project: string; migration: Migration | null; tickets: Ticket[]; packages: Package[]; findings: Finding[]; diagnostics?: Diagnostic[] };
+export type Workspace = { project: string; migration: Migration | null; tickets: Ticket[]; packages: Package[]; findings: Finding[]; diagnostics?: Diagnostic[] };
 type Agent = "codex" | "claude";
 type AgentAvailability = Record<Agent, boolean>;
 type Stage = "inbox" | "shape" | "packages" | "run" | "done";
@@ -733,7 +733,7 @@ function RunStage({ workspace, packageMap, ticketMap, onEntity, onSource, onDisc
 }
 
 /* ══ Done stage ════════════════════════════════════════ */
-function DoneStage({ workspace, onEntity }: { workspace: Workspace; onEntity: (id: string) => void }) {
+export function DoneStage({ workspace, onEntity }: { workspace: Workspace; onEntity: (id: string) => void }) {
   const [query, setQuery] = useState("");
   const done = workspace.tickets.filter((t) => t.status === "done");
   const filtered = done.filter((t) => { const n = query.toLowerCase().trim(); return !n || `${t.id} ${t.title} ${t.migration?.legacy_id ?? ""}`.toLowerCase().includes(n); });

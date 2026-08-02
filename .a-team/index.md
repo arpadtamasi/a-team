@@ -16,11 +16,11 @@ None.
 
 ## Active tickets
 
-- T-020-rename-a-team-kotta-npm-cli-workspace-kompatibilitas-dokumen
+None.
 
 ## Review
 
-None.
+- T-020-rename-a-team-kotta-npm-cli-workspace-kompatibilitas-dokumen
 
 ## Blocked
 

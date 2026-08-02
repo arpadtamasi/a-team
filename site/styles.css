@@ -96,6 +96,9 @@ code { font-family: var(--mono); }
 }
 .site-header nav a { color: var(--ink); text-decoration: none; }
 .site-header nav a:hover { color: var(--accent-700); }
+/* Support, not a primary action: quieter than navigation, still always present. */
+.nav-support { color: var(--muted); }
+.nav-support:hover { color: var(--accent-700); }
 
 /* ── Shared section rhythm ───────────────────────────── */
 .section-rule { border-top: 2px solid var(--divider); }
@@ -279,6 +282,7 @@ footer { border-top: 0; }
 .footer-mark { display: grid; place-items: center; width: 26px; height: 26px; background: var(--ink); color: var(--bg); font-weight: 800; font-size: 13px; flex: none; }
 .footer-note { font-family: var(--mono); font-size: 12px; color: var(--muted); }
 .footer-bar a { margin-left: auto; font-size: 12.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; text-decoration: none; }
+.footer-bar a + a { margin-left: 0; }
 .footer-bar a:hover { color: var(--accent); }
 
 /* ── Responsive ──────────────────────────────────────── */
@@ -301,7 +305,8 @@ footer { border-top: 0; }
 
 @media (max-width: 620px) {
   :root { --pad: 20px; }
-  .site-header nav { display: none; }
+  /* Section links collapse on narrow screens; the reporting path stays reachable. */
+  .site-header nav a:not(.nav-support) { display: none; }
   .workflow-steps { grid-template-columns: 1fr; }
   .hero-actions { flex-direction: column; align-items: stretch; }
   .hero-actions .button { justify-content: center; }

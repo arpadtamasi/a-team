@@ -124,6 +124,39 @@ after success is a no-op.
 - `execute-package` — coordinate a package of tickets.
 - `submit-review` — submit implementation with evidence.
 - `close-ticket` — verify completion and safely release resources.
+- `report-a-team-bug` — prepare and, after explicit approval, submit an A-Team defect report as a GitHub Issue.
+
+## Report a bug
+
+Defects in A-Team itself go to
+[the issue form in `arpadtamasi/a-team`](https://github.com/arpadtamasi/a-team/issues/new?template=bug.yml).
+The same destination and the same report contract serve every entry point:
+
+- **Public site** — the `Report a bug` link in the header and footer of the onboarding site.
+- **Local board** — the `Report a bug` link in the rail footer of `a-team ui`. The board sends
+  nothing itself; it opens the GitHub form so you write and submit the report there.
+- **Coding agent** — the installed `report-a-team-bug` skill. It inspects evidence, searches
+  open issues for duplicates, sanitizes the draft, and shows you the exact repository, title,
+  body, and diagnostic fields before asking to create the issue. Without approval nothing is
+  sent. With an authenticated GitHub connector or `gh` session it creates the issue and returns
+  its URL; without one it returns the complete report as copyable Markdown plus the form URL.
+
+Every path reports the same five fields: summary, reproduction steps, expected behaviour,
+actual behaviour, and A-Team version. Optional diagnostics (Node.js and OS version, the
+redacted failing command output, the redacted `--json` error payload) are off by default and
+require a separate per-report opt-in after the exact fields are shown. A-Team stores no GitHub
+credential, and reporting never mutates your `.a-team` workspace.
+
+Maintainers capture an incoming issue as evidence, not as scheduled work:
+
+```bash
+a-team finding new --title "<issue title>" --type bug \
+  --evidence "https://github.com/arpadtamasi/a-team/issues/<n> — <reported facts>"
+```
+
+The finding stays open until `a-team finding validate` and a human-approved
+`a-team finding resolve --disposition <disposition> --approve`. A GitHub Issue never creates a
+ticket by itself.
 
 ## CLI overview
 

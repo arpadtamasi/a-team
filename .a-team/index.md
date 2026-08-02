@@ -16,11 +16,11 @@ None.
 
 ## Active tickets
 
-- no-component-test-harness-exists-for-the-react-board-z43g7nwh
+None.
 
 ## Review
 
-None.
+- no-component-test-harness-exists-for-the-react-board-z43g7nwh
 
 ## Blocked
 

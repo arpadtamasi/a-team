@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-- a-team-ui-does-not-open-the-browser-auto-open-the-served-url-yzn4w2gr
+None.
 
 ## Blocked
 

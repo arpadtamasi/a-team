@@ -297,6 +297,40 @@ export function packageStatus(id: string) {
   };
 }
 
+/**
+ * Complete a package whose member tickets all reached a terminal state, from any package state.
+ * `ticket close`/`cancel` already complete a containing package on their own; this is the explicit
+ * path for a package whose tickets finished outside the package flow. It never touches a ticket.
+ */
+export function closePackage(id: string, approved: boolean, repositoryRoot?: string) {
+  const root = repositoryRoot ?? findRepositoryRoot();
+  const pkg = findPackage(root, id);
+  const entity = parseMarkdown(readFileSync(pkg.path, "utf8"));
+  const data = entity.data as PackageData;
+  // Re-running on a finished package is a no-op, so a retried coordinator never has to guess.
+  if (pkg.state === "done") return { ok: true, command: "package close", data: { id, status: "done", path: pkg.path, changed: false } };
+  if (!approved) throw new Error(`Human close approval is required. Re-run with --approve after verifying every ticket of ${id} is complete.`);
+  const ticketIds = Array.isArray(data.tickets) ? data.tickets.map(String) : [];
+  if (!ticketIds.length) throw new Error(`Package ${id} has no member tickets; there is nothing to close.`);
+  // A ticket executing in its own worktree still reads as ready here, so ask for the effective state.
+  const open = ticketIds
+    .map((ticketId) => ({ id: ticketId, state: resolveEffectiveTicket(root, ticketId, (ticket) => ticket.state).value }))
+    .filter((member) => member.state !== "done");
+  if (open.length) throw new Error(`Package ${id} cannot close while ${open.map((member) => `${member.id} is ${member.state}`).join(", ")}. Every member ticket must reach done first.`);
+  assertClean(root);
+  data.status = "done";
+  data.updated_at = new Date().toISOString().slice(0, 10);
+  const directory = join(root, ".a-team/packages/done");
+  mkdirSync(directory, { recursive: true });
+  const destination = join(directory, pkg.filename);
+  writeFileSync(destination, renderMarkdown(data as Record<string, unknown>, entity.content));
+  unlinkSync(pkg.path);
+  regenerateIndex(root);
+  git(root, ["add", ".a-team"]);
+  git(root, ["commit", "-m", `chore(a-team): close package ${id}`]);
+  return { ok: true, command: "package close", data: { id, status: "done", path: destination, changed: true } };
+}
+
 /** Opt-in, post-integration cleanup. Every precondition is recomputed here; nothing is forced. */
 export function finalizePackage(id: string, repositoryRoot?: string) {
   const root = repositoryRoot ?? findRepositoryRoot();

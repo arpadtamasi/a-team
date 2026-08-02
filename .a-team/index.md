@@ -13,7 +13,6 @@ None.
 ## Ready tickets
 
 - a-team-ui-does-not-open-the-browser-auto-open-the-served-url-yzn4w2gr
-- nincs-cli-ut-egy-csomag-lezarasara-ha-a-ticketjei-a-csomag-f-qdtczv8w
 
 ## Active tickets
 
@@ -21,7 +20,7 @@ None.
 
 ## Review
 
-None.
+- nincs-cli-ut-egy-csomag-lezarasara-ha-a-ticketjei-a-csomag-f-qdtczv8w
 
 ## Blocked
 
@@ -43,3 +42,4 @@ None.
 - F-025-progos-as-first-kotta-publisher-mcp-kottas-for-standard-sme-
 - F-030-package-szintu-review-hianyzik-a-ticketek-review-ban-tartasa
 - F-033-no-component-test-harness-exists-for-the-react-board
+- schemas-package-schema-json-rejects-every-started-package-an-8et554b5

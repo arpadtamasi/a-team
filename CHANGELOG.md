@@ -18,6 +18,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `a-team package close <id> --approve`: a package whose member tickets all reached `done` can be
+  completed from any package state, so a package is no longer stuck in `backlog` when its tickets were
+  executed one by one instead of through `package start`. Automatic completion now covers every
+  unfinished package state as well — closing or cancelling the last member ticket finishes a package
+  that never went `active`. `close` refuses while a member ticket is not `done`, names that ticket and
+  changes nothing, never edits a ticket, and is a no-op on an already finished package. Coordinator
+  branch cleanup stays with `package finalize`.
 - `a-team ticket execute <id> --agent <agent>` (T-035, D-009): one command performs the start, assembles
   the brief and launches the agent with the brief as its only input, so per-ticket fresh context is the
   default path instead of coordinator discipline. It refuses before any mutation on a non-ready ticket, an

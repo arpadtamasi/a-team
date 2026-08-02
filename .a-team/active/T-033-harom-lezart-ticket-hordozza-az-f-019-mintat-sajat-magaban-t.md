@@ -3,7 +3,7 @@ id: T-033
 title: >-
   Harom lezart ticket Deviations mezojenek kibekitese a sajat prozajaval (T-026,
   T-029, T-030)
-status: ready
+status: active
 origin: finding
 types:
   - bug
@@ -13,11 +13,12 @@ risk: low
 package: null
 depends_on: []
 blocks: []
-branch: null
+branch: fix/T-033-harom-lezart-ticket-deviations-mezojenek-kibekitese-a-sajat-
 pull_request: null
 created_at: '2026-08-02'
 updated_at: '2026-08-02'
 source_finding: F-031
+assigned_agent: claude
 ---
 # T-033 — Három lezárt ticket Deviations mezőjének kibékítése a saját prózájával
 

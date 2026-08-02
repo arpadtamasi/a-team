@@ -16,11 +16,10 @@ None.
 - T-013-add-a-discoverable-bug-reporting-path
 - T-014-ui-port-collision-returns-raw-eaddrinuse-without-recovery-gu
 - T-015-completed-package-leaves-the-coordinator-checkout-on-its-mer
-- T-033-harom-lezart-ticket-hordozza-az-f-019-mintat-sajat-magaban-t
 
 ## Active tickets
 
-None.
+- T-033-harom-lezart-ticket-hordozza-az-f-019-mintat-sajat-magaban-t
 
 ## Review
 

@@ -49,3 +49,4 @@ None.
 - F-033-no-component-test-harness-exists-for-the-react-board
 - decision-create-fails-in-a-fresh-worktree-when-a-team-decisi-1rg6fqm9
 - findticket-resolves-a-merge-duplicated-entity-to-its-earlies-1x2fggq8
+- nincs-cli-ut-egy-csomag-lezarasara-ha-a-ticketjei-a-csomag-f-pv49d2hk

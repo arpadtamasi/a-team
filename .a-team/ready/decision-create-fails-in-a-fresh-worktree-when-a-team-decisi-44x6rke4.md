@@ -1,7 +1,7 @@
 ---
 id: T-01kz1g2vra99x0xhw144x6rke4
 title: decision create fails in a fresh worktree when .a-team/decisions is empty
-status: backlog
+status: ready
 origin: finding
 types:
   - bug

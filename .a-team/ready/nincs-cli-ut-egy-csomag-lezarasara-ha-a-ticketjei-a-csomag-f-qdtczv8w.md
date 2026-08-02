@@ -3,7 +3,7 @@ id: T-01kz1g2vvgqvvzef92qdtczv8w
 title: >-
   Nincs CLI-ut egy csomag lezarasara, ha a ticketjei a csomag-folyamaton kivul
   keszultek el
-status: backlog
+status: ready
 origin: finding
 types:
   - bug

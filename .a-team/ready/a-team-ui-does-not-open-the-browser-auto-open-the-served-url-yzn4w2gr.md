@@ -1,7 +1,7 @@
 ---
 id: T-01kz1g2vyhfn5ezzvvyzn4w2gr
 title: a-team ui does not open the browser — auto-open the served URL on start
-status: backlog
+status: ready
 origin: finding
 types:
   - bug

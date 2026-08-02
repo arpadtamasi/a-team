@@ -43,5 +43,6 @@ None.
 - F-030-package-szintu-review-hianyzik-a-ticketek-review-ban-tartasa
 - F-033-no-component-test-harness-exists-for-the-react-board
 - a-markdown-h1-a-teljes-azonositot-hordozza-igy-a-mintazott-u-rb71ckkr
+- ready-ticket-szovege-nem-javithato-a-define-csak-backlogbol--147t946f
 - schemas-package-schema-json-rejects-every-started-package-an-8et554b5
 - ui-port-cli-tests-silently-assert-nothing-when-4311-is-alrea-nbxc71r5

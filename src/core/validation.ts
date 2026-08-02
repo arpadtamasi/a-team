@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { PROFILE_REQUIREMENTS } from "./profiles.js";
+import { TICKET_ID, filenameMatchesId } from "./identity.js";
 import { parseMarkdown, sections, subsections } from "./markdown.js";
 
 export interface ValidationIssue { code: string; message: string; path?: string }
@@ -25,8 +26,8 @@ function validateTicket(path: string, expectedState?: string, requireDefinition 
   try { entity = parseMarkdown(readFileSync(path, "utf8")); }
   catch (error) { return { valid: false, errors: [{ code: "INVALID_FRONTMATTER", message: String(error), path }] }; }
   const id = String(entity.data.id ?? "");
-  if (!/^(?:T-\d{3,}|O-\d+(?:\.\d+)?)$/.test(id)) errors.push({ code: "INVALID_ID", message: "Ticket id must match T-001 or preserve an imported O-1 identifier.", path });
-  if (!basename(path).startsWith(`${id}-`)) errors.push({ code: "FILENAME_ID_MISMATCH", message: "Filename must start with the ticket id.", path });
+  if (!TICKET_ID.test(id)) errors.push({ code: "INVALID_ID", message: "Ticket id must be a minted id such as T-01k1n0h5q7zv3m8b4d6xr2ptcw, a sequential T-001, or an imported O-1 identifier.", path });
+  if (!filenameMatchesId(basename(path), id)) errors.push({ code: "FILENAME_ID_MISMATCH", message: "Filename must start with the ticket id, or end with its short id suffix.", path });
   const directoryState = basename(dirname(path));
   const state = String(entity.data.status ?? "");
   if (state !== directoryState) errors.push({ code: "STATE_MISMATCH", message: `status '${state}' does not match directory '${directoryState}'.`, path });

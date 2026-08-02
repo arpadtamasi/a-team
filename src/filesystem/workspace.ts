@@ -92,8 +92,23 @@ export function initializeWorkspace(options: InitOptions = {}): { root: string; 
   if (!existing.split(/\r?\n/).includes(".worktrees/")) {
     writeFileSync(gitignore, `${existing}${existing && !existing.endsWith("\n") ? "\n" : ""}.worktrees/\n`);
   }
+  ensureIndexMergeAttribute(root);
 
   return { root, created };
+}
+
+export const INDEX_MERGE_ATTRIBUTE = ".a-team/index.md merge=union";
+
+/**
+ * `index.md` is a generated projection, so two branches that each add an entity have no real
+ * disagreement about it. The union driver takes both sides instead of raising a conflict; the next
+ * write regenerates the file from disk, so nothing stale survives.
+ */
+export function ensureIndexMergeAttribute(root: string): void {
+  const path = join(root, ".gitattributes");
+  const existing = existsSync(path) ? readFileSync(path, "utf8") : "";
+  if (existing.split(/\r?\n/).includes(INDEX_MERGE_ATTRIBUTE)) return;
+  writeFileSync(path, `${existing}${existing && !existing.endsWith("\n") ? "\n" : ""}${INDEX_MERGE_ATTRIBUTE}\n`);
 }
 
 export function renderEmptyIndex(): string {

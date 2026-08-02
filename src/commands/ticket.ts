@@ -2,7 +2,8 @@ import { mkdirSync, readdirSync, writeFileSync, readFileSync, existsSync, unlink
 import { join, resolve } from "node:path";
 import { parse as parseYaml, stringify } from "yaml";
 import { findRepositoryRoot, regenerateIndex } from "../filesystem/workspace.js";
-import { findTicket, nextId } from "../filesystem/entities.js";
+import { findTicket } from "../filesystem/entities.js";
+import { entityFilename, mintId } from "../core/identity.js";
 import { parseMarkdown, renderMarkdown, sections } from "../core/markdown.js";
 import { assertValid, validateTicketDefinitionFile, validateTicketFile } from "../core/validation.js";
 import { BRANCH_PREFIXES } from "../core/profiles.js";
@@ -18,10 +19,12 @@ export function branchName(type: string, id: string, title: string): string {
 
 export function newTicket(options: { title: string; type: string; profiles: string[] }, repositoryRoot?: string) {
   const root = repositoryRoot ?? findRepositoryRoot();
-  const id = nextId(root, "ticket");
-  const slug = slugify(options.title);
-  const filename = `${id}-${slug}.md`;
-  const path = join(root, ".a-team/backlog", filename);
+  const id = mintId("T");
+  const filename = entityFilename(id, slugify(options.title));
+  const directory = join(root, ".a-team/backlog");
+  // An empty state directory is not carried into a fresh worktree by Git; intake must still work there.
+  mkdirSync(directory, { recursive: true });
+  const path = join(directory, filename);
   const now = new Date().toISOString().slice(0, 10);
   const data = { id, title: options.title, status: "backlog", origin: "human", types: [options.type], profiles: options.profiles, priority: "medium", risk: "medium", package: null, depends_on: [], blocks: [], branch: null, pull_request: null, created_at: now, updated_at: now };
   const profileSections = options.profiles.flatMap((profile) => profileHeadings(profile)).map((heading) => `## ${heading}\n\nDescribe ${heading.toLowerCase()}.`).join("\n\n");
@@ -389,7 +392,7 @@ export function briefTicket(id: string, options: { out?: string; warnTokens?: nu
 function updateContainingPackage(root: string, ticketId: string): void {
   const directory = join(root, ".a-team/packages/active");
   if (!existsSync(directory)) return;
-  for (const filename of readdirSync(directory).filter((name) => name.startsWith("P-") && name.endsWith(".md"))) {
+  for (const filename of readdirSync(directory).filter((name) => name.endsWith(".md"))) {
     const path = join(directory, filename);
     const entity = parseMarkdown(readFileSync(path, "utf8"));
     const tickets = Array.isArray(entity.data.tickets) ? entity.data.tickets.map(String) : [];

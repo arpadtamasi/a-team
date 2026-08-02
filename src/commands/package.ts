@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { findRepositoryRoot, regenerateIndex } from "../filesystem/workspace.js";
-import { findTicket, nextId, resolveEffectiveTicket } from "../filesystem/entities.js";
+import { findTicket, resolveEffectiveTicket } from "../filesystem/entities.js";
+import { entityFilename, filenameMatchesId, mintId } from "../core/identity.js";
 import { parseMarkdown, renderMarkdown, sections } from "../core/markdown.js";
 import { readWorkspaceConfig } from "../core/config.js";
 import { assertClean, git } from "../git/git.js";
@@ -20,7 +21,7 @@ export function findPackage(root: string, id: string) {
   for (const state of ["backlog", "ready", "active", "done"]) {
     const directory = join(root, ".a-team/packages", state);
     if (!existsSync(directory)) continue;
-    const filename = readdirSync(directory).find((name) => name.startsWith(`${id}-`) && name.endsWith(".md"));
+    const filename = readdirSync(directory).find((name) => name.endsWith(".md") && filenameMatchesId(name, id));
     if (filename) return { state, filename, path: join(directory, filename) };
   }
   throw new Error(`Package ${id} was not found.`);
@@ -59,8 +60,8 @@ export function newPackage(options: { title: string; kind: string; goal?: string
   if (!title) throw new Error("Package title is required.");
   const parallelism = options.parallelism ?? 2;
   if (!Number.isInteger(parallelism) || parallelism < 1) throw new Error("Package parallelism must be a positive integer.");
-  const id = nextId(root, "package");
-  const filename = `${id}-${slugify(title)}.md`;
+  const id = mintId("P");
+  const filename = entityFilename(id, slugify(title));
   const directory = join(root, ".a-team/packages/backlog");
   mkdirSync(directory, { recursive: true });
   const now = new Date().toISOString().slice(0, 10);

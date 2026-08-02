@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 
 const cli = resolve("dist/cli/index.js");
@@ -22,17 +22,17 @@ describe("ticket execution vertical slice", () => {
     git(repository, "init", "-b", "main");
     writeFileSync(join(repository, "README.md"), "fixture\n");
     run(repository, ["init"]);
-    run(repository, ["ticket", "new", "--title", "Release CLI", "--type", "feature", "--profile", "workflow"]);
-    run(repository, ["ticket", "new", "--title", "Publish site", "--type", "feature"]);
-    const definition = join(repository, "T-001-definition.md");
+    const first = run(repository, ["ticket", "new", "--title", "Release CLI", "--type", "feature", "--profile", "workflow"]) as { data: { id: string; path: string } };
+    const second = run(repository, ["ticket", "new", "--title", "Publish site", "--type", "feature"]) as { data: { id: string } };
+    const definition = join(repository, "definition.md");
     writeFileSync(definition, `---
-id: T-001
+id: ${first.data.id}
 priority: high
 risk: high
 depends_on: []
-blocks: [T-002]
+blocks: [${second.data.id}]
 ---
-# T-001 — Release CLI
+# ${first.data.id} — Release CLI
 
 ## Outcome
 
@@ -107,11 +107,12 @@ None.
 None.
 `);
 
-    expect(run(repository, ["ticket", "define", "T-001", "--from", definition])).toMatchObject({ ok: true, command: "ticket define", data: { id: "T-001" } });
-    const ticket = join(repository, ".a-team/backlog/T-001-release-cli.md");
+    expect(run(repository, ["ticket", "define", first.data.id, "--from", definition])).toMatchObject({ ok: true, command: "ticket define", data: { id: first.data.id } });
+    const ticket = first.data.path;
+    expect(basename(ticket)).toBe(`release-cli-${first.data.id.slice(-8)}.md`);
     expect(readFileSync(ticket, "utf8")).toContain("priority: high");
-    expect(readFileSync(ticket, "utf8")).toContain("blocks:\n  - T-002");
-    expect(run(repository, ["ticket", "ready", "T-001", "--approve"])).toMatchObject({ ok: true, command: "ticket ready" });
+    expect(readFileSync(ticket, "utf8")).toContain(`blocks:\n  - ${second.data.id}`);
+    expect(run(repository, ["ticket", "ready", first.data.id, "--approve"])).toMatchObject({ ok: true, command: "ticket ready" });
   });
 
   test("rejects unsupported definition metadata without changing the ticket", () => {
@@ -119,12 +120,12 @@ None.
     git(repository, "init", "-b", "main");
     writeFileSync(join(repository, "README.md"), "fixture\n");
     run(repository, ["init"]);
-    run(repository, ["ticket", "new", "--title", "Safe definition", "--type", "feature"]);
-    const ticket = join(repository, ".a-team/backlog/T-001-safe-definition.md");
+    const created = run(repository, ["ticket", "new", "--title", "Safe definition", "--type", "feature"]) as { data: { id: string; path: string } };
+    const ticket = created.data.path;
     const before = readFileSync(ticket, "utf8");
     const definition = join(repository, "invalid-definition.md");
-    writeFileSync(definition, "---\nid: T-001\nstatus: ready\n---\n## Outcome\n\nUnsafe.\n");
-    const result = spawnSync("node", [cli, "ticket", "define", "T-001", "--from", definition, "--json"], { cwd: repository, encoding: "utf8" });
+    writeFileSync(definition, `---\nid: ${created.data.id}\nstatus: ready\n---\n## Outcome\n\nUnsafe.\n`);
+    const result = spawnSync("node", [cli, "ticket", "define", created.data.id, "--from", definition, "--json"], { cwd: repository, encoding: "utf8" });
     expect(result.status).not.toBe(0);
     expect(result.stdout).toContain("Unsupported definition fields: status");
     expect(readFileSync(ticket, "utf8")).toBe(before);
@@ -140,10 +141,12 @@ None.
     git(repository, "commit", "-m", "initial");
 
     run(repository, ["init"]);
-    const created = run(repository, ["ticket", "new", "--title", "Ship export", "--type", "feature", "--profile", "workflow"]);
-    expect(created).toMatchObject({ ok: true, command: "ticket new", data: { id: "T-001" } });
+    const created = run(repository, ["ticket", "new", "--title", "Ship export", "--type", "feature", "--profile", "workflow"]) as { data: { id: string; path: string } };
+    const id = created.data.id;
+    expect(created).toMatchObject({ ok: true, command: "ticket new" });
+    expect(id).toMatch(/^T-[0-9a-hjkmnp-tv-z]{26}$/);
 
-    const ticket = join(repository, ".a-team/backlog/T-001-ship-export.md");
+    const ticket = created.data.path;
     writeFileSync(ticket, readFileSync(ticket, "utf8").replace(
       "Describe the observable outcome.",
       "Users can export filtered courses.\n\n## Actors\n\nCourse administrator.\n\n## Initial state\n\nA filtered course list is visible.\n\n## States\n\nReady and exported.\n\n## Transitions\n\nReady to exported.\n\n## Triggers\n\nExport action.\n\n## Permissions\n\nCourse export permission.\n\n## Error paths\n\nAn actionable error is shown.\n\n## Cancellation path\n\nCancellation leaves the list unchanged.\n\n## Retry and duplicate-action behaviour\n\nRetry is safe and duplicate actions are ignored.\n\n## Audit and notification expectations\n\nThe export is audited; no notification is sent.",
@@ -151,17 +154,17 @@ None.
       .replace("- Explain how acceptance will be checked.", "- Run the export integration test."));
 
     rmSync(join(repository, ".a-team/ready"), { recursive: true });
-    expect(run(repository, ["ticket", "ready", "T-001", "--approve"])).toMatchObject({ ok: true, command: "ticket ready" });
-    expect(existsSync(join(repository, ".a-team/ready/T-001-ship-export.md"))).toBe(true);
+    expect(run(repository, ["ticket", "ready", id, "--approve"])).toMatchObject({ ok: true, command: "ticket ready" });
+    expect(existsSync(join(repository, ".a-team/ready", basename(ticket)))).toBe(true);
     git(repository, "add", ".");
     git(repository, "commit", "-m", "define ready ticket");
 
-    const started = run(repository, ["ticket", "start", "T-001", "--agent", "codex"]);
-    expect(started).toMatchObject({ ok: true, command: "ticket start", data: { branch: "feat/T-001-ship-export" } });
-    const worktree = join(repository, ".worktrees/T-001");
-    expect(existsSync(join(worktree, ".a-team/active/T-001-ship-export.md"))).toBe(true);
-    expect(readFileSync(join(worktree, ".a-team/claims/T-001.yaml"), "utf8")).toContain("agent: codex");
-    expect(run(worktree, ["status"])).toMatchObject({ ok: true, data: { activeTickets: ["T-001"] } });
-    expect(run(repository, ["claim", "list"])).toMatchObject({ ok: true, data: { claims: [{ ticket: "T-001", agent: "codex" }] } });
+    const started = run(repository, ["ticket", "start", id, "--agent", "codex"]);
+    expect(started).toMatchObject({ ok: true, command: "ticket start", data: { branch: `feat/${id}-ship-export` } });
+    const worktree = join(repository, ".worktrees", id);
+    expect(existsSync(join(worktree, ".a-team/active", basename(ticket)))).toBe(true);
+    expect(readFileSync(join(worktree, ".a-team/claims", `${id}.yaml`), "utf8")).toContain("agent: codex");
+    expect(run(worktree, ["status"])).toMatchObject({ ok: true, data: { activeTickets: [id] } });
+    expect(run(repository, ["claim", "list"])).toMatchObject({ ok: true, data: { claims: [{ ticket: id, agent: "codex" }] } });
   });
 });

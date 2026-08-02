@@ -47,26 +47,22 @@ describe("durable decision CLI", () => {
 
     const created = run(root, ["decision", "create", "--from", source, "--approve"]);
     expect(created.status).toBe(0);
-    expect(JSON.parse(created.stdout)).toMatchObject({
-      ok: true,
-      command: "decision create",
-      data: { id: "D-001", path: expect.stringContaining(".a-team/decisions/D-001.md") },
-    });
-    const canonical = join(root, ".a-team/decisions/D-001.md");
-    expect(readFileSync(canonical, "utf8")).toContain("## Consequences");
+    const createdData = (JSON.parse(created.stdout) as { ok: boolean; command: string; data: { id: string; path: string } });
+    expect(createdData).toMatchObject({ ok: true, command: "decision create" });
+    expect(createdData.data.id).toMatch(/^D-[0-9a-hjkmnp-tv-z]{26}$/);
+    expect(createdData.data.path).toContain(`.a-team/decisions/${createdData.data.id}.md`);
+    expect(readFileSync(createdData.data.path, "utf8")).toContain("## Consequences");
     const humanSource = join(root, "second.md");
     writeFileSync(humanSource, validSource.replace("Adopt blue-green cutover", "Keep rollback window"));
     const human = execFileSync("node", [cli, "decision", "create", "--from", humanSource, "--approve"], { cwd: root, encoding: "utf8" });
-    expect(human).toContain("Recorded decision D-002 at");
-    expect(human).toContain(".a-team/decisions/D-002.md");
+    expect(human).toMatch(/Recorded decision D-[0-9a-hjkmnp-tv-z]{26} at/);
 
     const validation = run(root, ["validate"]);
     expect(validation.status).toBe(0);
     expect(JSON.parse(validation.stdout)).toMatchObject({ ok: true, data: { decisions: 2 } });
-    expect(readdirSync(join(root, ".a-team/decisions")).sort()).toEqual([
-      "D-001.md",
-      "D-002.md",
-    ]);
+    const recorded = readdirSync(join(root, ".a-team/decisions")).sort();
+    expect(recorded).toHaveLength(2);
+    for (const name of recorded) expect(name).toMatch(/^D-[0-9a-hjkmnp-tv-z]{26}\.md$/);
   });
 
   test("rejects missing approval, invalid and malformed input without canonical state", () => {

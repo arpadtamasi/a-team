@@ -44,7 +44,15 @@ type ChatMessage = { id: string; role: "user" | "assistant"; agent?: Agent; body
 type Thread = { scope: string; kind: ThreadKind; agent: Agent; draft: string; messages: ChatMessage[]; threadId: string | null };
 type ThreadKind = "workspace" | "ticket" | "package" | "finding";
 
-const ENTITY_PATTERN = /\b(?:O-\d+(?:\.\d+)?|T-\d+|F-\d+|P-\d+)\b/g;
+/* Identity is mixed for good (D-010): sequential ids stay, minted ones are `<type>-<26 char ULID>`. */
+const MINTED_BODY = "[0-9a-hjkmnp-tv-z]{26}";
+const ENTITY_SOURCE = `(?:O-\\d+(?:\\.\\d+)?|[TFP]-\\d+|[TFP]-${MINTED_BODY})`;
+const ENTITY_PATTERN = new RegExp(`\\b${ENTITY_SOURCE}\\b`, "g");
+const MINTED_ID = new RegExp(`^[TFPD]-${MINTED_BODY}$`);
+/* Show a short id tail rather than 26 characters of ULID (D-003); it is the file's suffix too. */
+function displayId(id: string): string {
+  return MINTED_ID.test(id) ? `${id.slice(0, id.indexOf("-") + 1)}${id.slice(-8)}` : id;
+}
 const entityTitles = new Map<string, string>();
 function entityLabel(id: string): string {
   const title = entityTitles.get(id);
@@ -192,7 +200,7 @@ function kindStampSuffix(kind: ThreadKind): "t" | "f" | "p" | "ws" {
 }
 function Eid({ id, onClick, dark, label }: { id: string; onClick?: () => void; dark?: boolean; label?: string }) {
   const cls = `eid stamp-${stampSuffix(id)}${dark ? " on-dark" : ""}`;
-  const text = label ?? id;
+  const text = label ?? displayId(id);
   return onClick
     ? <button type="button" className={cls} title={entityLabel(id)} onClick={onClick}>{text}</button>
     : <span className={cls} title={entityLabel(id)}>{text}</span>;
@@ -869,14 +877,14 @@ function MigrationDrawer({ migration, onClose, onEntity, onSource }: { migration
 }
 
 /* ── Entity detail drawer ────────────────────────────── */
-const ID_SPLIT = /(\b(?:O-\d+(?:\.\d+)?|T-\d+|F-\d+|P-\d+)\b)/g;
-const ID_TEST = /^(?:O-\d+(?:\.\d+)?|T-\d+|F-\d+|P-\d+)$/;
+const ID_SPLIT = new RegExp(`(\\b${ENTITY_SOURCE}\\b)`, "g");
+const ID_TEST = new RegExp(`^${ENTITY_SOURCE}$`);
 function titleCase(value: string): string {
   return value.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 function InlineIds({ text, onEntity }: { text: string; onEntity: (id: string) => void }) {
   return <>{text.split(ID_SPLIT).map((part, i) => ID_TEST.test(part)
-    ? <button key={i} type="button" className="inline-entity mono" title={entityLabel(part)} onClick={() => onEntity(part)}>{part}</button>
+    ? <button key={i} type="button" className="inline-entity mono" title={entityLabel(part)} onClick={() => onEntity(part)}>{displayId(part)}</button>
     : part)}</>;
 }
 function EntityDrawer({ id, workspace, onClose, onEntity, onSource, onDiscuss }: {

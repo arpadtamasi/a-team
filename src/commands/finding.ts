@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { findRepositoryRoot, regenerateIndex } from "../filesystem/workspace.js";
-import { findTicket, nextId } from "../filesystem/entities.js";
+import { findTicket } from "../filesystem/entities.js";
+import { entityFilename, filenameMatchesId, mintId } from "../core/identity.js";
 import { parseMarkdown, renderMarkdown, sections } from "../core/markdown.js";
 import { newTicket } from "./ticket.js";
 
@@ -13,7 +14,7 @@ function findFinding(root: string, id: string) {
   for (const state of ["new", "resolved"]) {
     const directory = join(root, ".a-team/findings", state);
     if (!existsSync(directory)) continue;
-    const filename = readdirSync(directory).find((name) => name.startsWith(`${id}-`));
+    const filename = readdirSync(directory).find((name) => name.endsWith(".md") && filenameMatchesId(name, id));
     if (filename) return { state, filename, path: join(directory, filename) };
   }
   throw new Error(`Finding ${id} was not found.`);
@@ -21,8 +22,8 @@ function findFinding(root: string, id: string) {
 
 export function newFinding(options: { title: string; type: string; evidence: string; discoveredDuring?: string }, repositoryRoot?: string) {
   const root = repositoryRoot ?? findRepositoryRoot();
-  const id = nextId(root, "finding");
-  const filename = `${id}-${slugify(options.title)}.md`;
+  const id = mintId("F");
+  const filename = entityFilename(id, slugify(options.title));
   const directory = join(root, ".a-team/findings/new");
   mkdirSync(directory, { recursive: true });
   const data = { id, title: options.title, status: "new", origin: "agent", finding_type: options.type, confidence: "high", severity: "medium", discovered_during: options.discoveredDuring ?? null, created_at: new Date().toISOString().slice(0, 10) };
@@ -45,7 +46,7 @@ export function validateFinding(id: string, repositoryRoot?: string) {
   for (const state of ["new", "resolved"]) {
     const directory = join(root, ".a-team/findings", state);
     if (!existsSync(directory)) continue;
-    for (const filename of readdirSync(directory).filter((name) => name.endsWith(".md") && !name.startsWith(`${id}-`))) {
+    for (const filename of readdirSync(directory).filter((name) => name.endsWith(".md") && !filenameMatchesId(name, id))) {
       const candidate = parseMarkdown(readFileSync(join(directory, filename), "utf8"));
       if (String(candidate.data.title ?? "").trim().toLowerCase() === title) duplicates.push(String(candidate.data.id));
     }

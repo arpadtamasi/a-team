@@ -16,14 +16,14 @@ function git(repository: string, ...args: string[]): void {
   execFileSync("git", args, { cwd: repository });
 }
 
-function fixtureRepository(): string {
+function fixtureRepository(): { repository: string; id: string } {
   const repository = mkdtempSync(join(tmpdir(), "a-team-brief-"));
   git(repository, "init", "-b", "main");
   writeFileSync(join(repository, "README.md"), "fixture\n");
   run(repository, ["init"]);
-  run(repository, ["ticket", "new", "--title", "Ship the exporter", "--type", "feature"]);
-  const definition = join(repository, "T-001-definition.md");
-  writeFileSync(definition, `# T-001 — Ship the exporter
+  const id = (run(repository, ["ticket", "new", "--title", "Ship the exporter", "--type", "feature"]) as { data: { id: string } }).data.id;
+  const definition = join(repository, "definition.md");
+  writeFileSync(definition, `# ${id} — Ship the exporter
 
 ## Outcome
 
@@ -57,7 +57,7 @@ None.
 
 None.
 `);
-  run(repository, ["ticket", "define", "T-001", "--from", definition]);
+  run(repository, ["ticket", "define", id, "--from", definition]);
   const decision = join(repository, "D-001-source.md");
   writeFileSync(decision, `---
 id: D-001
@@ -79,17 +79,17 @@ Fixture.
 None.
 `);
   run(repository, ["decision", "create", "--id", "D-001", "--from", decision, "--approve"]);
-  return repository;
+  return { repository, id };
 }
 
 describe("ticket brief (T-026 / D-009)", () => {
   test("assembles ticket + referenced decisions and reports missing ones", () => {
-    const repository = fixtureRepository();
-    const result = run(repository, ["ticket", "brief", "T-001"]) as { data: Record<string, unknown> };
+    const { repository, id } = fixtureRepository();
+    const result = run(repository, ["ticket", "brief", id]) as { data: Record<string, unknown> };
     const data = result.data as { brief: string; decisions: string[]; missingDecisions: string[]; tokens: number; warning: string | null };
     expect(data.decisions).toEqual(["D-001"]);
     expect(data.missingDecisions).toEqual(["D-999"]);
-    expect(data.brief).toContain("# Execution brief — T-001");
+    expect(data.brief).toContain(`# Execution brief — ${id}`);
     expect(data.brief).toContain("## Ticket");
     expect(data.brief).toContain("D-001 — Exporter format is CSV");
     expect(data.brief).toContain("Referenced but not found");
@@ -99,24 +99,24 @@ describe("ticket brief (T-026 / D-009)", () => {
   });
 
   test("is deterministic: two runs produce identical bytes", () => {
-    const repository = fixtureRepository();
-    const first = run(repository, ["ticket", "brief", "T-001"]) as { data: { brief: string } };
-    const second = run(repository, ["ticket", "brief", "T-001"]) as { data: { brief: string } };
+    const { repository, id } = fixtureRepository();
+    const first = run(repository, ["ticket", "brief", id]) as { data: { brief: string } };
+    const second = run(repository, ["ticket", "brief", id]) as { data: { brief: string } };
     expect(second.data.brief).toBe(first.data.brief);
   });
 
   test("warns above the token threshold and names the largest section", () => {
-    const repository = fixtureRepository();
-    const result = run(repository, ["ticket", "brief", "T-001", "--warn-tokens", "10"]) as { data: { warning: string | null; largestSection: string } };
+    const { repository, id } = fixtureRepository();
+    const result = run(repository, ["ticket", "brief", id, "--warn-tokens", "10"]) as { data: { warning: string | null; largestSection: string } };
     expect(result.data.warning).toContain("limit 10");
     expect(result.data.warning).toContain(result.data.largestSection);
   });
 
   test("writes the brief to a file with --out", () => {
-    const repository = fixtureRepository();
+    const { repository, id } = fixtureRepository();
     const out = join(repository, "brief.md");
-    const result = run(repository, ["ticket", "brief", "T-001", "--out", out]) as { data: { path: string | null } };
+    const result = run(repository, ["ticket", "brief", id, "--out", out]) as { data: { path: string | null } };
     expect(result.data.path).toBe(out);
-    expect(readFileSync(out, "utf8")).toContain("# Execution brief — T-001");
+    expect(readFileSync(out, "utf8")).toContain(`# Execution brief — ${id}`);
   });
 });

@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- Entity identifiers are minted without coordination (T-034, D-003 narrowed by D-010): `ticket new`,
+  `finding new`, `package new` and `decision create` produce `<type>-<ULID>` instead of scanning the
+  branch for `max + 1`, so two agents on two branches can no longer be handed the same id. New entity
+  files are named `slug-<short id>.md`; `.a-team/index.md` is merged with Git's `union` driver, which
+  `a-team init` now records in `.gitattributes`. Existing sequential identifiers, filenames and
+  references are untouched and stay valid indefinitely — `validate` accepts both forms and reports
+  `DUPLICATE_ID` if two entities ever share one.
+
 ### Added
 
 - Initial installable skill collection for setup, ticket definition and execution, finding validation, package coordination, review submission, and safe ticket closure.

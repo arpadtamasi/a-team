@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
 import { findRepositoryRoot } from "../filesystem/workspace.js";
-import { TICKET_STATES } from "../filesystem/entities.js";
+import { TICKET_STATES, idFromEntityFile } from "../filesystem/entities.js";
 import { validateTicketFile } from "../core/validation.js";
 import { validatePackage } from "./package.js";
 import { validateClaim } from "../core/claim.js";
@@ -24,7 +24,8 @@ export function validateWorkspace() {
       const path = join(directory, filename);
       const report = validateTicketFile(path);
       errors.push(...report.errors);
-      const id = filename.split("-").slice(0, 2).join("-");
+      // The frontmatter carries identity; a minted entity's filename holds only its short suffix.
+      const id = idFromEntityFile(path, filename) ?? filename.replace(/\.md$/, "");
       const previous = seen.get(id);
       if (previous) errors.push({ code: "DUPLICATE_ID", message: `${id} appears in both ${previous} and ${path}.`, path });
       else seen.set(id, path);
@@ -56,13 +57,22 @@ export function validateWorkspace() {
       });
     }
   }
+  const seenPackages = new Map<string, string>();
   for (const state of ["backlog", "ready", "active", "done"]) {
     const directory = join(root, ".a-team/packages", state);
     if (!existsSync(directory)) continue;
-    for (const filename of readdirSync(directory).filter((name) => name.startsWith("P-") && name.endsWith(".md"))) {
-      const id = filename.split("-").slice(0, 2).join("-");
+    for (const filename of readdirSync(directory).filter((name) => name.endsWith(".md"))) {
+      const path = join(directory, filename);
+      const id = idFromEntityFile(path, filename);
+      if (!id) {
+        errors.push({ code: "MISSING_PACKAGE_ID", message: `${path} has no package id in its frontmatter.`, path });
+        continue;
+      }
+      const previousPackage = seenPackages.get(id);
+      if (previousPackage) errors.push({ code: "DUPLICATE_ID", message: `${id} appears in both ${previousPackage} and ${path}.`, path });
+      else seenPackages.set(id, path);
       const report = validatePackage(id);
-      if (!report.ok) errors.push(...report.errors.map((error) => ({ ...error, path: join(directory, filename) })));
+      if (!report.ok) errors.push(...report.errors.map((error) => ({ ...error, path })));
     }
   }
   const decisionsDirectory = join(root, ".a-team/decisions");
@@ -73,7 +83,7 @@ export function validateWorkspace() {
   for (const filename of decisions) {
     const path = join(decisionsDirectory, filename);
     errors.push(...validateDecisionFile(path));
-    const id = /^D-\d+/.exec(filename)?.[0];
+    const id = idFromEntityFile(path, filename) ?? /^D-\d+/.exec(filename)?.[0];
     if (!id) continue;
     const previous = seenDecisions.get(id);
     if (previous) errors.push({ code: "DUPLICATE_DECISION_ID", message: `${id} appears in both ${previous} and ${path}.`, path });

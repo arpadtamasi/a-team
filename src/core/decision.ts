@@ -1,5 +1,6 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { basename, join } from "node:path";
+import { readFileSync } from "node:fs";
+import { basename } from "node:path";
+import { DECISION_ID } from "./identity.js";
 import { parseMarkdown, renderMarkdown, sections } from "./markdown.js";
 
 export interface DecisionDraft {
@@ -17,7 +18,6 @@ export interface DecisionValidationIssue {
   path?: string;
 }
 
-const DECISION_ID = /^D-\d{3,}$/;
 const DECISION_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const DECISION_FIELDS = new Set(["id", "title", "date"]);
 const DECISION_SECTIONS = ["Decision", "Context", "Consequences"] as const;
@@ -32,16 +32,6 @@ function sourceDate(value: unknown, fallback: string): string {
   if (value === undefined) return fallback;
   if (value instanceof Date && !Number.isNaN(value.valueOf())) return value.toISOString().slice(0, 10);
   return String(value);
-}
-
-export function nextDecisionId(root: string): string {
-  const directory = join(root, ".a-team/decisions");
-  if (!existsSync(directory)) return "D-001";
-  const maximum = readdirSync(directory)
-    .map((name) => /^D-(\d+)(?:-|\.md$)/.exec(name)?.[1])
-    .filter((value): value is string => value !== undefined)
-    .reduce((current, value) => Math.max(current, Number(value)), 0);
-  return `D-${String(maximum + 1).padStart(3, "0")}`;
 }
 
 export function decisionDraftFromSource(source: string, id: string, date: string): DecisionDraft {
@@ -64,7 +54,7 @@ export function decisionDraftFromSource(source: string, id: string, date: string
 
 export function validateDecision(draft: DecisionDraft, path?: string): DecisionValidationIssue[] {
   const errors: DecisionValidationIssue[] = [];
-  if (!DECISION_ID.test(draft.id)) errors.push({ code: "INVALID_DECISION_ID", message: "Decision id must match D-001.", path });
+  if (!DECISION_ID.test(draft.id)) errors.push({ code: "INVALID_DECISION_ID", message: "Decision id must be a minted id such as D-01k1n0h5q7zv3m8b4d6xr2ptcw, or a sequential D-001.", path });
   if (!draft.title) errors.push({ code: "MISSING_DECISION_TITLE", message: "Decision title is required.", path });
   if (!isValidDate(draft.date)) {
     errors.push({ code: "INVALID_DECISION_DATE", message: "Decision date must be a valid YYYY-MM-DD date.", path });

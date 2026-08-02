@@ -8,6 +8,7 @@ import matter from "gray-matter";
 import { parse } from "yaml";
 import { sections } from "../core/markdown.js";
 import { findTicket, idFromFilename } from "../filesystem/entities.js";
+import { FINDING_ID, PACKAGE_ID, TICKET_ID } from "../core/identity.js";
 import { newFinding, resolveFinding } from "./finding.js";
 import { newPackage, updatePackageTickets } from "./package.js";
 import { readyTicket } from "./ticket.js";
@@ -143,7 +144,7 @@ export function readWorkspace(workspaceOption: string) {
     }
     return entries.sort((left, right) => basename(left.repoPath).localeCompare(basename(right.repoPath)));
   };
-  const parseEntity = (entry: { state: string; repoPath: string; fromRef: boolean }) => {
+  const parseEntity = (entry: { state: string; repoPath: string; fromRef: boolean }): Record<string, unknown> => {
     const parsed = matter(readMd(entry.repoPath, entry.fromRef));
     return { ...parsed.data, status: entry.state, filename: basename(entry.repoPath), sections: sectionObject(parsed.content) };
   };
@@ -151,12 +152,14 @@ export function readWorkspace(workspaceOption: string) {
   const diagnostics: Array<{ entity: "ticket"; id: string; worktree: string; message: string }> = [];
 
   // Tickets: base-ref baseline, overlaid per id by any live worktree (in-flight truth from .worktrees/<id>).
-  const ticketBase = new Map<string, { state: string; repoPath: string; fromRef: boolean }>();
+  // Identity comes from the frontmatter: a minted entity's filename carries only its short id suffix.
+  const ticketBase = new Map<string, Record<string, unknown>>();
   for (const entry of gather(TICKET_STATES, (state) => state)) {
-    const id = idFromFilename(basename(entry.repoPath));
-    if (id && !ticketBase.has(id)) ticketBase.set(id, entry);
+    const parsed = parseEntity(entry);
+    const id = String(parsed.id ?? idFromFilename(basename(entry.repoPath)) ?? "");
+    if (id && !ticketBase.has(id)) ticketBase.set(id, parsed);
   }
-  const tickets = [...ticketBase].map(([id, entry]) => {
+  const tickets = [...ticketBase].map(([id, baseline]) => {
     const worktree = join(projectRoot, ".worktrees", id);
     if (existsSync(worktree)) {
       try {
@@ -168,7 +171,7 @@ export function readWorkspace(workspaceOption: string) {
         diagnostics.push({ entity: "ticket", id, worktree: worktree, message: error instanceof Error ? error.message : String(error) });
       }
     }
-    return { ...parseEntity(entry), migration: migrationById.get(id) ?? null };
+    return { ...baseline, migration: migrationById.get(id) ?? null };
   });
   const packages = gather(PACKAGE_STATES, (state) => `packages/${state}`).map(parseEntity);
   const findings = gather(["new", "resolved"], (state) => `findings/${state}`).map(parseEntity);
@@ -438,7 +441,7 @@ export async function uiCommand(options: { workspace: string; port?: number; hos
       try {
         const body = await requestBody(request);
         const ticketId = typeof body.ticketId === "string" ? body.ticketId : "";
-        if (!/^(?:T-\d{3,}|O-\d+(?:\.\d+)?)$/.test(ticketId)) throw new Error("A valid ticket id is required.");
+        if (!TICKET_ID.test(ticketId)) throw new Error("A valid ticket id is required.");
         json(response, 200, readyTicket(ticketId, true, projectRoot));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -467,7 +470,7 @@ export async function uiCommand(options: { workspace: string; port?: number; hos
         const packageId = typeof body.packageId === "string" ? body.packageId : "";
         const ticketId = typeof body.ticketId === "string" ? body.ticketId : "";
         const action = body.action === "remove" ? "remove" : "add";
-        if (!/^P-\d{3,}$/.test(packageId) || !/^(?:T-\d{3,}|O-\d+(?:\.\d+)?)$/.test(ticketId)) throw new Error("Valid package and ticket ids are required.");
+        if (!PACKAGE_ID.test(packageId) || !TICKET_ID.test(ticketId)) throw new Error("Valid package and ticket ids are required.");
         json(response, 200, updatePackageTickets(packageId, ticketId, action, projectRoot));
       } catch (error) {
         json(response, 409, { ok: false, error: error instanceof Error ? error.message : String(error) });
@@ -493,7 +496,7 @@ export async function uiCommand(options: { workspace: string; port?: number; hos
         const body = await requestBody(request);
         const findingId = typeof body.findingId === "string" ? body.findingId : "";
         const disposition = body.disposition === "create-ticket" ? "create-ticket" : "reject";
-        if (!/^(?:F-\d{3,}|O-\d+)$/.test(findingId)) throw new Error("A valid finding id is required.");
+        if (!FINDING_ID.test(findingId)) throw new Error("A valid finding id is required.");
         json(response, 200, resolveFinding(findingId, disposition, true, projectRoot));
       } catch (error) {
         json(response, 409, { ok: false, error: error instanceof Error ? error.message : String(error) });

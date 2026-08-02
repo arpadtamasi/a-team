@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 
 const cli = resolve("dist/cli/index.js");
@@ -20,6 +20,10 @@ function git(repository: string, ...args: string[]): void {
   execFileSync("git", args, { cwd: repository });
 }
 
+function newTicket(repository: string, title: string): { id: string; path: string } {
+  return (run(repository, ["ticket", "new", "--title", title, "--type", "feature"]) as { data: { id: string; path: string } }).data;
+}
+
 function fixture(prefix: string): string {
   const repository = mkdtempSync(join(tmpdir(), prefix));
   git(repository, "init", "-b", "main");
@@ -35,84 +39,85 @@ function fixture(prefix: string): string {
 describe("ticket cancel", () => {
   test("cancels a backlog ticket as duplicate into done and validates green", () => {
     const repository = fixture("a-team-cancel-backlog-");
-    run(repository, ["ticket", "new", "--title", "Duplicate work", "--type", "feature"]);
+    const ticket = newTicket(repository, "Duplicate work");
     git(repository, "add", ".");
     git(repository, "commit", "-m", "capture ticket");
 
-    const cancelled = run(repository, ["ticket", "cancel", "T-001", "--resolution", "duplicate", "--approve"]);
-    expect(cancelled).toMatchObject({ ok: true, command: "ticket cancel", data: { id: "T-001", resolution: "duplicate" } });
+    const cancelled = run(repository, ["ticket", "cancel", ticket.id, "--resolution", "duplicate", "--approve"]);
+    expect(cancelled).toMatchObject({ ok: true, command: "ticket cancel", data: { id: ticket.id, resolution: "duplicate" } });
 
-    const done = join(repository, ".a-team/done/T-001-duplicate-work.md");
+    const done = join(repository, ".a-team/done", basename(ticket.path));
     expect(existsSync(done)).toBe(true);
-    expect(existsSync(join(repository, ".a-team/backlog/T-001-duplicate-work.md"))).toBe(false);
+    expect(existsSync(ticket.path)).toBe(false);
     const content = readFileSync(done, "utf8");
     expect(content).toContain("status: done");
     expect(content).toContain("resolution: duplicate");
-    expect(run(repository, ["ticket", "validate", "T-001"])).toMatchObject({ ok: true, data: { id: "T-001", state: "done" } });
+    expect(run(repository, ["ticket", "validate", ticket.id])).toMatchObject({ ok: true, data: { id: ticket.id, state: "done" } });
   });
 
   test("cancels a ready ticket and rejects cancel on an active ticket", () => {
     const repository = fixture("a-team-cancel-ready-");
-    run(repository, ["ticket", "new", "--title", "Obsolete plan", "--type", "feature"]);
-    run(repository, ["ticket", "ready", "T-001", "--approve"]);
+    const obsolete = newTicket(repository, "Obsolete plan");
+    run(repository, ["ticket", "ready", obsolete.id, "--approve"]);
     git(repository, "add", ".");
     git(repository, "commit", "-m", "ready ticket");
-    expect(run(repository, ["ticket", "cancel", "T-001", "--resolution", "obsolete", "--approve"])).toMatchObject({ ok: true, command: "ticket cancel", data: { id: "T-001", resolution: "obsolete" } });
-    expect(existsSync(join(repository, ".a-team/done/T-001-obsolete-plan.md"))).toBe(true);
+    expect(run(repository, ["ticket", "cancel", obsolete.id, "--resolution", "obsolete", "--approve"])).toMatchObject({ ok: true, command: "ticket cancel", data: { id: obsolete.id, resolution: "obsolete" } });
+    expect(existsSync(join(repository, ".a-team/done", basename(obsolete.path)))).toBe(true);
 
-    run(repository, ["ticket", "new", "--title", "Active work", "--type", "feature"]);
-    run(repository, ["ticket", "ready", "T-002", "--approve"]);
+    const active = newTicket(repository, "Active work");
+    run(repository, ["ticket", "ready", active.id, "--approve"]);
     git(repository, "add", ".");
     git(repository, "commit", "-m", "ready second ticket");
-    run(repository, ["ticket", "start", "T-002", "--agent", "codex"]);
-    const worktree = join(repository, ".worktrees/T-002");
-    const refused = fail(worktree, ["ticket", "cancel", "T-002", "--resolution", "cancelled", "--approve"]);
+    run(repository, ["ticket", "start", active.id, "--agent", "codex"]);
+    const worktree = join(repository, ".worktrees", active.id);
+    const refused = fail(worktree, ["ticket", "cancel", active.id, "--resolution", "cancelled", "--approve"]);
     expect(refused.status).not.toBe(0);
     expect(refused.stdout).toContain("can only be cancelled from backlog or ready");
-    expect(existsSync(join(worktree, ".a-team/active/T-002-active-work.md"))).toBe(true);
+    expect(existsSync(join(worktree, ".a-team/active", basename(active.path)))).toBe(true);
   });
 
   test("rejects cancel without --approve and leaves the ticket in place", () => {
     const repository = fixture("a-team-cancel-approve-");
-    run(repository, ["ticket", "new", "--title", "Needs approval", "--type", "feature"]);
+    const ticket = newTicket(repository, "Needs approval");
     git(repository, "add", ".");
     git(repository, "commit", "-m", "capture ticket");
-    const refused = fail(repository, ["ticket", "cancel", "T-001", "--resolution", "cancelled"]);
+    const refused = fail(repository, ["ticket", "cancel", ticket.id, "--resolution", "cancelled"]);
     expect(refused.status).not.toBe(0);
     expect(refused.stdout).toContain("Human cancel approval is required");
-    expect(existsSync(join(repository, ".a-team/backlog/T-001-needs-approval.md"))).toBe(true);
-    expect(existsSync(join(repository, ".a-team/done/T-001-needs-approval.md"))).toBe(false);
+    expect(existsSync(ticket.path)).toBe(true);
+    expect(existsSync(join(repository, ".a-team/done", basename(ticket.path)))).toBe(false);
   });
 
   test("does not require review evidence for a cancelled done ticket but still requires it for completed", () => {
     const repository = fixture("a-team-cancel-evidence-");
-    run(repository, ["ticket", "new", "--title", "Cancelled path", "--type", "feature"]);
+    const ticket = newTicket(repository, "Cancelled path");
     git(repository, "add", ".");
     git(repository, "commit", "-m", "capture ticket");
-    run(repository, ["ticket", "cancel", "T-001", "--resolution", "cancelled", "--approve"]);
-    const cancelledPath = join(repository, ".a-team/done/T-001-cancelled-path.md");
+    run(repository, ["ticket", "cancel", ticket.id, "--resolution", "cancelled", "--approve"]);
+    const cancelledPath = join(repository, ".a-team/done", basename(ticket.path));
     expect(readFileSync(cancelledPath, "utf8")).not.toContain("## Review evidence");
-    expect(run(repository, ["ticket", "validate", "T-001"])).toMatchObject({ ok: true, data: { state: "done" } });
+    expect(run(repository, ["ticket", "validate", ticket.id])).toMatchObject({ ok: true, data: { state: "done" } });
 
+    // A hand-written sequential ticket must stay resolvable next to the minted one (D-010).
     const completed = readFileSync(cancelledPath, "utf8")
-      .replace("id: T-001", "id: T-002")
+      .replace(`id: ${ticket.id}`, "id: T-901")
       .replace("resolution: cancelled", "resolution: completed")
-      .replace("# T-001", "# T-002");
+      .replace(`# ${ticket.id}`, "# T-901");
     mkdirSync(join(repository, ".a-team/done"), { recursive: true });
-    writeFileSync(join(repository, ".a-team/done/T-002-completed-path.md"), completed);
-    const report = fail(repository, ["ticket", "validate", "T-002"]);
+    writeFileSync(join(repository, ".a-team/done/T-901-completed-path.md"), completed);
+    const report = fail(repository, ["ticket", "validate", "T-901"]);
     expect(report.status).not.toBe(0);
     expect(report.stdout).toContain("MISSING_REVIEW_EVIDENCE");
   });
 
   test("rejects an unknown resolution", () => {
     const repository = fixture("a-team-cancel-resolution-");
-    run(repository, ["ticket", "new", "--title", "Bad resolution", "--type", "feature"]);
+    const ticket = newTicket(repository, "Bad resolution");
     git(repository, "add", ".");
     git(repository, "commit", "-m", "capture ticket");
-    const refused = fail(repository, ["ticket", "cancel", "T-001", "--resolution", "wontfix", "--approve"]);
+    const refused = fail(repository, ["ticket", "cancel", ticket.id, "--resolution", "wontfix", "--approve"]);
     expect(refused.status).not.toBe(0);
     expect(refused.stdout).toContain("Cancel resolution must be one of");
-    expect(existsSync(join(repository, ".a-team/backlog/T-001-bad-resolution.md"))).toBe(true);
+    expect(existsSync(ticket.path)).toBe(true);
   });
 });

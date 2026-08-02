@@ -21,7 +21,7 @@ None.
 
 ## Review
 
-- decision-create-fails-in-a-fresh-worktree-when-a-team-decisi-44x6rke4
+None.
 
 ## Blocked
 

@@ -1,7 +1,7 @@
 ---
 id: T-01kz1g2vra99x0xhw144x6rke4
 title: decision create fails in a fresh worktree when .a-team/decisions is empty
-status: review
+status: done
 origin: finding
 types:
   - bug
@@ -18,6 +18,7 @@ created_at: '2026-08-02'
 updated_at: '2026-08-02'
 source_finding: F-01kz1dbnrr9tcghwnr1rg6fqm9
 assigned_agent: claude
+resolution: completed
 ---
 # T-01kz1g2vra99x0xhw144x6rke4 — decision create fails in a fresh worktree when .a-team/decisions is empty
 

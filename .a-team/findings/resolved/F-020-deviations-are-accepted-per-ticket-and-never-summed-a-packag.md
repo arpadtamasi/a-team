@@ -3,13 +3,15 @@ id: F-020
 title: >-
   Deviations are accepted per ticket and never summed — a package of green
   tickets delivered non-working software
-status: new
+status: resolved
 origin: agent
 finding_type: process
 confidence: high
 severity: high
 discovered_during: null
 created_at: '2026-08-01'
+disposition: attach-existing
+resolved_at: '2026-08-02T15:04:29.248Z'
 ---
 # F-020 — Deviations are accepted per ticket and never summed — a package of green tickets delivered non-working software
 

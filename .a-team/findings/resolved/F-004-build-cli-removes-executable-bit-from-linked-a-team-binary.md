@@ -1,13 +1,15 @@
 ---
 id: F-004
 title: 'build:cli removes executable bit from linked a-team binary'
-status: new
+status: resolved
 origin: agent
 finding_type: bug
 confidence: high
 severity: medium
 discovered_during: T-012
 created_at: '2026-07-23'
+disposition: attach-existing
+resolved_at: '2026-08-02T15:04:29.052Z'
 ---
 # F-004 — build:cli removes executable bit from linked a-team binary
 

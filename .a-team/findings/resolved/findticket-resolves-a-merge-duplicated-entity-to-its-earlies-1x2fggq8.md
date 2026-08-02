@@ -1,13 +1,15 @@
 ---
 id: F-01kz1f399tdejhjwsp1x2fggq8
 title: findTicket resolves a merge-duplicated entity to its earliest state copy
-status: new
+status: resolved
 origin: agent
 finding_type: risk
 confidence: high
 severity: medium
 discovered_during: T-036
 created_at: '2026-08-02'
+disposition: merge-duplicate
+resolved_at: '2026-08-02T15:04:39.314Z'
 ---
 # F-01kz1f399tdejhjwsp1x2fggq8 — findTicket resolves a merge-duplicated entity to its earliest state copy
 

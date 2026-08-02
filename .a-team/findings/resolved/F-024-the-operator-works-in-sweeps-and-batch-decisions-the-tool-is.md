@@ -3,13 +3,15 @@ id: F-024
 title: >-
   The operator works in sweeps and batch decisions; the tool is built around the
   single-ticket lifecycle
-status: new
+status: resolved
 origin: human
 finding_type: product
 confidence: high
 severity: high
 discovered_during: null
 created_at: '2026-08-01'
+disposition: attach-existing
+resolved_at: '2026-08-02T15:04:29.152Z'
 ---
 # F-024 — The operator works in sweeps and batch decisions; the tool is built around the single-ticket lifecycle
 

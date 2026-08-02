@@ -1,13 +1,16 @@
 ---
 id: F-014
 title: a-team ui does not open the browser — auto-open the served URL on start
-status: new
+status: resolved
 origin: agent
 finding_type: improvement
 confidence: high
 severity: medium
 discovered_during: null
 created_at: '2026-07-28'
+disposition: create-ticket
+resolved_at: '2026-08-02T15:04:39.124Z'
+ticket: T-01kz1g2vyhfn5ezzvvyzn4w2gr
 ---
 # F-014 — a-team ui does not open the browser — auto-open the served URL on start
 

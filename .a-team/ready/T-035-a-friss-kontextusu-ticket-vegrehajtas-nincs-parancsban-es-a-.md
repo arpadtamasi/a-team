@@ -1,7 +1,7 @@
 ---
 id: T-035
 title: 'ticket execute: a friss-kontextusu vegrehajtas legyen parancs, ne fegyelem'
-status: backlog
+status: ready
 origin: finding
 types:
   - feature

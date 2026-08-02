@@ -1,7 +1,7 @@
 ---
 id: T-036
 title: Merge utan ugyanaz az entitas ket allapot-konyvtarban marad
-status: backlog
+status: ready
 origin: finding
 types:
   - bug

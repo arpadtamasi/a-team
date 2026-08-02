@@ -1,8 +1,7 @@
 ---
 id: T-032
-title: >-
-  A done-kapu nem békíti ki a próza deviációit a strukturált Deviations mezővel
-status: backlog
+title: A done-kapu nem békíti ki a próza deviációit a strukturált Deviations mezővel
+status: ready
 origin: finding
 types:
   - feature

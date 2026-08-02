@@ -44,6 +44,7 @@ None.
 - a-board-listai-nem-mutatjak-az-entitasok-korat-csak-az-obser-fx05szh7
 - a-decision-cannot-record-that-it-narrows-or-continues-anothe-8pv9r452
 - a-markdown-h1-a-teljes-azonositot-hordozza-igy-a-mintazott-u-rb71ckkr
+- nincs-agents-md-semmi-nem-mondja-meg-egy-erkezo-agensnek-hog-pky2an1x
 - ready-ticket-szovege-nem-javithato-a-define-csak-backlogbol--147t946f
 - schemas-package-schema-json-rejects-every-started-package-an-8et554b5
 - state-drift-has-no-reconcile-command-so-the-board-can-only-p-5mqcvk49

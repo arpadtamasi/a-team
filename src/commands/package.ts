@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { findRepositoryRoot, regenerateIndex } from "../filesystem/workspace.js";
+import { findRepositoryRoot, regenerateIndex, workspaceDirectoryName, workspacePath } from "../filesystem/workspace.js";
 import { findTicket, resolveEffectiveTicket } from "../filesystem/entities.js";
 import { entityFilename, filenameMatchesId, mintId } from "../core/identity.js";
 import { parseMarkdown, renderMarkdown, sections } from "../core/markdown.js";
@@ -19,7 +19,7 @@ interface PackageData {
 
 export function findPackage(root: string, id: string) {
   for (const state of ["backlog", "ready", "active", "done"]) {
-    const directory = join(root, ".a-team/packages", state);
+    const directory = workspacePath(root, "packages", state);
     if (!existsSync(directory)) continue;
     const filename = readdirSync(directory).find((name) => name.endsWith(".md") && filenameMatchesId(name, id));
     if (filename) return { state, filename, path: join(directory, filename) };
@@ -62,7 +62,7 @@ export function newPackage(options: { title: string; kind: string; goal?: string
   if (!Number.isInteger(parallelism) || parallelism < 1) throw new Error("Package parallelism must be a positive integer.");
   const id = mintId("P");
   const filename = entityFilename(id, slugify(title));
-  const directory = join(root, ".a-team/packages/backlog");
+  const directory = workspacePath(root, "packages/backlog");
   mkdirSync(directory, { recursive: true });
   const now = new Date().toISOString().slice(0, 10);
   const data = {
@@ -144,7 +144,7 @@ export function readyPackage(id: string, approved: boolean, repositoryRoot?: str
   if (unreadyFrontier.length) throw new Error(`Every currently executable package ticket must be ready: ${unreadyFrontier.join(", ")}.`);
   entity.data.status = "ready";
   entity.data.updated_at = new Date().toISOString().slice(0, 10);
-  const directory = join(root, ".a-team/packages/ready");
+  const directory = workspacePath(root, "packages/ready");
   mkdirSync(directory, { recursive: true });
   const destination = join(directory, pkg.filename);
   writeFileSync(destination, renderMarkdown(entity.data, entity.content));
@@ -206,13 +206,13 @@ export function startPackage(id: string, agent: string) {
     const activating = pkg.state === "ready";
     if (activating) data.status = "active";
     data.updated_at = new Date().toISOString().slice(0, 10);
-    const directory = join(root, ".a-team/packages", activating ? "active" : pkg.state);
+    const directory = workspacePath(root, "packages", activating ? "active" : pkg.state);
     mkdirSync(directory, { recursive: true });
     writeFileSync(join(directory, pkg.filename), renderMarkdown(data as Record<string, unknown>, entity.content));
     if (activating) unlinkSync(pkg.path);
     regenerateIndex(root);
-    git(root, ["add", ".a-team"]);
-    git(root, ["commit", "-m", `chore(a-team): start package ${id}`]);
+    git(root, ["add", workspaceDirectoryName(root)]);
+    git(root, ["commit", "-m", `chore(kotta): start package ${id}`]);
   }
   return {
     ok: failures.length === 0,
@@ -254,7 +254,7 @@ function inspectCoordinator(root: string, id: string, packageState: string, data
   if (git(root, ["status", "--porcelain"])) blockers.push(`The working tree at ${root} has pending changes; commit or remove them before cleanup.`);
   const ticketIds = Array.isArray(data.tickets) ? data.tickets.map(String) : [];
   // Claims are written inside the ticket's worktree, so check there as well as in the coordinator checkout.
-  const claimed = ticketIds.filter((ticketId) => [join(root, ".a-team/claims", `${ticketId}.yaml`), join(root, ".worktrees", ticketId, ".a-team/claims", `${ticketId}.yaml`)].some((path) => existsSync(path)));
+  const claimed = ticketIds.filter((ticketId) => [workspacePath(root, "claims", `${ticketId}.yaml`), workspacePath(join(root, ".worktrees", ticketId), "claims", `${ticketId}.yaml`)].some((path) => existsSync(path)));
   if (claimed.length) blockers.push(`Active claims remain for ${claimed.join(", ")}; close or release them before cleanup.`);
   const linked = linkedWorktrees(root);
   const ticketWorktrees = linked.filter((entry) => ticketIds.some((ticketId) => entry.path.endsWith(`/${ticketId}`)));
@@ -320,14 +320,14 @@ export function closePackage(id: string, approved: boolean, repositoryRoot?: str
   assertClean(root);
   data.status = "done";
   data.updated_at = new Date().toISOString().slice(0, 10);
-  const directory = join(root, ".a-team/packages/done");
+  const directory = workspacePath(root, "packages/done");
   mkdirSync(directory, { recursive: true });
   const destination = join(directory, pkg.filename);
   writeFileSync(destination, renderMarkdown(data as Record<string, unknown>, entity.content));
   unlinkSync(pkg.path);
   regenerateIndex(root);
-  git(root, ["add", ".a-team"]);
-  git(root, ["commit", "-m", `chore(a-team): close package ${id}`]);
+  git(root, ["add", workspaceDirectoryName(root)]);
+  git(root, ["commit", "-m", `chore(kotta): close package ${id}`]);
   return { ok: true, command: "package close", data: { id, status: "done", path: destination, changed: true } };
 }
 
@@ -375,6 +375,6 @@ function recordCleaned(root: string, path: string, entity: { content: string }, 
   data.updated_at = new Date().toISOString().slice(0, 10);
   writeFileSync(path, renderMarkdown(data as Record<string, unknown>, entity.content));
   regenerateIndex(root);
-  git(root, ["add", ".a-team"]);
-  git(root, ["commit", "-m", `chore(a-team): finalize package ${id}`]);
+  git(root, ["add", workspaceDirectoryName(root)]);
+  git(root, ["commit", "-m", `chore(kotta): finalize package ${id}`]);
 }

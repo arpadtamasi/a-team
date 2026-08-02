@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
-import { findRepositoryRoot } from "../filesystem/workspace.js";
+import { WORKSPACE_DIRECTORY_LABEL, findRepositoryRoot, hasWorkspace, workspacePath } from "../filesystem/workspace.js";
 import { PACKAGE_STATES, TICKET_STATES, idFromEntityFile } from "../filesystem/entities.js";
 import { validateTicketFile } from "../core/validation.js";
 import { validatePackage } from "./package.js";
@@ -29,7 +29,7 @@ function duplicateIssues(located: Map<string, Located[]>, kind: "ticket" | "pack
       const places = copies.map((copy) => `${copy.state} (${copy.path})`).join(" and ");
       issues.push({
         code: "DUPLICATE_STATE",
-        message: `${id} occupies ${states.length} state directories at once: ${places}. A merge kept both copies; run 'a-team ${kind} dedupe ${id} --approve' to keep the furthest-advanced one.`,
+        message: `${id} occupies ${states.length} state directories at once: ${places}. A merge kept both copies; run 'kotta ${kind} dedupe ${id} --approve' to keep the furthest-advanced one.`,
         path: copies[copies.length - 1].path,
       });
     }
@@ -40,13 +40,13 @@ function duplicateIssues(located: Map<string, Located[]>, kind: "ticket" | "pack
 export function validateWorkspace() {
   const root = findRepositoryRoot();
   const errors: Array<{ code: string; message: string; path?: string }> = [];
-  if (!existsSync(join(root, ".a-team"))) {
-    return { ok: false, command: "validate", data: { tickets: 0 }, errors: [{ code: "WORKSPACE_NOT_FOUND", message: `No .a-team workspace exists at ${root}. Run a-team init first.`, path: root }] };
+  if (!existsSync(workspacePath(root))) {
+    return { ok: false, command: "validate", data: { tickets: 0 }, errors: [{ code: "WORKSPACE_NOT_FOUND", message: `No ${WORKSPACE_DIRECTORY_LABEL} workspace exists at ${root}. Run kotta init first.`, path: root }] };
   }
   const seen = new Map<string, Located[]>();
   const references: Array<{ id: string; field: "depends_on" | "blocks"; reference: string; path: string }> = [];
   for (const state of TICKET_STATES) {
-    const directory = join(root, ".a-team", state);
+    const directory = workspacePath(root, state);
     if (!existsSync(directory)) continue;
     for (const filename of readdirSync(directory).filter((name) => name.endsWith(".md"))) {
       const path = join(directory, filename);
@@ -65,7 +65,7 @@ export function validateWorkspace() {
         // validateTicketFile already reports malformed frontmatter for this path.
       }
       if (state === "active") {
-        const claimPath = join(root, ".a-team/claims", `${id}.yaml`);
+        const claimPath = workspacePath(root, "claims", `${id}.yaml`);
         if (!existsSync(claimPath)) errors.push({ code: "MISSING_CLAIM", message: `Active ticket ${id} has no claim.`, path });
         else {
           const claimErrors = validateClaim(parse(readFileSync(claimPath, "utf8")) as Record<string, unknown>);
@@ -86,7 +86,7 @@ export function validateWorkspace() {
   }
   const seenPackages = new Map<string, Located[]>();
   for (const state of PACKAGE_STATES) {
-    const directory = join(root, ".a-team/packages", state);
+    const directory = workspacePath(root, "packages", state);
     if (!existsSync(directory)) continue;
     for (const filename of readdirSync(directory).filter((name) => name.endsWith(".md"))) {
       const path = join(directory, filename);
@@ -101,7 +101,7 @@ export function validateWorkspace() {
     }
   }
   errors.push(...duplicateIssues(seenPackages, "package"));
-  const decisionsDirectory = join(root, ".a-team/decisions");
+  const decisionsDirectory = workspacePath(root, "decisions");
   const decisions = existsSync(decisionsDirectory)
     ? readdirSync(decisionsDirectory).filter((name) => name.endsWith(".md"))
     : [];

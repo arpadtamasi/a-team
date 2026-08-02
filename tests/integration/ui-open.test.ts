@@ -29,7 +29,7 @@ afterEach(async () => {
 });
 
 function initializedRepository(label: string): string {
-  const root = mkdtempSync(join(tmpdir(), `a-team-ui-open-${label}-`));
+  const root = mkdtempSync(join(tmpdir(), `kotta-ui-open-${label}-`));
   execFileSync("git", ["init", "-b", "main"], { cwd: root });
   execFileSync("node", [cli, "init", "--json"], { cwd: root });
   return root;
@@ -68,14 +68,14 @@ const holdDefaultPort = () => new Promise<{ blocker: Server | null; busy: boolea
   server.listen(DEFAULT_UI_PORT, HOST, () => { servers.push(server); done({ blocker: server, busy: true }); });
 });
 
-describe("a-team ui browser handover", () => {
+describe("kotta ui browser handover", () => {
   test("hands the actual served url to the opener once the server listens", async () => {
     const opener = recordingOpener();
     const { server, stdout } = await runUi(initializedRepository("served"), { port: 0 }, opener.open);
     const port = (server.address() as { port: number }).port;
 
     expect(opener.urls).toEqual([`http://${HOST}:${port}`]);
-    expect(stdout).toContain(`A-Team UI: http://${HOST}:${port}`);
+    expect(stdout).toContain(`Kotta UI: http://${HOST}:${port}`);
     expect(server.listening).toBe(true);
   });
 
@@ -97,7 +97,7 @@ describe("a-team ui browser handover", () => {
 
     expect(opener.urls).toEqual([]);
     expect(server.listening).toBe(true);
-    expect(stdout).toContain("A-Team UI: http://");
+    expect(stdout).toContain("Kotta UI: http://");
   });
 
   test("--json opens nothing, because that mode is for automation", async () => {
@@ -117,7 +117,7 @@ describe("a-team ui browser handover", () => {
 
     expect(opener.urls).toEqual([`http://${HOST}:${port}`]);
     expect(stderr).toContain(`Warning: could not open http://${HOST}:${port} in a browser (no browser handler is registered).`);
-    expect(stdout).toContain(`A-Team UI: http://${HOST}:${port}`);
+    expect(stdout).toContain(`Kotta UI: http://${HOST}:${port}`);
     expect(server.listening).toBe(true);
     expect(process.exitCode).toBe(before);
     expect((await fetch(`http://${HOST}:${port}/api/agents`)).ok).toBe(true);
@@ -142,7 +142,7 @@ describe("the opener the ui resolves", () => {
   });
 });
 
-describe("a-team ui browser handover through the CLI", () => {
+describe("kotta ui browser handover through the CLI", () => {
   test("documents --no-open in help", () => {
     const help = execFileSync("node", [cli, "ui", "--help"], { encoding: "utf8" }).replace(/\s+/g, " ");
     expect(help).toContain("--no-open Print the URL without opening it in the default browser");
@@ -157,13 +157,13 @@ describe("a-team ui browser handover through the CLI", () => {
     const environment = { ...process.env, [UI_OPEN_COMMAND_ENV]: double, OPENER_RECORD: record };
 
     const opened = await startUi(root, ["--port", "0"], environment);
-    const url = opened.line.replace("A-Team UI: ", "").trim();
+    const url = opened.line.replace("Kotta UI: ", "").trim();
     expect(url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
     await waitFor(() => existsSync(record));
     expect(readFileSync(record, "utf8").trim().split("\n")).toEqual([url]);
 
     const suppressed = await startUi(root, ["--port", "0", "--no-open"], environment);
-    expect(suppressed.line).toMatch(/^A-Team UI: http:\/\/127\.0\.0\.1:\d+$/);
+    expect(suppressed.line).toMatch(/^Kotta UI: http:\/\/127\.0\.0\.1:\d+$/);
     await new Promise((done) => { setTimeout(done, 500); });
     expect(readFileSync(record, "utf8").trim().split("\n")).toEqual([url]);
   });

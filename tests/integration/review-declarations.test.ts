@@ -13,9 +13,9 @@ const run = (cwd: string, args: string[]) => {
 const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8" });
 
 const setup = () => {
-  const root = mkdtempSync(join(tmpdir(), "a-team-review-decl-"));
+  const root = mkdtempSync(join(tmpdir(), "kotta-review-decl-"));
   git(root, "init", "-b", "main");
-  git(root, "config", "user.name", "A-Team Test");
+  git(root, "config", "user.name", "Kotta Test");
   git(root, "config", "user.email", "test@example.com");
   writeFileSync(join(root, "README.md"), "fixture\n");
   git(root, "add", "."); git(root, "commit", "-m", "initial");
@@ -33,7 +33,7 @@ const setup = () => {
   return { root, worktree, id, filename: basename(path) };
 };
 
-const reviewedTicket = (worktree: string, filename: string) => readFileSync(join(worktree, ".a-team/review", filename), "utf8");
+const reviewedTicket = (worktree: string, filename: string) => readFileSync(join(worktree, ".kotta/review", filename), "utf8");
 const reviewEvidenceBlock = (content: string) => content.slice(content.indexOf("## Review evidence"));
 
 describe("review declarations", () => {

@@ -1,7 +1,7 @@
 import { mkdirSync, readdirSync, writeFileSync, readFileSync, existsSync, unlinkSync, renameSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parse as parseYaml, stringify } from "yaml";
-import { findRepositoryRoot, regenerateIndex } from "../filesystem/workspace.js";
+import { findRepositoryRoot, regenerateIndex, workspaceDirectoryName, workspacePath } from "../filesystem/workspace.js";
 import { findTicket } from "../filesystem/entities.js";
 import { entityFilename, mintId } from "../core/identity.js";
 import { parseMarkdown, renderMarkdown, sections } from "../core/markdown.js";
@@ -21,7 +21,7 @@ export function newTicket(options: { title: string; type: string; profiles: stri
   const root = repositoryRoot ?? findRepositoryRoot();
   const id = mintId("T");
   const filename = entityFilename(id, slugify(options.title));
-  const directory = join(root, ".a-team/backlog");
+  const directory = workspacePath(root, "backlog");
   // An empty state directory is not carried into a fresh worktree by Git; intake must still work there.
   mkdirSync(directory, { recursive: true });
   const path = join(directory, filename);
@@ -101,8 +101,8 @@ export function readyTicket(id: string, approved: boolean, repositoryRoot?: stri
   for (const dependency of dependencies) findTicket(root, dependency);
   entity.data.status = "ready";
   entity.data.updated_at = new Date().toISOString().slice(0, 10);
-  mkdirSync(join(root, ".a-team/ready"), { recursive: true });
-  const destination = join(root, ".a-team/ready", ticket.filename);
+  mkdirSync(workspacePath(root, "ready"), { recursive: true });
+  const destination = workspacePath(root, "ready", ticket.filename);
   writeFileSync(destination, renderMarkdown(entity.data, entity.content));
   try {
     assertValid(validateTicketFile(destination, "ready"));
@@ -121,7 +121,7 @@ export function startTicket(id: string, agent: string) {
   if (ticket.state !== "ready") throw new Error(`Ticket ${id} must be ready before start.`);
   assertValid(validateTicketFile(ticket.path, "ready"));
   assertClean(root);
-  const claimInBase = join(root, ".a-team/claims", `${id}.yaml`);
+  const claimInBase = workspacePath(root, "claims", `${id}.yaml`);
   if (existsSync(claimInBase)) throw new Error(`Ticket ${id} already has a claim.`);
   const entity = parseMarkdown(readFileSync(ticket.path, "utf8"));
   const dependencies = Array.isArray(entity.data.depends_on) ? entity.data.depends_on.map(String) : [];
@@ -136,9 +136,9 @@ export function startTicket(id: string, agent: string) {
   if (git(root, ["branch", "--list", branch])) throw new Error(`Branch already exists: ${branch}`);
   git(root, ["worktree", "add", worktree, "-b", branch, "HEAD"]);
   const worktreeTicket = findTicket(worktree, id);
-  const active = join(worktree, ".a-team/active", worktreeTicket.filename);
-  mkdirSync(join(worktree, ".a-team/active"), { recursive: true });
-  mkdirSync(join(worktree, ".a-team/claims"), { recursive: true });
+  const active = workspacePath(worktree, "active", worktreeTicket.filename);
+  mkdirSync(workspacePath(worktree, "active"), { recursive: true });
+  mkdirSync(workspacePath(worktree, "claims"), { recursive: true });
   const activeEntity = parseMarkdown(readFileSync(worktreeTicket.path, "utf8"));
   activeEntity.data.status = "active";
   activeEntity.data.branch = branch;
@@ -147,13 +147,13 @@ export function startTicket(id: string, agent: string) {
   writeFileSync(active, renderMarkdown(activeEntity.data, activeEntity.content));
   unlinkSync(worktreeTicket.path);
   const claim = { ticket: id, agent, branch, worktree: worktreeRelative, started_at: new Date().toISOString() };
-  writeFileSync(join(worktree, ".a-team/claims", `${id}.yaml`), stringify(claim));
+  writeFileSync(workspacePath(worktree, "claims", `${id}.yaml`), stringify(claim));
   regenerateIndex(worktree);
-  git(worktree, ["add", ".a-team"]);
-  git(worktree, ["commit", "-m", `chore(a-team): start ${id}`]);
+  git(worktree, ["add", workspaceDirectoryName(worktree)]);
+  git(worktree, ["commit", "-m", `chore(kotta): start ${id}`]);
   // D-009: the execution context exists, but the ticket still has to run in a FRESH agent
   // context. `ticket execute` is that path, so start names it instead of leaving it to discipline.
-  const nextStep = `a-team ticket execute ${id} --resume`;
+  const nextStep = `kotta ticket execute ${id} --resume`;
   return { ok: true, command: "ticket start", data: { id, branch, worktree, nextStep } };
 }
 
@@ -176,7 +176,7 @@ export function reviewTicket(id: string, evidence: string, pullRequest?: string,
   entity.data.updated_at = new Date().toISOString().slice(0, 10);
   const acceptance = sections(entity.content).get("acceptance")?.split(/\r?\n/).map((line) => /^\s*[-*]\s+(.+)/.exec(line)?.[1]).filter((line): line is string => Boolean(line)) ?? [];
   const profileChecks = (Array.isArray(entity.data.profiles) ? entity.data.profiles.map(String) : []).flatMap((profile) => {
-    const path = join(root, ".a-team/profiles", `${profile}.yaml`);
+    const path = workspacePath(root, "profiles", `${profile}.yaml`);
     if (!existsSync(path)) return [];
     const definition = parseYaml(readFileSync(path, "utf8")) as { done_checks?: unknown[] };
     return (definition.done_checks ?? []).map((check) => `${profile}: ${String(check)}`);
@@ -186,14 +186,14 @@ export function reviewTicket(id: string, evidence: string, pullRequest?: string,
   const evidenceRows = (checks.length ? checks : ["Ticket acceptance criteria"]).map((check) => `| ${check.replaceAll("|", "\\|")} | ${safeEvidence} |`).join("\n");
   const declared = (value: string | undefined) => (value !== undefined && value.trim() ? value.trim() : NOT_DECLARED);
   const reviewEvidence = `\n\n## Review evidence\n\n| Acceptance condition | Evidence |\n|---|---|\n${evidenceRows}\n\n### Verification performed\n\n${evidence}\n\n### Deviations\n\n${declared(declarations.deviations)}\n\n### Findings created\n\n${declared(declarations.findingsCreated)}\n\n### Known concerns\n\n${declared(declarations.knownConcerns)}\n`;
-  const destinationDirectory = join(root, ".a-team/review");
+  const destinationDirectory = workspacePath(root, "review");
   mkdirSync(destinationDirectory, { recursive: true });
   const destination = join(destinationDirectory, ticket.filename);
   writeFileSync(destination, renderMarkdown(entity.data, `${entity.content.trimEnd()}${reviewEvidence}`));
   unlinkSync(ticket.path);
   regenerateIndex(root);
-  git(root, ["add", ".a-team"]);
-  git(root, ["commit", "-m", `chore(a-team): submit ${id} for review`]);
+  git(root, ["add", workspaceDirectoryName(root)]);
+  git(root, ["commit", "-m", `chore(kotta): submit ${id} for review`]);
   return { ok: true, command: "ticket review", data: { id, pullRequest: pullRequest ?? null } };
 }
 
@@ -213,12 +213,12 @@ export function closeTicket(id: string, approved: boolean) {
   entity.data.status = "done";
   entity.data.resolution = "completed";
   entity.data.updated_at = new Date().toISOString().slice(0, 10);
-  const doneDirectory = join(root, ".a-team/done");
+  const doneDirectory = workspacePath(root, "done");
   mkdirSync(doneDirectory, { recursive: true });
   const destination = join(doneDirectory, ticket.filename);
   writeFileSync(destination, renderMarkdown(entity.data, entity.content));
   unlinkSync(ticket.path);
-  const claimPath = join(root, ".a-team/claims", `${id}.yaml`);
+  const claimPath = workspacePath(root, "claims", `${id}.yaml`);
   if (existsSync(claimPath)) unlinkSync(claimPath);
   updateContainingPackage(root, id);
   regenerateIndex(root);
@@ -226,8 +226,8 @@ export function closeTicket(id: string, approved: boolean) {
     git(root, ["worktree", "remove", worktree]);
   }
   git(root, ["branch", "-d", branch]);
-  git(root, ["add", ".a-team"]);
-  git(root, ["commit", "-m", `chore(a-team): close ${id}`]);
+  git(root, ["add", workspaceDirectoryName(root)]);
+  git(root, ["commit", "-m", `chore(kotta): close ${id}`]);
   return { ok: true, command: "ticket close", data: { id, resolution: "completed" } };
 }
 
@@ -239,14 +239,14 @@ export function cancelTicket(id: string, resolution: string, approved: boolean, 
   const ticket = findTicket(root, id);
   if (!["backlog", "ready"].includes(ticket.state)) throw new Error(`Ticket ${id} can only be cancelled from backlog or ready; ${ticket.state} tickets exit through reopen/close.`);
   if (!approved) throw new Error("Human cancel approval is required. Re-run with --approve after confirming the ticket should be retired.");
-  const claimPath = join(root, ".a-team/claims", `${id}.yaml`);
+  const claimPath = workspacePath(root, "claims", `${id}.yaml`);
   if (existsSync(claimPath)) throw new Error(`Ticket ${id} has a claim; a claimed ticket cannot be cancelled.`);
   assertClean(root);
   const entity = parseMarkdown(readFileSync(ticket.path, "utf8"));
   entity.data.status = "done";
   entity.data.resolution = resolution;
   entity.data.updated_at = new Date().toISOString().slice(0, 10);
-  const doneDirectory = join(root, ".a-team/done");
+  const doneDirectory = workspacePath(root, "done");
   mkdirSync(doneDirectory, { recursive: true });
   const destination = join(doneDirectory, ticket.filename);
   const candidate = `${destination}.cancel-${process.pid}.tmp`;
@@ -261,8 +261,8 @@ export function cancelTicket(id: string, resolution: string, approved: boolean, 
   unlinkSync(ticket.path);
   updateContainingPackage(root, id);
   regenerateIndex(root);
-  git(root, ["add", ".a-team"]);
-  git(root, ["commit", "-m", `chore(a-team): cancel ${id} (${resolution})`]);
+  git(root, ["add", workspaceDirectoryName(root)]);
+  git(root, ["commit", "-m", `chore(kotta): cancel ${id} (${resolution})`]);
   return { ok: true, command: "ticket cancel", data: { id, resolution, path: destination } };
 }
 
@@ -277,7 +277,7 @@ export function reopenTicket(id: string, approved: boolean) {
   entity.data.branch = null;
   entity.data.pull_request = null;
   entity.data.updated_at = new Date().toISOString().slice(0, 10);
-  const directory = join(root, ".a-team/backlog");
+  const directory = workspacePath(root, "backlog");
   mkdirSync(directory, { recursive: true });
   const destination = join(directory, ticket.filename);
   writeFileSync(destination, renderMarkdown(entity.data, entity.content));
@@ -325,7 +325,7 @@ export function briefTicket(id: string, options: { out?: string; warnTokens?: nu
   const entity = parseMarkdown(readFileSync(ticket.path, "utf8"));
 
   const referenced = [...new Set([...entity.content.matchAll(/\bD-\d{3,}\b/g)].map((match) => match[0]))].sort();
-  const decisionsDirectory = join(root, ".a-team/decisions");
+  const decisionsDirectory = workspacePath(root, "decisions");
   const decisions: { id: string; content: string }[] = [];
   const missingDecisions: string[] = [];
   for (const decisionId of referenced) {
@@ -336,11 +336,11 @@ export function briefTicket(id: string, options: { out?: string; warnTokens?: nu
 
   const profiles = Array.isArray(entity.data.profiles) ? entity.data.profiles.map(String) : [];
   const profileBlocks = profiles.flatMap((profile) => {
-    const path = join(root, ".a-team/profiles", `${profile}.yaml`);
+    const path = workspacePath(root, "profiles", `${profile}.yaml`);
     return existsSync(path) ? [{ profile, content: readFileSync(path, "utf8").trim() }] : [];
   });
 
-  const claimPath = join(root, ".a-team/claims", `${id}.yaml`);
+  const claimPath = workspacePath(root, "claims", `${id}.yaml`);
   const claim = existsSync(claimPath) ? readFileSync(claimPath, "utf8").trim() : null;
 
   const dependsOn = Array.isArray(entity.data.depends_on) ? entity.data.depends_on.map(String) : [];
@@ -366,7 +366,7 @@ export function briefTicket(id: string, options: { out?: string; warnTokens?: nu
     { name: `ticket ${id}`, text: `## Ticket\n\n${entity.content.trim()}` },
   ];
   for (const decision of decisions) parts.push({ name: `decision ${decision.id}`, text: `## Decision ${decision.id}\n\n${decision.content}` });
-  if (missingDecisions.length) parts.push({ name: "missing decisions", text: `## Missing decisions\n\nReferenced but not found in .a-team/decisions: ${missingDecisions.join(", ")}` });
+  if (missingDecisions.length) parts.push({ name: "missing decisions", text: `## Missing decisions\n\nReferenced but not found in the workspace decisions directory: ${missingDecisions.join(", ")}` });
   for (const block of profileBlocks) parts.push({ name: `profile ${block.profile}`, text: `## Profile: ${block.profile}\n\n\`\`\`yaml\n${block.content}\n\`\`\`` });
   if (claim) parts.push({ name: "claim", text: `## Claim\n\n\`\`\`yaml\n${claim}\n\`\`\`` });
 
@@ -400,7 +400,7 @@ const OPEN_PACKAGE_STATES = ["backlog", "ready", "active"] as const;
 
 function updateContainingPackage(root: string, ticketId: string): void {
   for (const state of OPEN_PACKAGE_STATES) {
-    const directory = join(root, ".a-team/packages", state);
+    const directory = workspacePath(root, "packages", state);
     if (!existsSync(directory)) continue;
     for (const filename of readdirSync(directory).filter((name) => name.endsWith(".md"))) {
       const path = join(directory, filename);
@@ -410,7 +410,7 @@ function updateContainingPackage(root: string, ticketId: string): void {
       entity.data.updated_at = new Date().toISOString().slice(0, 10);
       if (tickets.every((id) => findTicket(root, id).state === "done")) {
         entity.data.status = "done";
-        const done = join(root, ".a-team/packages/done");
+        const done = workspacePath(root, "packages/done");
         mkdirSync(done, { recursive: true });
         writeFileSync(join(done, filename), renderMarkdown(entity.data, entity.content));
         unlinkSync(path);

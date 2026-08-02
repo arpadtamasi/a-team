@@ -8,7 +8,7 @@ import { sections } from "../../src/core/markdown.js";
 
 describe("legacy migration fidelity", () => {
   test("preserves measured evidence instead of copying the outcome into bug evidence fields", () => {
-    const root = mkdtempSync(join(tmpdir(), "a-team-migration-source-"));
+    const root = mkdtempSync(join(tmpdir(), "kotta-migration-source-"));
     const source = join(root, "source");
     const output = join(root, "output");
     mkdirSync(join(source, "scrum/tickets"), { recursive: true });
@@ -76,7 +76,7 @@ The final implementation issues one read.
 
     const result = spawnSync("node", [resolve("scripts/migrate-oneanda-demo.mjs"), source, output, "--replace"], { cwd: resolve("."), encoding: "utf8" });
     expect(result.status, result.stderr || result.stdout).toBe(0);
-    const filename = join(output, ".a-team/ready/O-119-slow-summary.md");
+    const filename = join(output, ".kotta/ready/O-119-slow-summary.md");
     const parsed = matter(readFileSync(filename, "utf8"));
     const body = sections(parsed.content);
 
@@ -86,7 +86,7 @@ The final implementation issues one read.
     expect(body.get("legacy source contract")).toContain("35,652 ms");
     expect(body.get("legacy source contract")).toContain("HTTP 429");
 
-    const finding = matter(readFileSync(join(output, ".a-team/findings/new/O-15-duplicate-read.md"), "utf8"));
+    const finding = matter(readFileSync(join(output, ".kotta/findings/new/O-15-duplicate-read.md"), "utf8"));
     const findingBody = sections(finding.content);
     expect(findingBody.get("evidence")).toContain("fetched twice per request");
     expect(findingBody.get("evidence")).not.toContain("final implementation issues one read");

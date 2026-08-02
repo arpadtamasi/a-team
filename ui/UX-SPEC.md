@@ -1,4 +1,4 @@
-# A-Team UI — UX Redesign Spec
+# Kotta UI — UX Redesign Spec
 
 > **Superseded as the board's specification.** The board now implements the Kotta
 > Console v2 design, vendored at `design/kotta/Kotta Console v2.dc.html` with its
@@ -7,7 +7,7 @@
 > it and is stale wherever the two disagree. Captures of the shipped board are the
 > `v2-*.png` files in `ui/spec-assets/`.
 
-Audience: a design agent producing the next iteration of the local A-Team web UI.
+Audience: a design agent producing the next iteration of the local Kotta web UI.
 This is a UX spec, not a visual style guide. Layout, hierarchy, and flows are binding;
 colors, type, and ornamentation are the designer's to propose — subordinate to the UX.
 
@@ -15,9 +15,9 @@ colors, type, and ornamentation are the designer's to propose — subordinate to
 
 ## 1. What this product is
 
-A-Team is a repository-native dispatch system for human–AI development teams. All
-state lives as markdown/YAML files in the repo (`.a-team/`); the CLI is the only
-mutator; the UI is a local, single-operator control surface served by `a-team ui`.
+Kotta is a repository-native dispatch system for human–AI development teams. All
+state lives as markdown/YAML files in the repo (`.kotta/`); the CLI is the only
+mutator; the UI is a local, single-operator control surface served by `kotta ui`.
 
 **The core value is NOT "a ticket board."** It is the pipeline:
 

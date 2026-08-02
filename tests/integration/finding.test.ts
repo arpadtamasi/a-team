@@ -13,7 +13,7 @@ const run = (cwd: string, args: string[]) => {
 
 describe("finding disposition", () => {
   test("keeps a finding separate until a human resolves it into backlog work", () => {
-    const root = mkdtempSync(join(tmpdir(), "a-team-finding-"));
+    const root = mkdtempSync(join(tmpdir(), "kotta-finding-"));
     execFileSync("git", ["init", "-b", "main"], { cwd: root });
     writeFileSync(join(root, "README.md"), "fixture\n");
     run(root, ["init"]);
@@ -27,8 +27,8 @@ describe("finding disposition", () => {
     expect(resolved.ok).toBe(true);
     const ticketId = resolved.data.ticketId;
     expect(ticketId).toMatch(/^T-[0-9a-hjkmnp-tv-z]{26}$/);
-    expect(existsSync(join(root, ".a-team/findings/resolved", basename(created.data.path)))).toBe(true);
-    const ticket = join(root, ".a-team/backlog", `divergent-permission-checks-${ticketId.slice(-8)}.md`);
+    expect(existsSync(join(root, ".kotta/findings/resolved", basename(created.data.path)))).toBe(true);
+    const ticket = join(root, ".kotta/backlog", `divergent-permission-checks-${ticketId.slice(-8)}.md`);
     expect(readFileSync(ticket, "utf8")).toContain(`source_finding: ${findingId}`);
   });
 });

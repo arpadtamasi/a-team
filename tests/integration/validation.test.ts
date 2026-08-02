@@ -8,7 +8,7 @@ const cli = resolve("dist/cli/index.js");
 
 describe("workspace reference validation", () => {
   test("rejects dependencies and blockers that are absent from the current ticket graph", () => {
-    const root = mkdtempSync(join(tmpdir(), "a-team-dangling-reference-"));
+    const root = mkdtempSync(join(tmpdir(), "kotta-dangling-reference-"));
     execFileSync("git", ["init", "-b", "main"], { cwd: root });
     execFileSync("node", [cli, "init", "--json"], { cwd: root });
     const created = JSON.parse(execFileSync("node", [cli, "ticket", "new", "--title", "Release beta", "--type", "feature", "--json"], { cwd: root, encoding: "utf8" })) as { data: { path: string } };

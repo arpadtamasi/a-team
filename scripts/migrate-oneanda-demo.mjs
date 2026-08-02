@@ -5,7 +5,12 @@ import { stringify } from "yaml";
 
 const sourceRoot = resolve(process.argv[2] ?? "/Users/rp/Dev/ezchops/oneanda");
 const outputRoot = resolve(process.argv[3] ?? "examples/oneanda-migration");
-const workspace = basename(outputRoot) === ".a-team" ? outputRoot : join(outputRoot, ".a-team");
+// The demo writes into whichever workspace directory the target already uses, and creates the
+// current name (.kotta) when there is none — an existing .a-team snapshot is never renamed (T-020).
+const WORKSPACE_NAMES = [".kotta", ".a-team"];
+const workspace = WORKSPACE_NAMES.includes(basename(outputRoot))
+  ? outputRoot
+  : join(outputRoot, WORKSPACE_NAMES.find((name) => existsSync(join(outputRoot, name))) ?? ".kotta");
 const replace = process.argv.includes("--replace");
 const ticketSource = join(sourceRoot, "scrum/tickets");
 const backlogSource = join(sourceRoot, "scrum/backlog.md");
@@ -87,7 +92,7 @@ const splitDefinitions = {
 // Only explicitly shaped, requested outcomes become tickets. Evidence-backed observations,
 // review follow-ups, speculative risks and unresolved technical debt remain findings until a
 // human dispositions them. Terminal Scrum history is recorded in migration.json, not replayed
-// onto the operational A-Team board.
+// onto the operational Kotta board.
 const ticketLegacyIds = new Set([
   "O-3", "O-4", "O-5", "O-7", "O-8", "O-9", "O-11", "O-12", "O-13", "O-16",
   "O-22", "O-23", "O-24", "O-25", "O-30", "O-40", "O-42", "O-43", "O-44", "O-45",
@@ -239,7 +244,7 @@ for (const item of expanded) {
   const nonGoals = cleanText(legacy.sections.get("out of scope"), "No additional non-goals were stated in the legacy contract.");
   const reviewEvidence = status.state === "done" ? `\n\n## Review evidence\n\n${status.reason ?? cleanText(legacy.sections.get("result"), `Legacy ${legacy.data.status} state preserved during migration preview.`)}` : "";
   const bodyProfiles = profiles.map((profile) => profileSections(profile, item)).filter(Boolean).join("\n\n");
-  const content = `# ${item.id} — ${item.title}\n\n## Outcome\n\n${cleanText(item.outcome, item.title)}\n\n## Scope\n\n${scope}\n\n## Non-goals\n\n${nonGoals}\n\n## Acceptance\n\n${acceptance}\n\n## Verification\n\n${verification}\n\n## Constraints\n\nMigrated from ${legacyId}; lane: ${legacy.data.lane || "cross-cutting"}; legacy status: ${legacy.data.status}.\n\n## Open decisions\n\n${openQuestions}\n\n${bodyProfiles ? `${bodyProfiles}\n\n` : ""}${reviewEvidence}\n\n## Legacy source contract\n\nThe complete legacy body is preserved below. Its headings are demoted only to keep the A-Team contract structure unambiguous.\n\n${preservedLegacyContract(legacy)}\n\n## Execution notes\n\nMigration preview only. Source: scrum/tickets/${legacy.filename}. No product implementation or human ready approval is implied.\n`;
+  const content = `# ${item.id} — ${item.title}\n\n## Outcome\n\n${cleanText(item.outcome, item.title)}\n\n## Scope\n\n${scope}\n\n## Non-goals\n\n${nonGoals}\n\n## Acceptance\n\n${acceptance}\n\n## Verification\n\n${verification}\n\n## Constraints\n\nMigrated from ${legacyId}; lane: ${legacy.data.lane || "cross-cutting"}; legacy status: ${legacy.data.status}.\n\n## Open decisions\n\n${openQuestions}\n\n${bodyProfiles ? `${bodyProfiles}\n\n` : ""}${reviewEvidence}\n\n## Legacy source contract\n\nThe complete legacy body is preserved below. Its headings are demoted only to keep the Kotta contract structure unambiguous.\n\n${preservedLegacyContract(legacy)}\n\n## Execution notes\n\nMigration preview only. Source: scrum/tickets/${legacy.filename}. No product implementation or human ready approval is implied.\n`;
   const createdAt = String(legacy.data.created_at ?? today).slice(0, 10);
   const data = {
     id: item.id,
@@ -313,7 +318,7 @@ findingLegacy.forEach((legacy) => {
     severity: severityFor(legacy), discovered_during: null,
     created_at: String(legacy.data.created_at ?? today).slice(0, 10),
   };
-  const content = `# ${id} — ${title}\n\n## Observation\n\n${observation}\n\n## Evidence\n\n${evidence}\n\nLegacy source: ${legacyId} · scrum/tickets/${legacy.filename}.\n\n## Impact hypothesis\n\n${impact}\n\n## Confidence\n\n${data.confidence === "high" ? "High: the legacy record contains concrete observation or result evidence." : "Medium: the observation is recorded, but should be rechecked before scheduling work."}\n\n## Suggested disposition\n\n${suggested}\n\n## Legacy source contract\n\nThe complete legacy body is preserved below. Its headings are demoted only to keep the A-Team finding structure unambiguous.\n\n${preservedLegacyContract(legacy)}\n`;
+  const content = `# ${id} — ${title}\n\n## Observation\n\n${observation}\n\n## Evidence\n\n${evidence}\n\nLegacy source: ${legacyId} · scrum/tickets/${legacy.filename}.\n\n## Impact hypothesis\n\n${impact}\n\n## Confidence\n\n${data.confidence === "high" ? "High: the legacy record contains concrete observation or result evidence." : "Medium: the observation is recorded, but should be rechecked before scheduling work."}\n\n## Suggested disposition\n\n${suggested}\n\n## Legacy source contract\n\nThe complete legacy body is preserved below. Its headings are demoted only to keep the Kotta finding structure unambiguous.\n\n${preservedLegacyContract(legacy)}\n`;
   const filename = `${id}-${slugify(title)}.md`;
   writeFileSync(join(workspace, "findings/new", filename), matter.stringify(content, data));
   findingRecords.push({ id, legacy_id: legacyId, title, legacy_status: legacy.data.status, finding_type: data.finding_type, severity: data.severity, source_file: `scrum/tickets/${legacy.filename}` });
@@ -371,7 +376,7 @@ writeFileSync(join(workspace, "config.yaml"), stringify({
   packages: { default_parallelism: 2, stop_on_failure: true },
   validation: { strict: true, reject_unknown_profiles: true, require_verification_for_ready: true, require_review_evidence_for_done: true },
 }));
-writeFileSync(join(workspace, "README.md"), "# one&a A-Team workspace\n\nMigrated from the legacy Scrum files. Open work was deliberately separated into human-approved tickets and evidence awaiting disposition as findings. The legacy `scrum/` directory remains the historical source snapshot until cutover is explicitly accepted.\n");
-writeFileSync(join(workspace, "index.md"), `# A-Team Status\n\n> Generated migration workspace. Do not edit this index manually.\n\n- ${metadata.migrated_ticket_count} executable or explicitly requested tickets\n- ${metadata.finding_count} findings awaiting human disposition\n- ${metadata.excluded_terminal_count} terminal legacy records preserved only in migration.json\n- ${metadata.package_count} outcome packages\n- ${metadata.ready_candidate_count} backlog tickets have enough evidence to discuss readiness\n`);
+writeFileSync(join(workspace, "README.md"), "# one&a Kotta workspace\n\nMigrated from the legacy Scrum files. Open work was deliberately separated into human-approved tickets and evidence awaiting disposition as findings. The legacy `scrum/` directory remains the historical source snapshot until cutover is explicitly accepted.\n");
+writeFileSync(join(workspace, "index.md"), `# Kotta Status\n\n> Generated migration workspace. Do not edit this index manually.\n\n- ${metadata.migrated_ticket_count} executable or explicitly requested tickets\n- ${metadata.finding_count} findings awaiting human disposition\n- ${metadata.excluded_terminal_count} terminal legacy records preserved only in migration.json\n- ${metadata.package_count} outcome packages\n- ${metadata.ready_candidate_count} backlog tickets have enough evidence to discuss readiness\n`);
 
 console.log(JSON.stringify({ ok: true, source: legacyTickets.length, tickets: migrationRecords.length, findings: findingRecords.length, excludedTerminal: terminalLegacy.length, packages: packageDefinitions.length, output: workspace }, null, 2));

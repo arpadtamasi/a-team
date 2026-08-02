@@ -14,8 +14,8 @@ const run = (cwd: string, args: string[]) => {
 const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd });
 
 function repository(): string {
-  const root = mkdtempSync(join(tmpdir(), "a-team-safety-"));
-  git(root, "init", "-b", "main"); git(root, "config", "user.name", "A-Team Test"); git(root, "config", "user.email", "test@example.com");
+  const root = mkdtempSync(join(tmpdir(), "kotta-safety-"));
+  git(root, "init", "-b", "main"); git(root, "config", "user.name", "Kotta Test"); git(root, "config", "user.email", "test@example.com");
   writeFileSync(join(root, "README.md"), "fixture\n"); git(root, "add", "."); git(root, "commit", "-m", "initial");
   run(root, ["init"]);
   return root;
@@ -35,7 +35,7 @@ describe("mutation safety", () => {
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout)).toMatchObject({ ok: false });
     expect(existsSync(backlog)).toBe(true);
-    expect(existsSync(join(root, ".a-team/ready", basename(backlog)))).toBe(false);
+    expect(existsSync(join(root, ".kotta/ready", basename(backlog)))).toBe(false);
   });
 
   test("dirty repositories and duplicate starts are rejected without reusing a worktree", () => {

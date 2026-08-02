@@ -63,9 +63,9 @@ interface Fixture {
 }
 
 function fixture(label: string, options: { ready?: boolean } = {}): Fixture {
-  const repository = mkdtempSync(join(tmpdir(), `a-team-execute-${label}-`));
+  const repository = mkdtempSync(join(tmpdir(), `kotta-execute-${label}-`));
   git(repository, "init", "-b", "main");
-  git(repository, "config", "user.name", "A-Team Test");
+  git(repository, "config", "user.name", "Kotta Test");
   git(repository, "config", "user.email", "test@example.com");
   writeFileSync(join(repository, "README.md"), "fixture\n");
   expectOk(cliRun(repository, ["init", "--json"]));
@@ -110,7 +110,7 @@ None.
   git(repository, "add", "-A");
   git(repository, "commit", "-m", "fixture");
 
-  const tools = mkdtempSync(join(tmpdir(), `a-team-agent-${label}-`));
+  const tools = mkdtempSync(join(tmpdir(), `kotta-agent-${label}-`));
   const double = join(tools, "agent-double.mjs");
   writeFileSync(double, DOUBLE);
   chmodSync(double, 0o755);
@@ -118,11 +118,11 @@ None.
 }
 
 function agentEnvironment(fixtureUnderTest: Fixture, mode: string): Record<string, string> {
-  return { A_TEAM_AGENT_COMMAND: fixtureUnderTest.double, DOUBLE_RECORD: fixtureUnderTest.record, DOUBLE_MODE: mode, DOUBLE_MARKER: fixtureUnderTest.marker };
+  return { KOTTA_AGENT_COMMAND: fixtureUnderTest.double, DOUBLE_RECORD: fixtureUnderTest.record, DOUBLE_MODE: mode, DOUBLE_MARKER: fixtureUnderTest.marker };
 }
 
 function claimPath(repository: string, id: string): string {
-  return join(repository, ".worktrees", id, ".a-team/claims", `${id}.yaml`);
+  return join(repository, ".worktrees", id, ".kotta/claims", `${id}.yaml`);
 }
 
 describe("ticket execute (T-035 / D-009)", () => {
@@ -161,7 +161,7 @@ describe("ticket execute (T-035 / D-009)", () => {
     const { repository, id } = context;
     const result = cliRun(repository, ["ticket", "execute", id, "--agent", "codex"], agentEnvironment(context, "commit"));
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain(`a-team ticket execute ${id}: implemented`);
+    expect(result.stdout).toContain(`kotta ticket execute ${id}: implemented`);
     expect(result.stdout).toMatch(/brief:\s+~\d+ tokens/);
     expect(result.stdout).toContain(`agent:    codex (command: ${context.double})`);
     expect(result.stdout).toContain(`branch:   feat/${id}-ship-the-exporter`);
@@ -179,7 +179,7 @@ describe("ticket execute (T-035 / D-009)", () => {
     expect(json(result)).toMatchObject({ ok: false, data: { state: "agent-failed", exitCode: 3, ticketState: "active" }, errors: [{ code: "AGENT_FAILED" }] });
     expect(existsSync(claimPath(repository, id))).toBe(true);
     expect(existsSync(join(repository, ".worktrees", id))).toBe(true);
-    expect(existsSync(join(repository, ".worktrees", id, ".a-team/review"))).toBe(false);
+    expect(existsSync(join(repository, ".worktrees", id, ".kotta/review"))).toBe(false);
   });
 
   test("an empty agent result is agent-failed", () => {
@@ -239,7 +239,7 @@ describe("ticket execute (T-035 / D-009)", () => {
     expect(existsSync(dirty.record)).toBe(false);
 
     const missing = fixture("missing-agent");
-    const missingResult = cliRun(missing.repository, ["ticket", "execute", missing.id, "--agent", "claude", "--json"], { ...agentEnvironment(missing, "commit"), A_TEAM_AGENT_COMMAND: join(missing.repository, "no-such-agent") });
+    const missingResult = cliRun(missing.repository, ["ticket", "execute", missing.id, "--agent", "claude", "--json"], { ...agentEnvironment(missing, "commit"), KOTTA_AGENT_COMMAND: join(missing.repository, "no-such-agent") });
     expect(missingResult.status).not.toBe(0);
     expect(missingResult.stdout).toContain("Agent command not found");
     expect(missingResult.stdout).toContain("No execution context was created");
@@ -279,7 +279,7 @@ describe("ticket execute (T-035 / D-009)", () => {
     const { repository, id } = context;
     const human = cliRun(repository, ["ticket", "start", id, "--agent", "claude"]);
     expect(human.status).toBe(0);
-    expect(human.stdout).toContain(`a-team ticket execute ${id} --resume`);
+    expect(human.stdout).toContain(`kotta ticket execute ${id} --resume`);
     expect(human.stdout).toContain("fresh agent context");
     const state = expectOk(cliRun(repository, ["claim", "list", "--json"])) as { data: { claims: { ticket: string }[] } };
     expect(state.data.claims.map((claim) => claim.ticket)).toEqual([id]);
@@ -306,7 +306,7 @@ describe("ticket execute (T-035 / D-009)", () => {
 
     const result = JSON.parse(stdout) as { ok: boolean; data: { state: string }; errors: { code: string; message: string }[] };
     expect(result).toMatchObject({ ok: false, data: { state: "cancelled" }, errors: [{ code: "EXECUTION_CANCELLED" }] });
-    expect(result.errors[0].message).toContain(`a-team claim release ${id} --force`);
+    expect(result.errors[0].message).toContain(`kotta claim release ${id} --force`);
     expect(existsSync(claimPath(repository, id))).toBe(true);
     expect(existsSync(join(repository, ".worktrees", id))).toBe(true);
   });

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/arpadtamasi/a-team/schemas/claim.schema.json",
-  "title": "A-Team execution claim",
+  "$id": "https://github.com/arpadtamasi/kotta/schemas/claim.schema.json",
+  "title": "Kotta execution claim",
   "type": "object",
   "required": ["ticket", "agent", "branch", "worktree", "started_at"],
   "properties": {

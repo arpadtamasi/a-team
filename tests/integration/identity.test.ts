@@ -16,16 +16,16 @@ const run = (cwd: string, args: string[]) => {
 };
 
 function repository(label: string): string {
-  const root = mkdtempSync(join(tmpdir(), `a-team-identity-${label}-`));
+  const root = mkdtempSync(join(tmpdir(), `kotta-identity-${label}-`));
   git(root, "init", "-b", "main");
-  git(root, "config", "user.name", "A-Team Test");
+  git(root, "config", "user.name", "Kotta Test");
   git(root, "config", "user.email", "test@example.com");
   writeFileSync(join(root, "README.md"), "fixture\n");
   git(root, "add", ".");
   git(root, "commit", "-m", "initial");
   run(root, ["init"]);
   git(root, "add", "-A");
-  git(root, "commit", "-m", "init a-team");
+  git(root, "commit", "-m", "init kotta");
   return root;
 }
 
@@ -40,7 +40,7 @@ function writeSequentialTicket(root: string, id: string, slug: string, extra: Re
   const body = ["Outcome", "Scope", "Non-goals", "Acceptance", "Verification", "Constraints", "Open decisions", "Execution notes"]
     .map((heading) => `## ${heading}\n\n${heading === "Open decisions" ? "None." : "Preserved."}`)
     .join("\n\n");
-  const path = join(root, ".a-team/backlog", `${id}-${slug}.md`);
+  const path = join(root, ".kotta/backlog", `${id}-${slug}.md`);
   writeFileSync(path, `---\n${frontmatter}\n---\n# ${id} — ${slug}\n\n${body}\n`);
   return path;
 }
@@ -83,13 +83,13 @@ describe("coordination-free identity (D-003, narrowed by D-010)", () => {
       expect(`${merge.stdout}${merge.stderr}`).not.toContain("CONFLICT");
       expect(merge.status).toBe(0);
     }
-    const index = readFileSync(join(root, ".a-team/index.md"), "utf8");
+    const index = readFileSync(join(root, ".kotta/index.md"), "utf8");
     expect(index).not.toContain("<<<<<<<");
     for (const entry of minted) expect(index).toContain(`${entry.finding.id.slice(-8)}`);
 
     const validation = run(root, ["validate"]);
     expect(validation).toMatchObject({ ok: true });
-    expect(readdirSync(join(root, ".a-team/backlog")).filter((name) => name.endsWith(".md"))).toHaveLength(2);
+    expect(readdirSync(join(root, ".kotta/backlog")).filter((name) => name.endsWith(".md"))).toHaveLength(2);
 
     for (const { path } of worktrees) git(root, "worktree", "remove", path, "--force");
   });
@@ -112,7 +112,7 @@ describe("coordination-free identity (D-003, narrowed by D-010)", () => {
 
     // The legacy ticket still moves through the workflow under its own id and filename.
     expect(run(root, ["ticket", "ready", "T-001", "--approve"])).toMatchObject({ ok: true });
-    expect(readdirSync(join(root, ".a-team/ready"))).toEqual(["T-001-legacy-work.md"]);
+    expect(readdirSync(join(root, ".kotta/ready"))).toEqual(["T-001-legacy-work.md"]);
   });
 
   test("validate reports DUPLICATE_ID when two entities share one id, in either form", () => {
@@ -124,7 +124,7 @@ describe("coordination-free identity (D-003, narrowed by D-010)", () => {
       // Two distinct entities claiming one id inside a single state directory. One entity left in two
       // state directories is a different failure with a deterministic resolution (T-036).
       const twin = duplicate ? `${duplicate}-second-entity.md` : `second-entity-${basename(source).split("-").pop()}`;
-      copyFileSync(source, join(root, ".a-team/backlog", twin));
+      copyFileSync(source, join(root, ".kotta/backlog", twin));
 
       const report = attempt(root, ["validate"]);
       expect(report.status).toBe(1);

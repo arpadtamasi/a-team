@@ -12,6 +12,8 @@ import { FINDING_ID, PACKAGE_ID, TICKET_ID } from "../core/identity.js";
 import { newFinding, resolveFinding } from "./finding.js";
 import { newPackage, updatePackageTickets } from "./package.js";
 import { readyTicket } from "./ticket.js";
+import { ENV_PREFIX, readEnv } from "../core/env.js";
+import { WORKSPACE_DIRECTORIES, hasWorkspace, workspaceDirectoryName } from "../filesystem/workspace.js";
 
 const TICKET_STATES = ["backlog", "ready", "active", "review", "done"];
 const PACKAGE_STATES = ["backlog", "ready", "active", "done"];
@@ -20,16 +22,16 @@ function git(root: string, args: string[]): { ok: boolean; out: string } {
   const result = spawnSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
   return { ok: result.status === 0, out: result.stdout ?? "" };
 }
-function listMdFromRef(root: string, ref: string, subpath: string): string[] {
-  const result = git(root, ["ls-tree", "-r", "--name-only", ref, `.a-team/${subpath}`]);
+function listMdFromRef(root: string, ref: string, directory: string, subpath: string): string[] {
+  const result = git(root, ["ls-tree", "-r", "--name-only", ref, `${directory}/${subpath}`]);
   return result.ok ? result.out.split("\n").map((line) => line.trim()).filter((line) => line.endsWith(".md")) : [];
 }
 function readMdFromRef(root: string, ref: string, repoPath: string): string | null {
   const result = git(root, ["show", `${ref}:${repoPath}`]);
   return result.ok ? result.out : null;
 }
-function uncommittedMdAdds(root: string): string[] {
-  const result = git(root, ["status", "--porcelain", "--", ".a-team"]);
+function uncommittedMdAdds(root: string, directory: string): string[] {
+  const result = git(root, ["status", "--porcelain", "--", directory]);
   if (!result.ok) return [];
   return result.out.split("\n").filter(Boolean)
     .filter((line) => { const flag = line.slice(0, 2); return flag === "??" || flag.includes("A"); })
@@ -76,16 +78,16 @@ function parseTar(archive: Buffer): Map<string, string> {
   return files;
 }
 
-// In-process snapshot of `.a-team/` at the base commit, read with a single `git archive` subprocess
-// and cached on the commit hash: identical hash between reloads means no batch read at all. (T-029)
+// In-process snapshot of the workspace directory at the base commit, read with a single `git archive`
+// subprocess and cached on the commit hash: identical hash between reloads means no batch read. (T-029)
 let refSnapshotCache: { key: string; files: Map<string, string> } | null = null;
-function refSnapshot(root: string, commit: string): Map<string, string> | null {
-  const key = `${resolve(root)}\0${commit}`;
+function refSnapshot(root: string, commit: string, directory: string): Map<string, string> | null {
+  const key = `${resolve(root)}\0${commit}\0${directory}`;
   if (refSnapshotCache?.key === key) return refSnapshotCache.files;
-  const result = spawnSync("git", ["archive", "--format=tar", commit, "--", ".a-team"], { cwd: root, maxBuffer: 256 * 1024 * 1024 });
+  const result = spawnSync("git", ["archive", "--format=tar", commit, "--", directory], { cwd: root, maxBuffer: 256 * 1024 * 1024 });
   if (result.status !== 0 || !Buffer.isBuffer(result.stdout)) {
     const detail = (result.stderr ?? "").toString().trim() || "unknown error";
-    process.stderr.write(`a-team ui: batch read of .a-team at ${commit} failed (${detail}); falling back to per-file git reads.\n`);
+    process.stderr.write(`kotta ui: batch read of ${directory} at ${commit} failed (${detail}); falling back to per-file git reads.\n`);
     return null;
   }
   refSnapshotCache = { key, files: parseTar(result.stdout) };
@@ -96,11 +98,27 @@ function sectionObject(content: string): Record<string, string> {
   return Object.fromEntries([...sections(content)].map(([key, value]) => [key, value.trim()]));
 }
 
-export function readWorkspace(workspaceOption: string) {
+/**
+ * Where the board reads from: the workspace directory, the repository root above it, and the
+ * repo-relative directory name Git plumbing must use. `--workspace` may name either the repository
+ * root or the workspace directory itself, under either name (`.kotta` or `.a-team`, T-020).
+ */
+export function resolveWorkspaceLocation(workspaceOption: string): { workspace: string; projectRoot: string; directory: string } {
   const candidate = resolve(workspaceOption);
-  const workspace = existsSync(join(candidate, ".a-team")) ? join(candidate, ".a-team") : candidate;
-  if (!existsSync(join(workspace, "config.yaml"))) throw new Error(`No A-Team workspace found at ${workspace}.`);
-  const projectRoot = basename(workspace) === ".a-team" ? dirname(workspace) : workspace;
+  const named = (WORKSPACE_DIRECTORIES as readonly string[]).includes(basename(candidate));
+  const projectRoot = named ? dirname(candidate) : candidate;
+  if (named || hasWorkspace(candidate)) {
+    // A symlinked bridge between the two names points at one real directory; resolving to the real
+    // name keeps `git archive`/`ls-tree` — which see a symlink as a link, not as a tree — working.
+    const directory = workspaceDirectoryName(projectRoot);
+    return { workspace: join(projectRoot, directory), projectRoot, directory };
+  }
+  return { workspace: candidate, projectRoot: candidate, directory: basename(candidate) };
+}
+
+export function readWorkspace(workspaceOption: string) {
+  const { workspace, projectRoot, directory: workspaceDirectory } = resolveWorkspaceLocation(workspaceOption);
+  if (!existsSync(join(workspace, "config.yaml"))) throw new Error(`No Kotta workspace found at ${workspace}.`);
   const config = parse(readFileSync(join(workspace, "config.yaml"), "utf8")) as { project?: { name?: string }; git?: { base_branch?: string } };
   const base = config.git?.base_branch ?? "main";
   // Read from the base ref only when this workspace IS a git repo root with that ref; otherwise (non-git
@@ -110,22 +128,22 @@ export function readWorkspace(workspaceOption: string) {
   const onBase = useBase && baseInfo.branch === base;
   // Batched, cached ref-side content (T-029): one archive subprocess per base commit, memory-cached on
   // its hash. null (batch failure) falls back to the legacy per-file ls-tree/show path, loudly.
-  const refFiles = useBase ? refSnapshot(projectRoot, baseInfo.commit) : null;
+  const refFiles = useBase ? refSnapshot(projectRoot, baseInfo.commit, workspaceDirectory) : null;
   // Working-tree state is never cached: one status call per reload, filtered per subpath below.
-  const uncommittedAdds = onBase ? uncommittedMdAdds(projectRoot) : [];
+  const uncommittedAdds = onBase ? uncommittedMdAdds(projectRoot, workspaceDirectory) : [];
   const migrationPath = join(workspace, "migration.json");
   const migration = existsSync(migrationPath) ? JSON.parse(readFileSync(migrationPath, "utf8")) as { project?: string; tickets?: Array<{ id: string; [key: string]: unknown }> } : null;
   const migrationById = new Map((migration?.tickets ?? []).map((ticket) => [ticket.id, ticket]));
 
   // Derive the baseline entity set from the configured base ref (git plumbing, no checkout), so it does
   // not change when another process checks out a different branch in the primary working tree. When the
-  // primary dir IS on the base branch, union its uncommitted .a-team additions so freshly-created intake
+  // primary dir IS on the base branch, union its uncommitted workspace additions so freshly-created intake
   // shows immediately. Active worktrees are overlaid per ticket below. (T-016 / D-001)
   const readMd = (repoPath: string, fromRef: boolean): string =>
     (fromRef ? (refFiles?.get(repoPath) ?? readMdFromRef(projectRoot, base, repoPath)) : readFileSync(join(projectRoot, repoPath), "utf8")) ?? "";
   const listRefMd = (subpath: string): string[] => refFiles
-    ? [...refFiles.keys()].filter((path) => path.startsWith(`.a-team/${subpath}/`) && path.endsWith(".md"))
-    : listMdFromRef(projectRoot, base, subpath);
+    ? [...refFiles.keys()].filter((path) => path.startsWith(`${workspaceDirectory}/${subpath}/`) && path.endsWith(".md"))
+    : listMdFromRef(projectRoot, base, workspaceDirectory, subpath);
   const gather = (states: readonly string[], sub: (state: string) => string) => {
     const entries: Array<{ state: string; repoPath: string; fromRef: boolean }> = [];
     const seen = new Set<string>();
@@ -133,11 +151,11 @@ export function readWorkspace(workspaceOption: string) {
       const subpath = sub(state);
       if (useBase) {
         for (const path of listRefMd(subpath)) if (!seen.has(path)) { seen.add(path); entries.push({ state, repoPath: path, fromRef: true }); }
-        for (const path of uncommittedAdds.filter((candidate) => candidate.startsWith(`.a-team/${subpath}/`))) if (!seen.has(path)) { seen.add(path); entries.push({ state, repoPath: path, fromRef: false }); }
+        for (const path of uncommittedAdds.filter((candidate) => candidate.startsWith(`${workspaceDirectory}/${subpath}/`))) if (!seen.has(path)) { seen.add(path); entries.push({ state, repoPath: path, fromRef: false }); }
       } else {
         const dir = join(workspace, subpath);
         if (existsSync(dir)) for (const name of readdirSync(dir).filter((entry) => entry.endsWith(".md"))) {
-          const path = `.a-team/${subpath}/${name}`;
+          const path = `${workspaceDirectory}/${subpath}/${name}`;
           if (!seen.has(path)) { seen.add(path); entries.push({ state, repoPath: path, fromRef: false }); }
         }
       }
@@ -188,7 +206,7 @@ export function readWorkspace(workspaceOption: string) {
       sections: sectionObject(parsed.content),
     };
   });
-  return { workspace, project: migration?.project ?? config.project?.name ?? "A-Team workspace", migration, tickets, packages, findings, decisions, diagnostics, generatedAt: new Date().toISOString() };
+  return { workspace, project: migration?.project ?? config.project?.name ?? "Kotta workspace", migration, tickets, packages, findings, decisions, diagnostics, generatedAt: new Date().toISOString() };
 }
 
 function json(response: ServerResponse, status: number, value: unknown): void {
@@ -215,7 +233,7 @@ class CodexAppServer {
     });
     this.process.on("error", (error) => this.failAll(error));
     this.process.on("exit", (code) => this.failAll(new Error(`Codex app-server exited with code ${code ?? "unknown"}.`)));
-    this.ready = this.request("initialize", { clientInfo: { name: "a_team_pm", title: "A-Team PM", version: "0.1.0" } }).then(() => {
+    this.ready = this.request("initialize", { clientInfo: { name: "kotta_pm", title: "Kotta PM", version: "0.1.0" } }).then(() => {
       this.notify("initialized", {});
     });
   }
@@ -262,14 +280,14 @@ class CodexAppServer {
     let threadId = existingThreadId && this.threadTickets.get(existingThreadId) === scopeId ? existingThreadId : null;
     let isNew = false;
     if (!threadId) {
-      const result = await this.request("thread/start", { cwd: this.cwd, approvalPolicy: "never", sandbox: "workspace-write", serviceName: "a-team-pm" }) as { thread?: { id?: string } };
+      const result = await this.request("thread/start", { cwd: this.cwd, approvalPolicy: "never", sandbox: "workspace-write", serviceName: "kotta-pm" }) as { thread?: { id?: string } };
       threadId = result.thread?.id ?? null;
       if (!threadId) throw new Error("Codex did not return a thread id.");
       this.threadTickets.set(threadId, scopeId);
       isNew = true;
     }
     onEvent({ type: "thread", threadId });
-    const instruction = "You are inside the A-Team PM ticket chat. You may inspect and modify files inside the current workspace when the user asks you to implement or change something. Stay within the selected ticket's scope, avoid destructive operations, and report the files and verification performed. If you discover evidence-backed work outside this ticket's scope, do not silently expand the ticket and do not create another ticket: capture it as an A-Team finding with the canonical CLI so a human can disposition it.";
+    const instruction = "You are inside the Kotta PM ticket chat. You may inspect and modify files inside the current workspace when the user asks you to implement or change something. Stay within the selected ticket's scope, avoid destructive operations, and report the files and verification performed. If you discover evidence-backed work outside this ticket's scope, do not silently expand the ticket and do not create another ticket: capture it as a Kotta finding with the canonical CLI so a human can disposition it.";
     const input = isNew ? `${prompt}\n\n${instruction}` : prompt;
 
     await new Promise<void>(async (resolvePromise, reject) => {
@@ -331,14 +349,14 @@ export const UI_PORT_RETRY_BOUND = 20;
 const MAX_PORT = 65535;
 
 /** The handover seam: tests point this at a harmless binary so no suite ever launches a browser. */
-export const UI_OPEN_COMMAND_ENV = "A_TEAM_UI_OPEN_COMMAND";
+export const UI_OPEN_COMMAND_ENV = `${ENV_PREFIX}UI_OPEN_COMMAND`;
 
 /** Hands a URL to the desktop; rejects when the handover itself failed. */
 export type BrowserOpener = (url: string) => Promise<void>;
 
 /** The platform command that hands a URL to whatever browser the desktop already prefers. */
 export function resolveOpenCommand(platform: NodeJS.Platform = process.platform): { command: string; args: string[] } {
-  const override = process.env[UI_OPEN_COMMAND_ENV]?.trim();
+  const override = readEnv("UI_OPEN_COMMAND")?.trim();
   if (override) return { command: override, args: [] };
   if (platform === "darwin") return { command: "open", args: [] };
   // `start` is a shell builtin, and its first quoted argument is the window title, not the URL.
@@ -398,17 +416,17 @@ export async function bindUiServer(server: Server, host: string, requested?: num
       return { port: bound, fallback: requested === undefined && candidate !== start };
     } catch (error) {
       if (!isAddressInUse(error)) throw error;
-      if (requested !== undefined) throw new Error(`Port ${requested} on ${host} is already in use. Stop the process holding it, or run 'a-team ui' without --port to take the next free port.`);
+      if (requested !== undefined) throw new Error(`Port ${requested} on ${host} is already in use. Stop the process holding it, or run 'kotta ui' without --port to take the next free port.`);
     }
   }
   const last = candidates[candidates.length - 1] ?? start;
-  throw new Error(`Ports ${start}-${last} on ${host} are all in use. Free one of them, or run 'a-team ui --port <port>' with a port you know is free.`);
+  throw new Error(`Ports ${start}-${last} on ${host} are all in use. Free one of them, or run 'kotta ui --port <port>' with a port you know is free.`);
 }
 
 /** Returns the listening server so callers — tests above all — can shut it down. */
 export async function uiCommand(options: { workspace: string; port?: number; host: string; json?: boolean; open?: boolean }, open: BrowserOpener = openInBrowser): Promise<Server> {
   const initial = readWorkspace(options.workspace);
-  const projectRoot = basename(initial.workspace) === ".a-team" ? dirname(initial.workspace) : initial.workspace;
+  const projectRoot = resolveWorkspaceLocation(options.workspace).projectRoot;
   const agents = { codex: commandAvailable("codex"), claude: commandAvailable("claude") };
   let codex: CodexAppServer | null = null;
   const staticRoot = fileURLToPath(new URL("../../ui-dist", import.meta.url));
@@ -554,7 +572,7 @@ export async function uiCommand(options: { workspace: string; port?: number; hos
   const note = fallback ? `Port ${DEFAULT_UI_PORT} was busy; selected ${port}.\n` : "";
   process.stdout.write(options.json
     ? `${JSON.stringify({ ok: true, command: "ui", data: { url, host: options.host, port, workspace: initial.workspace, fallback } })}\n`
-    : `A-Team UI: ${url}\nWorkspace: ${initial.workspace}\n${note}Press Ctrl+C to stop.\n`);
+    : `Kotta UI: ${url}\nWorkspace: ${initial.workspace}\n${note}Press Ctrl+C to stop.\n`);
   // --json is for automation, so it never steals focus. A failed handover is a note, not a startup failure.
   if (!options.json && options.open !== false) {
     try {

@@ -150,7 +150,7 @@ and the successful and denied-request traces in pull request 14.
 ## Execution notes
 
 - Moved `backlog → ready` after the UI and workflow sections were completed.
-- Claimed as `agent-demo` on branch `a-team/T-014-add-filtered-export` in
+- Claimed as `agent-demo` on branch `kotta/T-014-add-filtered-export` in
   `.worktrees/T-014`; no implementation happened on `main`.
 - During execution, permission checks for archived courses were left unchanged
   and captured as `F-032`.

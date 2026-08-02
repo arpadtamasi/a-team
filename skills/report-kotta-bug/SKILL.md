@@ -1,16 +1,16 @@
 ---
-name: report-a-team-bug
-description: Prepare and, after explicit approval, submit a defect report about A-Team itself as a GitHub Issue in arpadtamasi/a-team. Use when a user or agent hits a bug in the a-team CLI, skills, local board, or public site and wants to report it.
+name: report-kotta-bug
+description: Prepare and, after explicit approval, submit a defect report about Kotta itself as a GitHub Issue in arpadtamasi/kotta. Use when a user or agent hits a bug in the kotta CLI, skills, local board, or public site and wants to report it.
 ---
 
-# Report an A-Team bug
+# Report a Kotta bug
 
-Report defects in **A-Team itself** — the `a-team` CLI, the bundled skills, the local board,
-or the public site. This never touches the user's own `.a-team` workspace: no ticket, no
+Report defects in **Kotta itself** — the `kotta` CLI, the bundled skills, the local board,
+or the public site. This never touches the user's own `.kotta` workspace: no ticket, no
 finding, no decision is created locally by this skill. The destination is always
-`arpadtamasi/a-team` on GitHub.
+`arpadtamasi/kotta` on GitHub.
 
-Issue form: `https://github.com/arpadtamasi/a-team/issues/new?template=bug.yml`
+Issue form: `https://github.com/arpadtamasi/kotta/issues/new?template=bug.yml`
 
 Say which step you are in as you go: `investigating` → `awaiting-approval` → `submitting` →
 `reported`, or `failed` with the draft intact. Never run two reports for the same defect at
@@ -21,8 +21,8 @@ once; if a draft already exists in this session, revise that draft instead of st
 Inspect only what you need to make the defect reproducible:
 
 - The exact command or interaction and its observable output.
-- The `a-team --version` output.
-- The relevant A-Team source or skill file, if you already read it.
+- The `kotta --version` output.
+- The relevant Kotta source or skill file, if you already read it.
 
 Separate **observed facts** from **impact hypotheses** and label them as such. Do not guess a
 root cause and report it as an observation.
@@ -32,7 +32,7 @@ root cause and report it as an observation.
 Search open issues before proposing a new one:
 
 ```bash
-gh issue list --repo arpadtamasi/a-team --state open --search "<key words>"
+gh issue list --repo arpadtamasi/kotta --state open --search "<key words>"
 ```
 
 Use the user's authenticated GitHub connector instead if one is available. If the search
@@ -75,9 +75,9 @@ Prepare exactly this structure — five required fields, no diagnostics:
 
 <what happened, redacted>
 
-### A-Team version
+### Kotta version
 
-<output of `a-team --version`, or "unknown">
+<output of `kotta --version`, or "unknown">
 ```
 
 Optional diagnostics are **off by default**. Adding any of them needs a separate per-report
@@ -94,7 +94,7 @@ Add only the fields the user ticks, for this report only, appended under a
 
 Show the user, verbatim and before any external write:
 
-- The destination repository: `arpadtamasi/a-team`.
+- The destination repository: `arpadtamasi/kotta`.
 - The exact issue title.
 - The exact issue body that will be sent.
 - The diagnostic fields included (`none` when the user opted out).
@@ -108,10 +108,10 @@ issue, send nothing, and return the draft as copyable Markdown.
 Prefer the user's already authenticated GitHub connector. Otherwise:
 
 ```bash
-gh issue create --repo arpadtamasi/a-team --title "<title>" --body-file <draft.md>
+gh issue create --repo arpadtamasi/kotta --title "<title>" --body-file <draft.md>
 ```
 
-Return the created issue URL. Never store, request, or read a GitHub token; A-Team itself
+Return the created issue URL. Never store, request, or read a GitHub token; Kotta itself
 holds no credential.
 
 ## 7. When submission is not possible
@@ -120,21 +120,21 @@ If no authenticated GitHub capability exists, `gh` is not installed or not logge
 submission fails, do not retry silently. Return:
 
 1. The complete sanitized report as copyable Markdown.
-2. The direct issue form URL: `https://github.com/arpadtamasi/a-team/issues/new?template=bug.yml`.
+2. The direct issue form URL: `https://github.com/arpadtamasi/kotta/issues/new?template=bug.yml`.
 
 Retry, if the user asks for one, reuses the same approved draft — never a re-sanitized or
 re-expanded one. GitHub remains authoritative for final duplicate detection.
 
-## 8. For A-Team maintainers only
+## 8. For Kotta maintainers only
 
-An incoming GitHub Issue is evidence, not scheduled work. Capture it in the A-Team
+An incoming GitHub Issue is evidence, not scheduled work. Capture it in the Kotta
 maintainer workspace as a finding and keep the issue URL in the evidence:
 
 ```bash
-a-team finding new --title "<issue title>" --type bug \
-  --evidence "https://github.com/arpadtamasi/a-team/issues/<n> — <reported facts>"
+kotta finding new --title "<issue title>" --type bug \
+  --evidence "https://github.com/arpadtamasi/kotta/issues/<n> — <reported facts>"
 ```
 
-The finding stays open until `a-team finding validate` and a human-approved
-`a-team finding resolve --disposition <disposition> --approve`. A GitHub Issue never creates a
+The finding stays open until `kotta finding validate` and a human-approved
+`kotta finding resolve --disposition <disposition> --approve`. A GitHub Issue never creates a
 ticket by itself.

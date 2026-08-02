@@ -32,7 +32,7 @@ describe("Observations", () => {
     expect(screen.getByRole("heading", { name: "Observations" })).toBeDefined();
     expect(screen.getByText(/Each one waits for one yes\/no — and stales\./)).toBeDefined();
     expect(screen.getByText(/stored as/).textContent).toContain("finding");
-    expect(screen.getByText(".a-team/findings/")).toBeDefined();
+    expect(screen.getByText(".kotta/findings/")).toBeDefined();
   });
 
   it("shows the waiting queue by title, ages it, and reports a filter change", () => {

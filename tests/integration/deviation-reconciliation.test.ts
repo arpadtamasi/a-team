@@ -14,7 +14,7 @@ interface TicketOptions {
 }
 
 const ticket = ({ state = "done", resolution = "completed", deviations, verification }: TicketOptions) => {
-  const root = mkdtempSync(join(tmpdir(), "a-team-deviation-"));
+  const root = mkdtempSync(join(tmpdir(), "kotta-deviation-"));
   const directory = join(root, state);
   mkdirSync(directory, { recursive: true });
   const path = join(directory, "T-001-document-flow.md");

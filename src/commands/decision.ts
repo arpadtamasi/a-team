@@ -2,7 +2,8 @@ import { existsSync, linkSync, mkdirSync, readFileSync, readdirSync, unlinkSync,
 import { join, resolve } from "node:path";
 import { decisionDraftFromSource, renderDecision, validateDecision, validateDecisionFile } from "../core/decision.js";
 import { mintId } from "../core/identity.js";
-import { findRepositoryRoot } from "../filesystem/workspace.js";
+import { WORKSPACE_DIRECTORY_LABEL, findRepositoryRoot, workspacePath } from "../filesystem/workspace.js";
+import { readEnv } from "../core/env.js";
 
 export interface CreateDecisionOptions {
   from: string;
@@ -15,8 +16,8 @@ export function createDecision(options: CreateDecisionOptions, repositoryRoot?: 
     throw new Error("Human approval is required to record a durable decision. Re-run with --approve after confirming the decision and consequences.");
   }
   const root = repositoryRoot ?? findRepositoryRoot();
-  const workspace = join(root, ".a-team");
-  if (!existsSync(workspace)) throw new Error(`No .a-team workspace exists at ${root}. Run a-team init first.`);
+  const workspace = workspacePath(root);
+  if (!existsSync(workspace)) throw new Error(`No ${WORKSPACE_DIRECTORY_LABEL} workspace exists at ${root}. Run kotta init first.`);
   const sourcePath = resolve(options.from);
   if (!existsSync(sourcePath)) throw new Error(`Decision source was not found: ${sourcePath}`);
   const id = options.id ?? mintId("D");
@@ -24,7 +25,7 @@ export function createDecision(options: CreateDecisionOptions, repositoryRoot?: 
   const errors = validateDecision(draft);
   if (errors.length) throw new Error(errors.map((error) => error.message).join("\n"));
 
-  // Git does not carry empty directories into a linked worktree, so `.a-team/decisions`
+  // Git does not carry empty directories into a linked worktree, so `<workspace>/decisions`
   // can be absent there even though the workspace exists.
   const directory = join(workspace, "decisions");
   mkdirSync(directory, { recursive: true });
@@ -36,9 +37,9 @@ export function createDecision(options: CreateDecisionOptions, repositoryRoot?: 
     writeFileSync(candidate, renderDecision(draft), { flag: "wx" });
     const candidateErrors = validateDecisionFile(candidate).filter((error) => error.code !== "DECISION_FILENAME_MISMATCH");
     if (candidateErrors.length) throw new Error(candidateErrors.map((error) => error.message).join("\n"));
-    const publishDelay = Number(process.env.A_TEAM_TEST_DECISION_PUBLISH_DELAY_MS ?? 0);
+    const publishDelay = Number(readEnv("TEST_DECISION_PUBLISH_DELAY_MS") ?? 0);
     if (publishDelay > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, publishDelay);
-    if (process.env.A_TEAM_TEST_FAIL_DECISION_BEFORE_PUBLISH === "1") {
+    if (readEnv("TEST_FAIL_DECISION_BEFORE_PUBLISH") === "1") {
       throw new Error("Injected decision write failure before atomic publication.");
     }
     try {

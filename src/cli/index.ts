@@ -17,7 +17,7 @@ import { dedupeEntity, describeDedupe, type DedupeResult } from "../commands/ded
 const program = new Command();
 const packagePath = fileURLToPath(new URL("../../package.json", import.meta.url));
 const packageVersion = String((JSON.parse(readFileSync(packagePath, "utf8")) as { version: unknown }).version);
-program.name("a-team").description("Repository-native human-AI development workflow").version(packageVersion);
+program.name("kotta").description("Repository-native human-AI development workflow").version(packageVersion);
 
 function print(result: unknown, json: boolean): void {
   process.stdout.write(json ? `${JSON.stringify(result)}\n` : `${humanize(result)}\n`);
@@ -35,28 +35,28 @@ function humanize(result: unknown): string {
       return [
         `Started ${String(data.id)}: branch ${String(data.branch)}, worktree ${String(data.worktree)}.`,
         `Next: run the ticket in a fresh agent context (D-009) — ${String(data.nextStep)}.`,
-        `'a-team ticket execute <id> --agent <agent>' does start, brief and agent launch in one command.`,
+        `'kotta ticket execute <id> --agent <agent>' does start, brief and agent launch in one command.`,
       ].join("\n");
     }
     if ((result as { command: unknown }).command === "decision create" && "data" in result) {
       const data = (result as { data: { id: unknown; path: unknown } }).data;
       return `Recorded decision ${String(data.id)} at ${String(data.path)}.`;
     }
-    return `a-team ${String((result as { command: unknown }).command)} completed.`;
+    return `kotta ${String((result as { command: unknown }).command)} completed.`;
   }
   return String(result);
 }
 
 program
   .command("init")
-  .description("Create a .a-team workspace")
+  .description("Create a .kotta workspace")
   .option("--project-name <name>")
   .option("--json")
   .action((options: { projectName?: string; json?: boolean }) => print(initCommand(options.projectName), Boolean(options.json)));
 
 program
   .command("validate")
-  .description("Validate the A-Team workspace")
+  .description("Validate the Kotta workspace")
   .option("--json")
   .action((options: { json?: boolean }) => print(validateWorkspace(), Boolean(options.json)));
 
@@ -251,8 +251,8 @@ claim
 
 program
   .command("ui")
-  .description("Serve the local filesystem-backed A-Team board")
-  .option("--workspace <path>", "Repository root or .a-team directory", ".")
+  .description("Serve the local filesystem-backed Kotta board")
+  .option("--workspace <path>", "Repository root or workspace directory", ".")
   .option("--port <port>", "Local port; omitted starts at 4311 and advances to the next free port")
   .option("--host <host>", "Bind host", "127.0.0.1")
   .option("--no-open", "Print the URL without opening it in the default browser")

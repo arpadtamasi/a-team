@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/arpadtamasi/a-team/schemas/finding.schema.json",
-  "title": "A-Team finding frontmatter",
+  "$id": "https://github.com/arpadtamasi/kotta/schemas/finding.schema.json",
+  "title": "Kotta finding frontmatter",
   "type": "object",
   "required": ["id", "title", "status", "origin", "finding_type", "confidence", "severity", "created_at"],
   "properties": {

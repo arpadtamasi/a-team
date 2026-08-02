@@ -16,7 +16,7 @@ const attempt = (cwd: string, args: string[]) => spawnSync("node", [cli, ...args
 
 describe("dependency-aware package", () => {
   test("creates a backlog package and keeps ticket membership in sync", () => {
-    const root = mkdtempSync(join(tmpdir(), "a-team-package-membership-"));
+    const root = mkdtempSync(join(tmpdir(), "kotta-package-membership-"));
     git(root, "init", "-b", "main");
     writeFileSync(join(root, "README.md"), "fixture\n");
     run(root, ["init"]);
@@ -35,8 +35,8 @@ describe("dependency-aware package", () => {
   });
 
   test("plans all dependency layers and starts only currently executable tickets", () => {
-    const root = mkdtempSync(join(tmpdir(), "a-team-package-"));
-    git(root, "init", "-b", "main"); git(root, "config", "user.name", "A-Team Test"); git(root, "config", "user.email", "test@example.com");
+    const root = mkdtempSync(join(tmpdir(), "kotta-package-"));
+    git(root, "init", "-b", "main"); git(root, "config", "user.name", "Kotta Test"); git(root, "config", "user.email", "test@example.com");
     writeFileSync(join(root, "README.md"), "fixture\n"); git(root, "add", "."); git(root, "commit", "-m", "initial");
     run(root, ["init"]);
     const tickets: Array<{ id: string; filename: string }> = [];
@@ -48,12 +48,12 @@ describe("dependency-aware package", () => {
       tickets.push({ id: created.data.id, filename: basename(path) });
     }
     const [parser, command] = tickets;
-    const second = join(root, ".a-team/ready", command.filename);
+    const second = join(root, ".kotta/ready", command.filename);
     writeFileSync(second, readFileSync(second, "utf8").replace("depends_on: []", `depends_on:\n  - ${parser.id}`));
     const packageId = (run(root, ["package", "new", "--title", "Parser slice", "--kind", "sprint", "--goal", "Deliver a parser slice"]) as { data: { id: string } }).data.id;
     run(root, ["package", "add", packageId, parser.id]);
     run(root, ["package", "add", packageId, command.id]);
-    const blockedBacklog = join(root, ".a-team/backlog", command.filename);
+    const blockedBacklog = join(root, ".kotta/backlog", command.filename);
     writeFileSync(blockedBacklog, readFileSync(second, "utf8").replace("status: ready", "status: backlog"));
     unlinkSync(second);
     expect(run(root, ["package", "ready", packageId, "--approve"])).toMatchObject({ ok: true, command: "package ready" });
@@ -61,7 +61,7 @@ describe("dependency-aware package", () => {
 
     expect(run(root, ["package", "validate", packageId])).toMatchObject({ ok: true, data: { waves: [[parser.id], [command.id]] } });
     expect(run(root, ["package", "start", packageId, "--agent", "codex"])).toMatchObject({ ok: true, data: { started: [parser.id], waiting: [command.id] } });
-    expect(existsSync(join(root, ".worktrees", parser.id, ".a-team/claims", `${parser.id}.yaml`))).toBe(true);
+    expect(existsSync(join(root, ".worktrees", parser.id, ".kotta/claims", `${parser.id}.yaml`))).toBe(true);
     expect(existsSync(join(root, ".worktrees", command.id))).toBe(false);
     expect(run(root, ["package", "status", packageId])).toMatchObject({
       ok: true,
@@ -76,9 +76,9 @@ describe("dependency-aware package", () => {
 
 /** An initialized repository with one commit, ready for package work. */
 function workspaceRepository(label: string): string {
-  const root = mkdtempSync(join(tmpdir(), `a-team-package-${label}-`));
+  const root = mkdtempSync(join(tmpdir(), `kotta-package-${label}-`));
   git(root, "init", "-b", "main");
-  git(root, "config", "user.name", "A-Team Test");
+  git(root, "config", "user.name", "Kotta Test");
   git(root, "config", "user.email", "test@example.com");
   writeFileSync(join(root, "README.md"), "fixture\n");
   git(root, "add", ".");
@@ -102,10 +102,10 @@ function definedTicket(root: string, title: string) {
 const snapshot = (root: string) => ({
   status: git(root, "status", "--porcelain"),
   head: git(root, "rev-parse", "HEAD"),
-  workspace: git(root, "ls-files", ".a-team"),
+  workspace: git(root, "ls-files", ".kotta"),
 });
 
-const packageFile = (root: string, state: string, filename: string) => join(root, ".a-team/packages", state, filename);
+const packageFile = (root: string, state: string, filename: string) => join(root, ".kotta/packages", state, filename);
 
 /**
  * The P-005 shape: a package still in `backlog` whose tickets reached done outside the package
@@ -130,7 +130,7 @@ function backlogPackageWithMembers(label: string, members: Array<"done" | "ready
 describe("package close", () => {
   test("closes a backlog package whose member tickets are all done", () => {
     const { root, packageId, filename, tickets } = backlogPackageWithMembers("closeable", ["done", "done"]);
-    const ticketsBefore = tickets.map((ticket) => readFileSync(join(root, ".a-team/done", ticket.filename), "utf8"));
+    const ticketsBefore = tickets.map((ticket) => readFileSync(join(root, ".kotta/done", ticket.filename), "utf8"));
 
     const closed = run(root, ["package", "close", packageId, "--approve"]);
     expect(closed).toMatchObject({ ok: true, command: "package close", data: { id: packageId, status: "done", changed: true } });
@@ -139,7 +139,7 @@ describe("package close", () => {
     expect(run(root, ["package", "status", packageId])).toMatchObject({ ok: true, data: { id: packageId, status: "done" } });
     expect(run(root, ["validate"])).toMatchObject({ ok: true });
     // Closing a package never touches its tickets.
-    expect(tickets.map((ticket) => readFileSync(join(root, ".a-team/done", ticket.filename), "utf8"))).toEqual(ticketsBefore);
+    expect(tickets.map((ticket) => readFileSync(join(root, ".kotta/done", ticket.filename), "utf8"))).toEqual(ticketsBefore);
     expect(git(root, "status", "--porcelain")).toBe("");
 
     // Re-closing a finished package is a no-op rather than an error.
@@ -159,7 +159,7 @@ describe("package close", () => {
     expect(snapshot(root)).toEqual(before);
     expect(readFileSync(packageFile(root, "backlog", filename), "utf8")).toBe(packageBefore);
     expect(existsSync(packageFile(root, "done", filename))).toBe(false);
-    expect(existsSync(join(root, ".a-team/ready", tickets[1].filename))).toBe(true);
+    expect(existsSync(join(root, ".kotta/ready", tickets[1].filename))).toBe(true);
   });
 
   test("requires human approval", () => {

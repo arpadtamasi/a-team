@@ -3,7 +3,7 @@ id: T-031
 title: >-
   A ticket review CLI maga irja be a 'Deviations: None.' szoveget — az F-019
   hazugsag-mintaja beepitett
-status: active
+status: review
 origin: finding
 types:
   - feature
@@ -63,5 +63,27 @@ Kis diff a `reviewTicket`-ben és a CLI-regisztrációban; a skill-szöveg egy b
 `npm run build:cli` zöld; `npx vitest run` teljes készlet zöld.
 
 ## Open decisions
+
+None.
+
+## Review evidence
+
+| Acceptance condition | Evidence |
+|---|---|
+| Ticket acceptance criteria | Acc1: '--deviations X' szo szerint a szakaszba kerul — integracios teszt. Acc2: flag nelkul 'Not declared.' mindharom szakaszban, 'None.' sehol; 'None.' csak explicit '--deviations None.'-nal — ket teszt. Acc3: submit-review skill kimondja a nyilatkozati kotelezettseget (SKILL.md:19). Acc4: teljes keszlet 16 fajl / 44 passed / 1 skipped; a review-close tesztek valtozatlanok (grep igazolta, hogy egyik sem allitott 'None.'-t). Validator-ellenorzes: a done-kapu nem kovetel konkret szoveget, 'Not declared.'-del nem torik. Brief ~780 token, friss kontextus, D-009. |
+
+### Verification performed
+
+Acc1: '--deviations X' szo szerint a szakaszba kerul — integracios teszt. Acc2: flag nelkul 'Not declared.' mindharom szakaszban, 'None.' sehol; 'None.' csak explicit '--deviations None.'-nal — ket teszt. Acc3: submit-review skill kimondja a nyilatkozati kotelezettseget (SKILL.md:19). Acc4: teljes keszlet 16 fajl / 44 passed / 1 skipped; a review-close tesztek valtozatlanok (grep igazolta, hogy egyik sem allitott 'None.'-t). Validator-ellenorzes: a done-kapu nem kovetel konkret szoveget, 'Not declared.'-del nem torik. Brief ~780 token, friss kontextus, D-009.
+
+### Deviations
+
+Az agens nyilatkozata: erdemi devicio nincs. Egy iteleti dontes: ures/whitespace '--deviations' is 'Not declared.'-kent ertelmezodik — a szerzodes ezt az elet nem rogzitette. A brief 'kotelezo' nyilatkozata skill-szintu kotelessegkent implementalva, nem CLI hard-requirementkent — a koordinator ezt elfogadta.
+
+### Findings created
+
+None.
+
+### Known concerns
 
 None.

@@ -20,11 +20,11 @@ None.
 
 ## Active tickets
 
-- T-031-a-ticket-review-cli-maga-irja-be-a-deviations-none-szoveget-
+None.
 
 ## Review
 
-None.
+- T-031-a-ticket-review-cli-maga-irja-be-a-deviations-none-szoveget-
 
 ## Blocked
 

@@ -16,11 +16,11 @@ None.
 
 ## Active contracts
 
-- T-022-a-szomszed-hasznalo-projektek-migracioja-oneanda-crm-kit-flo
+None.
 
 ## Review
 
-None.
+- T-022-a-szomszed-hasznalo-projektek-migracioja-oneanda-crm-kit-flo
 
 ## Blocked
 

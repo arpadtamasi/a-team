@@ -1,7 +1,7 @@
 ---
 id: T-022
 title: A szomszed workspace-ek migracioja a kotta migrate paranccsal
-status: review
+status: done
 origin: human
 types:
   - feature
@@ -17,6 +17,7 @@ pull_request: null
 created_at: '2026-08-01'
 updated_at: '2026-08-03'
 assigned_agent: claude
+resolution: completed
 ---
 # T-022 — A szomszéd workspace-ek migrációja a `kotta migrate` paranccsal
 

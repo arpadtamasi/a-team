@@ -1,5 +1,0 @@
-contract: T-022
-agent: claude
-branch: feat/T-022-a-szomszed-workspace-ek-migracioja-a-kotta-migrate-paranccsa
-worktree: .worktrees/T-022
-started_at: 2026-08-02T22:43:04.197Z

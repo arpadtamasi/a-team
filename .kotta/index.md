@@ -8,7 +8,7 @@ None.
 
 ## Active batches
 
-- P-004-teljes-rename-a-team-kotta
+None.
 
 ## Defined contracts
 
@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-- T-022-a-szomszed-hasznalo-projektek-migracioja-oneanda-crm-kit-flo
+None.
 
 ## Blocked
 

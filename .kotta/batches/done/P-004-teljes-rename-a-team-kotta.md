@@ -1,7 +1,7 @@
 ---
 id: P-004
 title: 'Teljes rename: a-team → kotta'
-status: active
+status: done
 contracts:
   - T-020
   - T-021
@@ -17,7 +17,7 @@ authority:
   reorder_independent_contracts: false
   change_scope: false
 created_at: '2026-08-01'
-updated_at: '2026-08-02'
+updated_at: '2026-08-03'
 coordinator:
   branch: coord/P-004
   base_branch: main

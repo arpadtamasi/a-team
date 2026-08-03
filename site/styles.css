@@ -1,4 +1,4 @@
-/* A-Team landing — "Modernist" design system.
+/* Kotta landing — "Modernist" design system.
    Muted paper ground, single warm-red accent, Archivo, and a hard
    2px editorial grid. Semantic static HTML, no build step, no JS. */
 :root {
@@ -223,9 +223,9 @@ main > section { border-bottom: 2px solid var(--divider); }
 .layers td { padding: 8px; vertical-align: top; border-bottom: 1px solid var(--divider); }
 .layers tbody th { padding: 8px; font-weight: 800; letter-spacing: -0.01em; border-bottom: 1px solid var(--divider); }
 .layers tbody td { color: color-mix(in srgb, var(--ink) 70%, transparent); }
-.layers tbody tr:hover:not(.a-team-row) { background: color-mix(in srgb, var(--ink) 4%, transparent); }
-.a-team-row { background: var(--ink); color: var(--bg); }
-.layers .a-team-row th, .layers .a-team-row td { color: var(--bg); border-bottom-color: var(--ink); }
+.layers tbody tr:hover:not(.kotta-row) { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.kotta-row { background: var(--ink); color: var(--bg); }
+.layers .kotta-row th, .layers .kotta-row td { color: var(--bg); border-bottom-color: var(--ink); }
 
 /* ── Quickstart ──────────────────────────────────────── */
 .quickstart-grid { display: grid; grid-template-columns: 1fr 1fr; border-top: 2px solid var(--divider); }
@@ -254,7 +254,7 @@ main > section { border-bottom: 2px solid var(--divider); }
 }
 .terminal-result span::before { content: "\2713"; color: var(--accent-700); font-weight: 700; }
 .file-label { font-family: var(--mono); font-size: 11.5px; margin-bottom: 8px; color: var(--muted); }
-.ticket-example {
+.contract-example {
   max-height: 352px; overflow: auto;
   border: 2px solid var(--divider); background: var(--surface) !important;
   color: var(--ink) !important; padding: 14px 16px !important;
@@ -314,7 +314,7 @@ footer { border-top: 0; }
   .layers table, .layers thead, .layers tbody, .layers tr, .layers th, .layers td { display: block; width: 100%; }
   .layers thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .layers tbody tr { padding: 14px 0; border-bottom: 2px solid var(--divider); }
-  .a-team-row { padding-inline: 16px; }
+  .kotta-row { padding-inline: 16px; }
   .layers tbody th { padding: 0 0 8px; font-size: 18px; border: 0; }
   .layers tbody td { display: grid; grid-template-columns: 9rem 1fr; gap: 10px; padding: 4px 0; border: 0; }
   .layers tbody td::before {
@@ -322,8 +322,8 @@ footer { border-top: 0; }
     letter-spacing: 0.08em; text-transform: uppercase;
     color: var(--muted);
   }
-  .a-team-row td { color: var(--bg); }
-  .a-team-row td::before { color: rgba(243, 242, 242, 0.7); }
+  .kotta-row td { color: var(--bg); }
+  .kotta-row td::before { color: rgba(243, 242, 242, 0.7); }
   .poster .trust-list li { flex: 1 1 100%; padding-right: 0; }
 }
 

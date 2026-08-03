@@ -7,19 +7,19 @@ import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { EntityDrawer, readBoard, type Workspace } from "../../ui/src/App";
-import { decision, finding, pkg, ticket, workspace } from "./fixtures";
+import { decision, observation, batch, contract, workspace } from "./fixtures";
 
 afterEach(cleanup);
 
 const populated = workspace({
-  tickets: [
-    ticket("T-012", "Make the UI workspace argument explicit", { status: "active", package: "P-003", source_finding: "F-001", assigned_agent: "codex", branch: "kotta/t-012", sections: { outcome: "The argument is explicit." } }),
-    ticket("T-013", "Add a discoverable bug-reporting path", { status: "review", package: "P-003" }),
-    ticket("T-014", "Port collision returns raw EADDRINUSE", { status: "ready", source_finding: "F-404" }),
-    ticket("T-019", "Sweep unfinished work", { status: "backlog" }),
+  contracts: [
+    contract("T-012", "Make the UI workspace argument explicit", { status: "active", batch: "P-003", source_observation: "F-001", assigned_agent: "codex", branch: "kotta/t-012", sections: { outcome: "The argument is explicit." } }),
+    contract("T-013", "Add a discoverable bug-reporting path", { status: "review", batch: "P-003" }),
+    contract("T-014", "Port collision returns raw EADDRINUSE", { status: "defined", source_observation: "F-404" }),
+    contract("T-019", "Sweep unfinished work", { status: "backlog" }),
   ],
-  packages: [pkg("P-003", "Trustworthy daily use", { status: "active", tickets: ["T-012", "T-013"], sections: { goal: "One module: truthful execution state." } })],
-  findings: [finding("F-001", "CLI help contradicts the --workspace default", { status: "resolved", became: "T-012", discovered_during: "T-019" })],
+  batches: [batch("P-003", "Trustworthy daily use", { status: "active", contracts: ["T-012", "T-013"], sections: { goal: "One module: truthful execution state." } })],
+  observations: [observation("F-001", "CLI help contradicts the --workspace default", { status: "resolved", became: "T-012", discovered_during: "T-019" })],
   decisions: [decision("D-001", "The directory is the state")],
 });
 
@@ -59,7 +59,7 @@ describe("Entity drawer — derivation", () => {
     openDrawer("T-014");
     const derivation = screen.getByRole("region", { name: "Derivation" });
     expect(within(derivation).getByText("dangling reference")).toBeDefined();
-    expect(within(derivation).getByText(/source_finding: F-404/)).toBeDefined();
+    expect(within(derivation).getByText(/source_observation: F-404/)).toBeDefined();
     expect(within(derivation).getByText(/no such entity on disk/)).toBeDefined();
   });
 

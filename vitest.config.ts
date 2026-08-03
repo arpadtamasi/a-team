@@ -11,9 +11,9 @@ export default defineConfig({
     // environment per file with `// @vitest-environment jsdom` on its first line, so
     // no CLI test can drift into jsdom by editing shared config. See tests/ui/.
     environment: "node",
-    // No test may launch a real browser: every `a-team ui` here — in process or spawned,
+    // No test may launch a real browser: every `kotta ui` here — in process or spawned,
     // which inherits this — hands its URL to a no-op instead of the platform opener.
-    env: { A_TEAM_UI_OPEN_COMMAND: "true" },
+    env: { KOTTA_UI_OPEN_COMMAND: "true" },
     exclude: [...configDefaults.exclude, "site/tests/**"],
   },
 });

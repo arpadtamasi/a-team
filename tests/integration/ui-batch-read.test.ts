@@ -28,8 +28,8 @@ function measure(): string[][] {
   return captured;
 }
 
-function ticket(id: string, status: string): string {
-  return `---\nid: ${id}\ntitle: Synthetic ticket ${id}\nstatus: ${status}\ntypes: [bug]\nprofiles: [bug]\n---\n# ${id} — Synthetic ticket\n\n## Outcome\n\nBatch reads stay fast.\n`;
+function contract(id: string, status: string): string {
+  return `---\nid: ${id}\ntitle: Synthetic contract ${id}\nstatus: ${status}\ntypes: [bug]\nprofiles: [bug]\n---\n# ${id} — Synthetic contract\n\n## Outcome\n\nBatch reads stay fast.\n`;
 }
 
 function run(root: string, args: string[]): void {
@@ -37,13 +37,14 @@ function run(root: string, args: string[]): void {
   if (result.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`);
 }
 
+// Legacy-name fixture on purpose (T-020): the batched ref read must work on a `.a-team/` workspace too.
 function bigWorkspace(entities: number, options: { checkoutSideBranch: boolean }): string {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "a-team-ui-batch-")));
-  mkdirSync(join(root, ".a-team/ready"), { recursive: true });
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "kotta-ui-batch-")));
+  mkdirSync(join(root, ".a-team/defined"), { recursive: true });
   writeFileSync(join(root, ".a-team/config.yaml"), "version: 1\nproject:\n  name: batch-fixture\n");
   for (let index = 1; index <= entities; index++) {
     const id = `T-${String(index).padStart(3, "0")}`;
-    writeFileSync(join(root, `.a-team/ready/${id}-synthetic.md`), ticket(id, "ready"));
+    writeFileSync(join(root, `.a-team/defined/${id}-synthetic.md`), contract(id, "defined"));
   }
   run(root, ["init", "-b", "main"]);
   run(root, ["add", "-A"]);
@@ -52,9 +53,9 @@ function bigWorkspace(entities: number, options: { checkoutSideBranch: boolean }
   return root;
 }
 
-function commitTicketOnMain(root: string, id: string): void {
+function commitContractOnMain(root: string, id: string): void {
   run(root, ["checkout", "-q", "main"]);
-  writeFileSync(join(root, `.a-team/ready/${id}-synthetic.md`), ticket(id, "ready"));
+  writeFileSync(join(root, `.a-team/defined/${id}-synthetic.md`), contract(id, "defined"));
   run(root, ["add", "-A"]);
   run(root, ["commit", "-m", `fixture: add ${id}`]);
   run(root, ["checkout", "-q", "work"]);
@@ -68,9 +69,9 @@ describe("batched, cached base-ref reads (T-029)", () => {
     const workspace = readWorkspace(root);
     const calls = measure();
 
-    expect(workspace.tickets).toHaveLength(210);
-    expect(workspace.tickets.every((entry) => entry.status === "ready")).toBe(true);
-    expect(workspace.tickets.find((entry) => entry.id === "T-210")).toMatchObject({ title: "Synthetic ticket T-210" });
+    expect(workspace.contracts).toHaveLength(210);
+    expect(workspace.contracts.every((entry) => entry.status === "defined")).toBe(true);
+    expect(workspace.contracts.find((entry) => entry.id === "T-210")).toMatchObject({ title: "Synthetic contract T-210" });
     expect(calls.length).toBeLessThanOrEqual(2);
     expect(calls.map((args) => args[0]).sort()).toEqual(["archive", "rev-parse"]);
   });
@@ -80,32 +81,32 @@ describe("batched, cached base-ref reads (T-029)", () => {
     const workspace = readWorkspace(root);
     const calls = measure();
 
-    expect(workspace.tickets).toHaveLength(210);
+    expect(workspace.contracts).toHaveLength(210);
     expect(calls.map((args) => args[0])).not.toContain("archive");
     expect(calls.map((args) => args[0])).not.toContain("show");
     expect(calls).toHaveLength(1); // rev-parse only
   });
 
   test("a new commit on the base ref invalidates the cache and refreshes the data", () => {
-    commitTicketOnMain(root, "T-211");
+    commitContractOnMain(root, "T-211");
     measure();
     const workspace = readWorkspace(root);
     const calls = measure();
 
     expect(calls.map((args) => args[0])).toContain("archive");
-    expect(workspace.tickets).toHaveLength(211);
-    expect(workspace.tickets.find((entry) => entry.id === "T-211")).toMatchObject({ status: "ready" });
+    expect(workspace.contracts).toHaveLength(211);
+    expect(workspace.contracts.find((entry) => entry.id === "T-211")).toMatchObject({ status: "defined" });
   });
 
   test("on the base branch, uncommitted additions still show with one extra status call", () => {
     const base = bigWorkspace(3, { checkoutSideBranch: false });
-    writeFileSync(join(base, ".a-team/ready/T-004-synthetic.md"), ticket("T-004", "ready"));
+    writeFileSync(join(base, ".a-team/defined/T-004-synthetic.md"), contract("T-004", "defined"));
     measure();
     const workspace = readWorkspace(base);
     const calls = measure();
 
-    expect(workspace.tickets).toHaveLength(4);
-    expect(workspace.tickets.find((entry) => entry.id === "T-004")).toMatchObject({ status: "ready" });
+    expect(workspace.contracts).toHaveLength(4);
+    expect(workspace.contracts.find((entry) => entry.id === "T-004")).toMatchObject({ status: "defined" });
     expect(calls.map((args) => args[0]).sort()).toEqual(["archive", "rev-parse", "status"]);
   });
 
@@ -118,8 +119,8 @@ describe("batched, cached base-ref reads (T-029)", () => {
       const workspace = readWorkspace(fallbackRoot);
       const calls = measure();
 
-      expect(workspace.tickets).toHaveLength(5);
-      expect(workspace.tickets.find((entry) => entry.id === "T-003")).toMatchObject({ status: "ready" });
+      expect(workspace.contracts).toHaveLength(5);
+      expect(workspace.contracts.find((entry) => entry.id === "T-003")).toMatchObject({ status: "defined" });
       expect(calls.map((args) => args[0])).toContain("show");
       expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining("falling back to per-file git reads"));
     } finally {

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to A-Team will be documented in this file.
+All notable changes to Kotta (called A-Team before 0.3.0) will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
@@ -8,11 +8,71 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **The vocabulary is now observation / contract / batch, and one command carries any workspace
+  across (D-01kz240dn155hb97h6px6n2p85).** `finding` → **observation**, `ticket` → **contract**,
+  `package` → **batch**, and the previously decided `ready` → `defined` rides along. Every layer moves
+  together: CLI verbs (`kotta observation`, `kotta contract`, `kotta batch`), stored state directories
+  (`defined/`, `observations/`, `batches/`), frontmatter fields (`package` → `batch`,
+  `source_finding` → `source_observation`, a batch's `tickets` → `contracts`, `finding_type` →
+  `observation_type`, a claim's `ticket` → `contract`), the config file (`packages:` → `batches:`,
+  `version: 2`), the JSON schemas, the API routes, the bundled skills and the documentation. The
+  promotion verb needed a new name, because `define` already means writing the contract: a contract
+  becomes binding when it is **signed**, so `kotta contract sign <id> --approve` and
+  `kotta batch sign <id> --approve` produce the `defined` state.
+
+- **`kind` is gone from batches.** With the entity called a batch, `kind: batch` was a tautology and
+  `sprint`/`milestone`/`mission` never carried meaning — all 21 batches in the largest workspace were
+  `kind: batch`. `batch new` no longer accepts `--kind`, the field is out of the schema, and a batch
+  file that still carries it loads with a warning naming `kotta migrate`.
+
+- **Identifiers do not move (D-010).** No id, no filename and no reference *value* changes: this is
+  vocabulary, not identity. `kotta migrate` compares the id set before and after and refuses to lose
+  one.
+
+### Added
+
+- **`kotta migrate`** — one command that takes a workspace from any older shape to the current one:
+  the workspace directory (`.a-team` → `.kotta`), the entity directories, the stored statuses, the
+  frontmatter field names and the config. `--dry-run` reports exactly what it would change and writes
+  nothing; running it twice reports "already on the current shape"; an interrupted run is finished by
+  running it again, because every step is derived from what is on disk rather than from a progress
+  marker. It is the only reader of the old shape — every other command refuses a pre-vocabulary
+  workspace with an error that names it. This repository's own workspace was migrated by running it.
+
+- **The board explains an empty page instead of showing one.** The board reads a stable base ref, not
+  the working tree, so a migration that has not reached that ref yet leaves the header path right and
+  the content gone. `kotta migrate` says so in its output, and `/api/workspace` now carries `notices`
+  that the board renders above everything else — naming which side it read, how many entities the
+  other side has, and what closes the gap.
+
+### Changed (earlier in this release)
+
+- **The product is renamed A-Team → Kotta (D-005, D-006, D-007), and the rename costs an existing
+  workspace nothing.** The npm package is now `kotta` (0.3.0) and the old `@arpadtamasi/a-team` is
+  deprecated in favour of it; the CLI binary is `kotta`, with `a-team` installed as an alias of the same
+  entrypoint reporting the same version. `.kotta/` is the workspace directory: `kotta init` creates it,
+  discovery finds it first, and it is what the status output and the board header show. A workspace
+  under the pre-rename name is still discovered and used as-is, so no repository has to migrate; when
+  one wants to, `git mv` plus a backwards symlink keeps history and old scripts intact, and a symlinked
+  name always loses to a real sibling so Git plumbing keeps reading the tracked tree. Two real
+  directories are the one ambiguous case: the CLI uses `.kotta/` and prints a warning naming the
+  directory it ignored. `init` refuses to add a second workspace beside an existing one under either
+  name. Environment overrides are `KOTTA_*`, with the `A_TEAM_*` names still read. Documentation, the
+  site (now published at `arpadtamasi.github.io/kotta/`), the schemas and the skills carry the new name;
+  `/setup-a-team` and `/report-a-team-bug` are now `/setup-kotta` and `/report-kotta-bug`. The README
+  section "Renamed from A-Team" is the single description of the compatibility. Behaviour is otherwise
+  unchanged: this release renames, it does not change what any command does.
+
+- This repository migrated its own workspace to `.kotta/` (T-021) with `git mv` and a committed
+  `.a-team → .kotta` symlink — the first instance of the documented migration, and the model the
+  remaining Kotta-using projects follow. All 118 workspace files moved with their history; the
+  `index.md merge=union` attribute moved with them.
+
 - Entity identifiers are minted without coordination (T-034, D-003 narrowed by D-010): `ticket new`,
   `finding new`, `package new` and `decision create` produce `<type>-<ULID>` instead of scanning the
   branch for `max + 1`, so two agents on two branches can no longer be handed the same id. New entity
-  files are named `slug-<short id>.md`; `.a-team/index.md` is merged with Git's `union` driver, which
-  `a-team init` now records in `.gitattributes`. Existing sequential identifiers, filenames and
+  files are named `slug-<short id>.md`; the generated `index.md` is merged with Git's `union` driver,
+  which `kotta init` now records in `.gitattributes` for the workspace directory it created. Existing sequential identifiers, filenames and
   references are untouched and stay valid indefinitely — `validate` accepts both forms and reports
   `DUPLICATE_ID` if two entities ever share one.
 
@@ -46,7 +106,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - `decision create` no longer fails with `ENOENT` in a freshly created worktree (T-01kz1g2vra99x0xhw144x6rke4). Git does not
-  carry the empty `.a-team/decisions` directory into a linked worktree, so the writer now creates it
+  carry the empty `decisions/` workspace directory into a linked worktree, so the writer now creates it
   before reading, the way every other writer already does. Nothing about a decision's content or id
   derivation changes.
 

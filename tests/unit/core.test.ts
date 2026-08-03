@@ -2,23 +2,23 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { branchName } from "../../src/commands/ticket.js";
-import { planPackageWaves } from "../../src/commands/package.js";
+import { branchName } from "../../src/commands/contract.js";
+import { planBatchWaves } from "../../src/commands/batch.js";
 import { validateClaim } from "../../src/core/claim.js";
-import { TICKET_ID, displayId, entityFilename, filenameMatchesId, isMintedId, mintId, shortId } from "../../src/core/identity.js";
+import { CONTRACT_ID, displayId, entityFilename, filenameMatchesId, isMintedId, mintId, shortId } from "../../src/core/identity.js";
 import { createDecision } from "../../src/commands/decision.js";
 import { decisionDraftFromSource, renderDecision, validateDecision } from "../../src/core/decision.js";
 
 describe("core deterministic rules", () => {
-  test("generates stable branch names from ticket type and title", () => {
+  test("generates stable branch names from contract type and title", () => {
     expect(branchName("performance", "T-018", "Faster export: P95 ≤ 2s")).toBe("perf/T-018-faster-export-p95-2s");
   });
 
   test("plans dependency waves and rejects cycles", () => {
-    expect(planPackageWaves(["T-001", "T-002", "T-003"], new Map([
+    expect(planBatchWaves(["T-001", "T-002", "T-003"], new Map([
       ["T-001", []], ["T-002", ["T-001"]], ["T-003", []],
     ]))).toEqual([["T-001", "T-003"], ["T-002"]]);
-    expect(() => planPackageWaves(["T-001", "T-002"], new Map([
+    expect(() => planBatchWaves(["T-001", "T-002"], new Map([
       ["T-001", ["T-002"]], ["T-002", ["T-001"]],
     ]))).toThrow("Dependency cycle detected");
   });
@@ -26,15 +26,15 @@ describe("core deterministic rules", () => {
   test("mints identifiers without reading the workspace, so two branches cannot collide", () => {
     const minted = new Set(Array.from({ length: 2000 }, () => mintId("T")));
     expect(minted.size).toBe(2000);
-    for (const id of minted) expect(TICKET_ID.test(id)).toBe(true);
+    for (const id of minted) expect(CONTRACT_ID.test(id)).toBe(true);
     // Time-sortable: an id minted later sorts after one minted earlier, lexicographically.
     expect(mintId("T", 1_700_000_000_000) < mintId("T", 1_700_000_000_001)).toBe(true);
     expect(isMintedId("T-034")).toBe(false);
   });
 
   test("keeps sequential identifiers valid and resolvable beside minted ones (D-010)", () => {
-    for (const legacy of ["T-001", "T-034", "O-107", "O-38.1"]) expect(TICKET_ID.test(legacy)).toBe(true);
-    expect(TICKET_ID.test("T-01")).toBe(false);
+    for (const legacy of ["T-001", "T-034", "O-107", "O-38.1"]) expect(CONTRACT_ID.test(legacy)).toBe(true);
+    expect(CONTRACT_ID.test("T-01")).toBe(false);
 
     const id = mintId("T");
     expect(entityFilename(id, "ship-export")).toBe(`ship-export-${shortId(id)}.md`);
@@ -51,12 +51,12 @@ describe("core deterministic rules", () => {
   });
 
   test("validates the complete claim contract", () => {
-    expect(validateClaim({ ticket: "T-014", agent: "codex", branch: "feat/T-014-export", worktree: ".worktrees/T-014", started_at: "2026-07-21T10:15:00+02:00" })).toEqual([]);
-    expect(validateClaim({ ticket: "O-107", agent: "codex", branch: "feat/O-107-audit", worktree: ".worktrees/O-107", started_at: "2026-07-21T10:15:00+02:00" })).toEqual([]);
+    expect(validateClaim({ contract: "T-014", agent: "codex", branch: "feat/T-014-export", worktree: ".worktrees/T-014", started_at: "2026-07-21T10:15:00+02:00" })).toEqual([]);
+    expect(validateClaim({ contract: "O-107", agent: "codex", branch: "feat/O-107-audit", worktree: ".worktrees/O-107", started_at: "2026-07-21T10:15:00+02:00" })).toEqual([]);
     const minted = mintId("T");
-    expect(validateClaim({ ticket: minted, agent: "codex", branch: `feat/${minted}-export`, worktree: `.worktrees/${minted}`, started_at: "2026-07-21T10:15:00+02:00" })).toEqual([]);
-    expect(validateClaim({ ticket: "bad" })).toEqual([
-      "ticket must be a minted id, T-001, or an imported O-1 identifier", "agent is required", "branch is required", "worktree is required", "started_at must be an ISO timestamp",
+    expect(validateClaim({ contract: minted, agent: "codex", branch: `feat/${minted}-export`, worktree: `.worktrees/${minted}`, started_at: "2026-07-21T10:15:00+02:00" })).toEqual([]);
+    expect(validateClaim({ contract: "bad" })).toEqual([
+      "contract must be a minted id, T-001, or an imported O-1 identifier", "agent is required", "branch is required", "worktree is required", "started_at must be an ISO timestamp",
     ]);
   });
 
@@ -80,7 +80,8 @@ describe("core deterministic rules", () => {
   });
 
   test("rejects a duplicate decision without changing the existing record", () => {
-    const root = mkdtempSync(join(tmpdir(), "a-team-decision-duplicate-"));
+    // Legacy-name workspace on purpose (T-020): the decision writer must find `.a-team/` as well.
+    const root = mkdtempSync(join(tmpdir(), "kotta-decision-duplicate-"));
     mkdirSync(join(root, ".a-team/decisions"), { recursive: true });
     const source = join(root, "decision.md");
     writeFileSync(source, "---\ntitle: Cut over\n---\n## Decision\n\nProceed.\n\n## Context\n\nReady.\n\n## Consequences\n\nMonitor.\n");

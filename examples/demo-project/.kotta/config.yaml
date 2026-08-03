@@ -1,0 +1,6 @@
+version: 2
+protected_branches:
+  - main
+branch_prefix: kotta/
+worktree_root: .worktrees
+require_clean_worktree: true

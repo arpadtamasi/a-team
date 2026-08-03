@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 import { parse } from "yaml";
 
-const ISSUE_FORM_URL = "https://github.com/arpadtamasi/a-team/issues/new?template=bug.yml";
+const ISSUE_FORM_URL = "https://github.com/arpadtamasi/kotta/issues/new?template=bug.yml";
 const REQUIRED_REPORT_FIELDS = ["summary", "reproduction", "expected", "actual", "version"];
 const read = (path: string) => readFileSync(resolve(path), "utf8");
 
@@ -109,12 +109,12 @@ describe("visual entry points", () => {
   });
 });
 
-describe("report-a-team-bug skill contract", () => {
-  const skill = read("skills/report-a-team-bug/SKILL.md");
+describe("report-kotta-bug skill contract", () => {
+  const skill = read("skills/report-kotta-bug/SKILL.md");
   const frontmatter = parse(skill.split("---")[1]) as { name?: string; description?: string };
 
   test("is discoverable with the same frontmatter contract as the other published skills", () => {
-    expect(frontmatter.name).toBe("report-a-team-bug");
+    expect(frontmatter.name).toBe("report-kotta-bug");
     expect(frontmatter.description).toMatch(/bug|defect/i);
     // Published through the packed `skills/` allowlist, like every other bundled skill.
     expect((JSON.parse(read("package.json")) as { files: string[] }).files).toContain("skills");
@@ -126,19 +126,19 @@ describe("report-a-team-bug skill contract", () => {
     expect(draft).toContain("### Reproduction steps");
     expect(draft).toContain("### Expected behaviour");
     expect(draft).toContain("### Actual behaviour");
-    expect(draft).toContain("### A-Team version");
+    expect(draft).toContain("### Kotta version");
     // The default outbound payload carries no diagnostics, paths, logs, or conversation.
     expect(draft).not.toMatch(/diagnostic|\/Users\/|process\.env|log file|conversation/i);
   });
 
   test("gates evidence, duplicates, sanitization, approval, and submission", () => {
     expect(skill).toMatch(/observed facts.*impact hypothes/is);
-    expect(skill).toContain("gh issue list --repo arpadtamasi/a-team");
+    expect(skill).toContain("gh issue list --repo arpadtamasi/kotta");
     expect(skill).toMatch(/absolute filesystem paths/i);
     expect(skill).toMatch(/tokens, credentials, `\.env` values, environment variable values, and Git remote URLs/);
-    expect(skill).toMatch(/repository contents, ticket bodies, log files, and the agent conversation/);
+    expect(skill).toMatch(/repository contents, contract bodies, log files, and the agent conversation/);
     expect(skill).toMatch(/before any external write/i);
-    expect(skill).toContain("gh issue create --repo arpadtamasi/a-team");
+    expect(skill).toContain("gh issue create --repo arpadtamasi/kotta");
     expect(skill).toMatch(/rejects or cancels: create no\nissue, send nothing/);
     expect(skill).toMatch(/general approval to file the issue is not consent/i);
     expect(skill).toMatch(/Never infer consent, never carry it to the next report/);
@@ -153,13 +153,13 @@ describe("report-a-team-bug skill contract", () => {
     expect(fallback).toMatch(/do not retry silently/i);
   });
 
-  test("documents maintainer capture as a finding rather than a ticket", () => {
-    const triage = skill.split("## 8. For A-Team maintainers only")[1] ?? "";
-    expect(triage).toContain("a-team finding new --title");
+  test("documents maintainer capture as a observation rather than a contract", () => {
+    const triage = skill.split("## 8. For Kotta maintainers only")[1] ?? "";
+    expect(triage).toContain("kotta observation new --title");
     expect(triage).toContain("--type bug");
-    expect(triage).toMatch(/A GitHub Issue never creates a\nticket by itself/);
+    expect(triage).toMatch(/A GitHub Issue never creates a\ncontract by itself/);
     // The user's own workspace is never mutated by reporting.
-    expect(skill).toMatch(/no ticket, no\nfinding, no decision is created locally/);
+    expect(skill).toMatch(/no contract, no\nobservation, no decision is created locally/);
   });
 });
 
@@ -169,53 +169,53 @@ describe("documentation", () => {
   test("points installed and public users at the same reporting contract", () => {
     expect(readme).toContain("## Report a bug");
     expect(readme).toContain(ISSUE_FORM_URL);
-    expect(readme).toContain("`report-a-team-bug`");
+    expect(readme).toContain("`report-kotta-bug`");
     expect(readme).toMatch(/off by default and\nrequire a separate per-report opt-in/);
-    expect(readme).toMatch(/A-Team stores no GitHub\ncredential/);
-    expect(readme).toContain("a-team finding new --title");
+    expect(readme).toMatch(/Kotta stores no GitHub\ncredential/);
+    expect(readme).toContain("kotta observation new --title");
   });
 });
 
 describe("maintainer triage of a submitted issue", () => {
-  test("captures the issue URL as a finding and creates no ticket", () => {
-    const root = mkdtempSync(join(tmpdir(), "a-team-bug-report-"));
+  test("captures the issue URL as a observation and creates no contract", () => {
+    const root = mkdtempSync(join(tmpdir(), "kotta-bug-report-"));
     execFileSync("git", ["init", "-b", "main"], { cwd: root });
     writeFileSync(join(root, "README.md"), "fixture\n");
     run(root, ["init"]);
 
-    const issueUrl = "https://github.com/arpadtamasi/a-team/issues/1234";
+    const issueUrl = "https://github.com/arpadtamasi/kotta/issues/1234";
     const created = run(root, [
-      "finding", "new",
-      "--title", "a-team ticket brief fails without profiles",
+      "observation", "new",
+      "--title", "kotta contract brief fails without profiles",
       "--type", "bug",
-      "--evidence", `${issueUrl} — reported: \`a-team ticket brief T-001\` exits 1 on a ticket with no profiles. Reported version 0.2.2.`,
+      "--evidence", `${issueUrl} — reported: \`kotta contract brief T-001\` exits 1 on a contract with no profiles. Reported version 0.2.2.`,
     ]) as { ok: boolean; data: { id: string; path: string } };
     expect(created.ok).toBe(true);
-    const findingId = created.data.id;
+    const observationId = created.data.id;
 
-    const finding = readFileSync(created.data.path, "utf8");
-    expect(finding).toContain(issueUrl);
-    expect(finding).toContain("Reported version 0.2.2");
-    expect(finding).toContain("finding_type: bug");
-    expect(finding).toContain("status: new");
-    expect(run(root, ["finding", "validate", findingId])).toMatchObject({ ok: true });
+    const observation = readFileSync(created.data.path, "utf8");
+    expect(observation).toContain(issueUrl);
+    expect(observation).toContain("Reported version 0.2.2");
+    expect(observation).toContain("observation_type: bug");
+    expect(observation).toContain("status: new");
+    expect(run(root, ["observation", "validate", observationId])).toMatchObject({ ok: true });
 
     // The issue exists; scheduled work does not follow from that alone.
-    for (const state of ["backlog", "ready", "active", "review", "done"]) {
-      const directory = join(root, ".a-team", state);
+    for (const state of ["backlog", "defined", "active", "review", "done"]) {
+      const directory = join(root, ".kotta", state);
       expect(existsSync(directory) ? readdirSync(directory).filter((name) => name.endsWith(".md")) : []).toEqual([]);
     }
 
     // Only an explicitly approved disposition may schedule work.
-    const unapproved = spawnSync("node", [cli, "finding", "resolve", findingId, "--disposition", "create-ticket", "--json"], { cwd: root, encoding: "utf8" });
+    const unapproved = spawnSync("node", [cli, "observation", "resolve", observationId, "--disposition", "create-contract", "--json"], { cwd: root, encoding: "utf8" });
     expect(unapproved.status).not.toBe(0);
     expect(`${unapproved.stdout}${unapproved.stderr}`).toMatch(/approval/i);
-    expect(readdirSync(join(root, ".a-team/backlog")).filter((name) => name.endsWith(".md"))).toEqual([]);
+    expect(readdirSync(join(root, ".kotta/backlog")).filter((name) => name.endsWith(".md"))).toEqual([]);
 
-    const resolved = run(root, ["finding", "resolve", findingId, "--disposition", "create-ticket", "--approve"]) as { ok: boolean; data: { ticketId: string } };
+    const resolved = run(root, ["observation", "resolve", observationId, "--disposition", "create-contract", "--approve"]) as { ok: boolean; data: { contractId: string } };
     expect(resolved.ok).toBe(true);
-    const ticketFile = readdirSync(join(root, ".a-team/backlog")).filter((name) => name.endsWith(".md"));
-    expect(ticketFile).toEqual([`a-team-ticket-brief-fails-without-profiles-${resolved.data.ticketId.slice(-8)}.md`]);
-    expect(readFileSync(join(root, ".a-team/backlog", ticketFile[0]), "utf8")).toContain(`source_finding: ${findingId}`);
+    const contractFile = readdirSync(join(root, ".kotta/backlog")).filter((name) => name.endsWith(".md"));
+    expect(contractFile).toEqual([`kotta-contract-brief-fails-without-profiles-${resolved.data.contractId.slice(-8)}.md`]);
+    expect(readFileSync(join(root, ".kotta/backlog", contractFile[0]), "utf8")).toContain(`source_observation: ${observationId}`);
   });
 });

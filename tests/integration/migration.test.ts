@@ -8,18 +8,18 @@ import { sections } from "../../src/core/markdown.js";
 
 describe("legacy migration fidelity", () => {
   test("preserves measured evidence instead of copying the outcome into bug evidence fields", () => {
-    const root = mkdtempSync(join(tmpdir(), "a-team-migration-source-"));
+    const root = mkdtempSync(join(tmpdir(), "kotta-migration-source-"));
     const source = join(root, "source");
     const output = join(root, "output");
     mkdirSync(join(source, "scrum/tickets"), { recursive: true });
-    writeFileSync(join(source, "scrum/backlog.md"), "# Backlog\n\n## Now\n\n- [O-119 — Slow summary](tickets/O-119-slow-summary.md) — `ready`, bug, **5** points (P0, lane: connector); measured regression.\n\n## Next\n\n## Later\n\n- [O-15 — Duplicate read](tickets/O-15-duplicate-read.md) — `backlog`, other, no estimate (P3, lane: connector); remove the second read.\n");
-    writeFileSync(join(source, "scrum/sprint.md"), "# Sprint — evidence-test\n\nStatus: `active`\n\n## Sprint goal\n\nShip the measured performance fix.\n\n## Committed\n\n1. [O-119 — Slow summary](tickets/O-119-slow-summary.md) — 5 SP\n");
+    writeFileSync(join(source, "scrum/backlog.md"), "# Backlog\n\n## Now\n\n- [O-119 — Slow summary](contracts/O-119-slow-summary.md) — `defined`, bug, **5** points (P0, lane: connector); measured regression.\n\n## Next\n\n## Later\n\n- [O-15 — Duplicate read](contracts/O-15-duplicate-read.md) — `backlog`, other, no estimate (P3, lane: connector); remove the second read.\n");
+    writeFileSync(join(source, "scrum/sprint.md"), "# Sprint — evidence-test\n\nStatus: `active`\n\n## Sprint goal\n\nShip the measured performance fix.\n\n## Committed\n\n1. [O-119 — Slow summary](contracts/O-119-slow-summary.md) — 5 SP\n");
     writeFileSync(join(source, "scrum/tickets/O-119-slow-summary.md"), `---
 id: O-119
 title: Slow summary
 lane: connector
 type: bug
-status: ready
+status: defined
 story_points: 5
 created_at: 2026-07-21
 ---
@@ -76,7 +76,7 @@ The final implementation issues one read.
 
     const result = spawnSync("node", [resolve("scripts/migrate-oneanda-demo.mjs"), source, output, "--replace"], { cwd: resolve("."), encoding: "utf8" });
     expect(result.status, result.stderr || result.stdout).toBe(0);
-    const filename = join(output, ".a-team/ready/O-119-slow-summary.md");
+    const filename = join(output, ".kotta/defined/O-119-slow-summary.md");
     const parsed = matter(readFileSync(filename, "utf8"));
     const body = sections(parsed.content);
 
@@ -86,10 +86,10 @@ The final implementation issues one read.
     expect(body.get("legacy source contract")).toContain("35,652 ms");
     expect(body.get("legacy source contract")).toContain("HTTP 429");
 
-    const finding = matter(readFileSync(join(output, ".a-team/findings/new/O-15-duplicate-read.md"), "utf8"));
-    const findingBody = sections(finding.content);
-    expect(findingBody.get("evidence")).toContain("fetched twice per request");
-    expect(findingBody.get("evidence")).not.toContain("final implementation issues one read");
-    expect(findingBody.get("legacy source contract")).toContain("final implementation issues one read");
+    const observation = matter(readFileSync(join(output, ".kotta/observations/new/O-15-duplicate-read.md"), "utf8"));
+    const observationBody = sections(observation.content);
+    expect(observationBody.get("evidence")).toContain("fetched twice per request");
+    expect(observationBody.get("evidence")).not.toContain("final implementation issues one read");
+    expect(observationBody.get("legacy source contract")).toContain("final implementation issues one read");
   });
 });

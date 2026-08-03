@@ -28,16 +28,16 @@ interface Report {
 
 function repository(label: string, options: { detectRenames?: boolean } = {}): string {
   // realpath: on macOS the temp directory is a symlink, and the CLI reports resolved paths.
-  const root = realpathSync(mkdtempSync(join(tmpdir(), `a-team-duplicate-${label}-`)));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), `kotta-duplicate-${label}-`)));
   git(root, "init", "-b", "main");
-  git(root, "config", "user.name", "A-Team Test");
+  git(root, "config", "user.name", "Kotta Test");
   git(root, "config", "user.email", "test@example.com");
   // A merge only pairs a cross-directory move as delete+add while rename detection is on; a large
   // merge (or `merge.renames=false`) drops it, and then both copies survive. Both shapes are real.
   if (options.detectRenames === false) git(root, "config", "merge.renames", "false");
   run(root, ["init"]);
   git(root, "add", "-A");
-  git(root, "commit", "-m", "init a-team");
+  git(root, "commit", "-m", "init kotta");
   return root;
 }
 
@@ -50,29 +50,29 @@ function keepBothSides(root: string, files: Array<{ branch: string; path: string
 
 describe("one entity in two state directories (T-036)", () => {
   test("validate names both places after a merge, and dedupe keeps the furthest-advanced copy", () => {
-    const root = repository("ticket");
-    const ticket = run(root, ["ticket", "new", "--title", "Merge me", "--type", "feature"]).data as { id: string; path: string };
-    const filename = basename(ticket.path);
+    const root = repository("contract");
+    const contract = run(root, ["contract", "new", "--title", "Merge me", "--type", "feature"]).data as { id: string; path: string };
+    const filename = basename(contract.path);
     git(root, "add", "-A");
-    git(root, "commit", "-m", "capture ticket");
+    git(root, "commit", "-m", "capture contract");
 
-    // Branch one readies the ticket; main cancels it. Both moves are supported writers.
-    git(root, "checkout", "-b", "branch-ready");
-    run(root, ["ticket", "ready", ticket.id, "--approve"]);
+    // Branch one readies the contract; main cancels it. Both moves are supported writers.
+    git(root, "checkout", "-b", "branch-defined");
+    run(root, ["contract", "sign", contract.id, "--approve"]);
     git(root, "add", "-A");
-    git(root, "commit", "-m", "ready");
+    git(root, "commit", "-m", "defined");
     git(root, "checkout", "main");
-    run(root, ["ticket", "cancel", ticket.id, "--resolution", "obsolete", "--approve"]);
+    run(root, ["contract", "cancel", contract.id, "--resolution", "obsolete", "--approve"]);
 
-    const merge = spawnSync("git", ["merge", "--no-ff", "branch-ready", "-m", "merge"], { cwd: root, encoding: "utf8" });
+    const merge = spawnSync("git", ["merge", "--no-ff", "branch-defined", "-m", "merge"], { cwd: root, encoding: "utf8" });
     expect(`${merge.stdout}${merge.stderr}`).toContain("CONFLICT (rename/rename)");
     keepBothSides(root, [
-      { branch: "branch-ready", path: `.a-team/ready/${filename}` },
-      { branch: "main", path: `.a-team/done/${filename}` },
+      { branch: "branch-defined", path: `.kotta/defined/${filename}` },
+      { branch: "main", path: `.kotta/done/${filename}` },
     ]);
-    const ready = join(root, ".a-team/ready", filename);
-    const done = join(root, ".a-team/done", filename);
-    expect(existsSync(ready) && existsSync(done)).toBe(true);
+    const defined = join(root, ".kotta/defined", filename);
+    const done = join(root, ".kotta/done", filename);
+    expect(existsSync(defined) && existsSync(done)).toBe(true);
 
     // Acceptance 1: the duplicate is its own error case and names both places.
     const validation = attempt(root, ["validate"]);
@@ -80,130 +80,130 @@ describe("one entity in two state directories (T-036)", () => {
     const report = JSON.parse(validation.stdout) as Report;
     const duplicate = report.errors.find((error) => error.code === "DUPLICATE_STATE");
     expect(duplicate).toBeDefined();
-    expect(duplicate?.message).toContain(ready);
+    expect(duplicate?.message).toContain(defined);
     expect(duplicate?.message).toContain(done);
     expect(report.errors.some((error) => error.code === "DUPLICATE_ID")).toBe(false);
 
     // Acceptance 5: without approval nothing is removed.
-    const unapproved = attempt(root, ["ticket", "dedupe", ticket.id]);
+    const unapproved = attempt(root, ["contract", "dedupe", contract.id]);
     expect(unapproved.status).toBe(1);
     expect(unapproved.stdout).toContain("Human approval is required");
-    expect(existsSync(ready) && existsSync(done)).toBe(true);
+    expect(existsSync(defined) && existsSync(done)).toBe(true);
 
     // Acceptance 2: the later lifecycle state wins and the discarded copy is named — here in the
-    // human-readable output; the package test below asserts the same in the structured result.
-    const resolved = spawnSync("node", [cli, "ticket", "dedupe", ticket.id, "--approve"], { cwd: root, encoding: "utf8" });
+    // human-readable output; the batch test below asserts the same in the structured result.
+    const resolved = spawnSync("node", [cli, "contract", "dedupe", contract.id, "--approve"], { cwd: root, encoding: "utf8" });
     expect(resolved.status).toBe(0);
-    expect(resolved.stdout).toContain(`Kept ${ticket.id} at ${done} (done)`);
-    expect(resolved.stdout).toContain(`dropped ${ready} (ready`);
-    expect(existsSync(ready)).toBe(false);
+    expect(resolved.stdout).toContain(`Kept ${contract.id} at ${done} (done)`);
+    expect(resolved.stdout).toContain(`dropped ${defined} (defined`);
+    expect(existsSync(defined)).toBe(false);
     expect(existsSync(done)).toBe(true);
     expect(run(root, ["validate"])).toMatchObject({ ok: true });
 
     // Re-running finds a single copy and refuses rather than silently doing nothing.
-    const again = attempt(root, ["ticket", "dedupe", ticket.id, "--approve"]);
+    const again = attempt(root, ["contract", "dedupe", contract.id, "--approve"]);
     expect(again.status).toBe(1);
     expect(again.stdout).toContain("nothing to resolve");
   });
 
-  test("a package duplicated across packages/backlog and packages/ready resolves the same way", () => {
-    const root = repository("package", { detectRenames: false });
-    const first = run(root, ["ticket", "new", "--title", "First slice", "--type", "feature"]).data as { id: string };
-    const second = run(root, ["ticket", "new", "--title", "Second slice", "--type", "feature"]).data as { id: string };
-    run(root, ["ticket", "ready", first.id, "--approve"]);
-    const pkg = run(root, ["package", "new", "--title", "Batch one", "--kind", "batch", "--goal", "Ship the slices"]).data as { id: string; path: string };
-    run(root, ["package", "add", pkg.id, first.id]);
-    const filename = basename(pkg.path);
+  test("a batch duplicated across batches/backlog and batches/defined resolves the same way", () => {
+    const root = repository("batch", { detectRenames: false });
+    const first = run(root, ["contract", "new", "--title", "First slice", "--type", "feature"]).data as { id: string };
+    const second = run(root, ["contract", "new", "--title", "Second slice", "--type", "feature"]).data as { id: string };
+    run(root, ["contract", "sign", first.id, "--approve"]);
+    const batch = run(root, ["batch", "new", "--title", "Batch one", "--goal", "Ship the slices"]).data as { id: string; path: string };
+    run(root, ["batch", "add", batch.id, first.id]);
+    const filename = basename(batch.path);
     git(root, "add", "-A");
-    git(root, "commit", "-m", "capture package");
+    git(root, "commit", "-m", "capture batch");
 
-    // The P-015 shape: one branch readies the package while main keeps editing it in backlog.
-    git(root, "checkout", "-b", "branch-ready");
-    run(root, ["package", "ready", pkg.id, "--approve"]);
+    // The P-015 shape: one branch readies the batch while main keeps editing it in backlog.
+    git(root, "checkout", "-b", "branch-defined");
+    run(root, ["batch", "sign", batch.id, "--approve"]);
     git(root, "add", "-A");
-    git(root, "commit", "-m", "ready package");
+    git(root, "commit", "-m", "defined batch");
     git(root, "checkout", "main");
-    run(root, ["package", "add", pkg.id, second.id]);
+    run(root, ["batch", "add", batch.id, second.id]);
     git(root, "add", "-A");
-    git(root, "commit", "-m", "add second ticket");
+    git(root, "commit", "-m", "add second contract");
 
-    const merge = spawnSync("git", ["merge", "--no-ff", "branch-ready", "-m", "merge"], { cwd: root, encoding: "utf8" });
+    const merge = spawnSync("git", ["merge", "--no-ff", "branch-defined", "-m", "merge"], { cwd: root, encoding: "utf8" });
     expect(`${merge.stdout}${merge.stderr}`).toContain("CONFLICT (modify/delete)");
     git(root, "add", "-A");
     git(root, "commit", "-m", "merge: kept both copies");
-    const backlog = join(root, ".a-team/packages/backlog", filename);
-    const ready = join(root, ".a-team/packages/ready", filename);
-    expect(existsSync(backlog) && existsSync(ready)).toBe(true);
+    const backlog = join(root, ".kotta/batches/backlog", filename);
+    const defined = join(root, ".kotta/batches/defined", filename);
+    expect(existsSync(backlog) && existsSync(defined)).toBe(true);
 
     const validation = attempt(root, ["validate"]);
     expect(validation.status).toBe(1);
     const duplicate = (JSON.parse(validation.stdout) as Report).errors.find((error) => error.code === "DUPLICATE_STATE");
     expect(duplicate?.message).toContain(backlog);
-    expect(duplicate?.message).toContain(ready);
-    expect(duplicate?.message).toContain(`a-team package dedupe ${pkg.id} --approve`);
+    expect(duplicate?.message).toContain(defined);
+    expect(duplicate?.message).toContain(`kotta batch dedupe ${batch.id} --approve`);
 
-    expect(attempt(root, ["package", "dedupe", pkg.id]).status).toBe(1);
+    expect(attempt(root, ["batch", "dedupe", batch.id]).status).toBe(1);
     expect(existsSync(backlog)).toBe(true);
 
-    const resolved = run(root, ["package", "dedupe", pkg.id, "--approve"]).data as {
+    const resolved = run(root, ["batch", "dedupe", batch.id, "--approve"]).data as {
       kept: { state: string; path: string };
       dropped: Array<{ state: string; path: string; differing_fields: string[] }>;
     };
-    expect(resolved.kept).toEqual({ state: "ready", path: ready });
+    expect(resolved.kept).toEqual({ state: "defined", path: defined });
     // The dropped copy carried a different membership list; the resolution says so instead of hiding it.
-    expect(resolved.dropped).toEqual([{ state: "backlog", path: backlog, differing_fields: ["tickets"] }]);
+    expect(resolved.dropped).toEqual([{ state: "backlog", path: backlog, differing_fields: ["contracts"] }]);
     expect(existsSync(backlog)).toBe(false);
   });
 
   test("dedupe stops when the two copies have different bodies", () => {
     const root = repository("diverged", { detectRenames: false });
-    const ticket = run(root, ["ticket", "new", "--title", "Contested", "--type", "feature"]).data as { id: string; path: string };
-    const filename = basename(ticket.path);
+    const contract = run(root, ["contract", "new", "--title", "Contested", "--type", "feature"]).data as { id: string; path: string };
+    const filename = basename(contract.path);
     git(root, "add", "-A");
-    git(root, "commit", "-m", "capture ticket");
+    git(root, "commit", "-m", "capture contract");
 
-    git(root, "checkout", "-b", "branch-ready");
-    run(root, ["ticket", "ready", ticket.id, "--approve"]);
+    git(root, "checkout", "-b", "branch-defined");
+    run(root, ["contract", "sign", contract.id, "--approve"]);
     git(root, "add", "-A");
-    git(root, "commit", "-m", "ready");
+    git(root, "commit", "-m", "defined");
     git(root, "checkout", "main");
 
-    // Main rewrites the ticket body in place while the other branch moves it to ready.
+    // Main rewrites the contract body in place while the other branch moves it to defined.
     const definition = join(root, "definition.md");
     const body = ["Outcome", "Scope", "Non-goals", "Acceptance", "Verification", "Constraints", "Open decisions", "Execution notes"]
       .map((heading) => `## ${heading}\n\n${heading === "Open decisions" ? "None." : `Rewritten ${heading.toLowerCase()} that the other branch never saw.`}`)
       .join("\n\n");
     writeFileSync(definition, `---\ntypes:\n  - feature\n---\n${body}\n`);
-    run(root, ["ticket", "define", ticket.id, "--from", definition]);
+    run(root, ["contract", "define", contract.id, "--from", definition]);
     git(root, "add", "-A");
     git(root, "commit", "-m", "rewrite body");
 
-    const merge = spawnSync("git", ["merge", "--no-ff", "branch-ready", "-m", "merge"], { cwd: root, encoding: "utf8" });
+    const merge = spawnSync("git", ["merge", "--no-ff", "branch-defined", "-m", "merge"], { cwd: root, encoding: "utf8" });
     expect(`${merge.stdout}${merge.stderr}`).toContain("CONFLICT (modify/delete)");
     git(root, "add", "-A");
     git(root, "commit", "-m", "merge: kept both copies");
-    const backlog = join(root, ".a-team/backlog", filename);
-    const ready = join(root, ".a-team/ready", filename);
-    expect(existsSync(backlog) && existsSync(ready)).toBe(true);
+    const backlog = join(root, ".kotta/backlog", filename);
+    const defined = join(root, ".kotta/defined", filename);
+    expect(existsSync(backlog) && existsSync(defined)).toBe(true);
 
     // Acceptance 3: divergent bodies are not a machine decision.
-    const refused = attempt(root, ["ticket", "dedupe", ticket.id, "--approve"]);
+    const refused = attempt(root, ["contract", "dedupe", contract.id, "--approve"]);
     expect(refused.status).toBe(1);
     expect(refused.stdout).toContain("different bodies");
     expect(refused.stdout).toContain(backlog);
-    expect(refused.stdout).toContain(ready);
-    expect(existsSync(backlog) && existsSync(ready)).toBe(true);
+    expect(refused.stdout).toContain(defined);
+    expect(existsSync(backlog) && existsSync(defined)).toBe(true);
     expect((JSON.parse(attempt(root, ["validate"]).stdout) as Report).errors.some((error) => error.code === "DUPLICATE_STATE")).toBe(true);
   });
 
   test("dedupe refuses an identifier collision inside one state directory", () => {
     const root = repository("collision");
-    const ticket = run(root, ["ticket", "new", "--title", "Shared identity", "--type", "feature"]).data as { id: string; path: string };
-    const twin = join(root, ".a-team/backlog", `other-${basename(ticket.path)}`);
-    copyFileSync(ticket.path, twin);
+    const contract = run(root, ["contract", "new", "--title", "Shared identity", "--type", "feature"]).data as { id: string; path: string };
+    const twin = join(root, ".kotta/backlog", `other-${basename(contract.path)}`);
+    copyFileSync(contract.path, twin);
     writeFileSync(twin, readFileSync(twin, "utf8").replace("title: Shared identity", "title: A different entity"));
 
-    const refused = attempt(root, ["ticket", "dedupe", ticket.id, "--approve"]);
+    const refused = attempt(root, ["contract", "dedupe", contract.id, "--approve"]);
     expect(refused.status).toBe(1);
     expect(refused.stdout).toContain("identifier collision");
     expect(existsSync(twin)).toBe(true);

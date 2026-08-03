@@ -8,19 +8,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { App } from "../../ui/src/App";
-import { decision, finding, pkg, ticket, workspace } from "./fixtures";
+import { decision, observation, batch, contract, workspace } from "./fixtures";
 
-const WRITE_PATHS = ["/api/chat", "/api/ticket/ready", "/api/package", "/api/package/tickets", "/api/finding", "/api/finding/resolve"];
+const WRITE_PATHS = ["/api/chat", "/api/contract/sign", "/api/batch", "/api/batch/contracts", "/api/observation", "/api/observation/resolve"];
 
 const data = workspace({
-  tickets: [
-    ticket("T-012", "Make the UI workspace argument explicit", { status: "active", package: "P-003", assigned_agent: "codex", source_finding: "F-001" }),
-    ticket("T-013", "Add a discoverable bug-reporting path", { status: "review", package: "P-003" }),
-    ticket("T-014", "Port collision returns raw EADDRINUSE", { status: "ready" }),
-    ticket("T-029", "Reading the board makes no per-file git call", { status: "done" }),
+  contracts: [
+    contract("T-012", "Make the UI workspace argument explicit", { status: "active", batch: "P-003", assigned_agent: "codex", source_observation: "F-001" }),
+    contract("T-013", "Add a discoverable bug-reporting path", { status: "review", batch: "P-003" }),
+    contract("T-014", "Port collision returns raw EADDRINUSE", { status: "defined" }),
+    contract("T-029", "Reading the board makes no per-file git call", { status: "done" }),
   ],
-  packages: [pkg("P-003", "Trustworthy daily use", { status: "active", tickets: ["T-012", "T-013"] })],
-  findings: [finding("F-001", "CLI help contradicts the --workspace default"), finding("F-002", "The board hides worktree state", { status: "resolved", became: "T-029" })],
+  batches: [batch("P-003", "Trustworthy daily use", { status: "active", contracts: ["T-012", "T-013"] })],
+  observations: [observation("F-001", "CLI help contradicts the --workspace default"), observation("F-002", "The board hides worktree state", { status: "resolved", became: "T-029" })],
   decisions: [decision("D-001", "The directory is the state")],
 });
 
@@ -73,7 +73,7 @@ describe("The board does not write", () => {
     expect(rendered).not.toMatch(/<form\b/);
     expect(rendered).not.toMatch(/type="submit"/);
     // What it does offer instead: the command, spelled out.
-    expect(rendered).toContain("a-team ticket execute T-014 --agent codex");
+    expect(rendered).toContain("kotta contract execute T-014 --agent codex");
   });
 
   it("clicking every control on every view still issues no write", async () => {
@@ -95,7 +95,7 @@ describe("The board does not write", () => {
     fireEvent.click(screen.getByRole("button", { name: /CLI/ }));
     const sheet = await screen.findByRole("dialog", { name: "The CLI does the writing" });
     expect(sheet.textContent).toContain("This board reads. Every state change happens through one of these — nothing on a row writes.");
-    expect(sheet.textContent).toContain("a-team ticket close <id> --approve");
+    expect(sheet.textContent).toContain("kotta contract close <id> --approve");
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
   });

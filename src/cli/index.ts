@@ -3,21 +3,23 @@ import { Command } from "commander";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { initCommand } from "../commands/init.js";
-import { briefTicket, cancelTicket, closeTicket, defineTicket, newTicket, readyTicket, reopenTicket, reviewTicket, startTicket, validateTicket } from "../commands/ticket.js";
-import { executeTicket, formatExecution } from "../commands/execute.js";
+import { briefContract, cancelContract, closeContract, defineContract, newContract, signContract, reopenContract, reviewContract, startContract, validateContract } from "../commands/contract.js";
+import { executeContract, formatExecution } from "../commands/execute.js";
 import { statusCommand } from "../commands/status.js";
-import { newFinding, resolveFinding, validateFinding } from "../commands/finding.js";
-import { closePackage, finalizePackage, newPackage, packageStatus, readyPackage, startPackage, updatePackageTickets, validatePackage } from "../commands/package.js";
+import { newObservation, resolveObservation, validateObservation } from "../commands/observation.js";
+import { closeBatch, finalizeBatch, newBatch, batchStatus, signBatch, startBatch, updateBatchContracts, validateBatch } from "../commands/batch.js";
 import { validateWorkspace } from "../commands/validate.js";
 import { listClaims, releaseClaim } from "../commands/claim.js";
-import { uiCommand } from "../commands/ui.js";
+import { resolveWorkspaceLocation, uiCommand } from "../commands/ui.js";
 import { createDecision } from "../commands/decision.js";
 import { dedupeEntity, describeDedupe, type DedupeResult } from "../commands/dedupe.js";
+import { formatMigration, migrateWorkspace } from "../commands/migrate.js";
+import { assertCurrentWorkspaceShape, findRepositoryRoot } from "../filesystem/workspace.js";
 
 const program = new Command();
 const packagePath = fileURLToPath(new URL("../../package.json", import.meta.url));
 const packageVersion = String((JSON.parse(readFileSync(packagePath, "utf8")) as { version: unknown }).version);
-program.name("a-team").description("Repository-native human-AI development workflow").version(packageVersion);
+program.name("kotta").description("Repository-native human-AI development workflow").version(packageVersion);
 
 function print(result: unknown, json: boolean): void {
   process.stdout.write(json ? `${JSON.stringify(result)}\n` : `${humanize(result)}\n`);
@@ -27,36 +29,75 @@ function print(result: unknown, json: boolean): void {
 function humanize(result: unknown): string {
   if (typeof result === "object" && result && "command" in result) {
     const command = String((result as { command: unknown }).command);
-    if ((command === "ticket dedupe" || command === "package dedupe") && "data" in result) {
+    if ((command === "contract dedupe" || command === "batch dedupe") && "data" in result) {
       return describeDedupe((result as DedupeResult).data);
     }
-    if (command === "ticket start" && "data" in result) {
+    if (command === "contract start" && "data" in result) {
       const data = (result as { data: { id: unknown; branch: unknown; worktree: unknown; nextStep: unknown } }).data;
       return [
         `Started ${String(data.id)}: branch ${String(data.branch)}, worktree ${String(data.worktree)}.`,
-        `Next: run the ticket in a fresh agent context (D-009) — ${String(data.nextStep)}.`,
-        `'a-team ticket execute <id> --agent <agent>' does start, brief and agent launch in one command.`,
+        `Next: run the contract in a fresh agent context (D-009) — ${String(data.nextStep)}.`,
+        `'kotta contract execute <id> --agent <agent>' does start, brief and agent launch in one command.`,
+      ].join("\n");
+    }
+    if (command === "status" && "data" in result) {
+      // The workspace path leads: with `.kotta/` and `.a-team/` both readable, the directory that
+      // answered is the first thing a reader needs (D-007).
+      const data = (result as { data: { workspace: unknown; definedContracts: unknown[]; activeContracts: unknown[]; reviewContracts: unknown[]; newObservations: unknown[] } }).data;
+      return [
+        `Workspace: ${String(data.workspace)}`,
+        `Defined ${data.definedContracts.length}, active ${data.activeContracts.length}, review ${data.reviewContracts.length}, new observations ${data.newObservations.length}.`,
       ].join("\n");
     }
     if ((result as { command: unknown }).command === "decision create" && "data" in result) {
       const data = (result as { data: { id: unknown; path: unknown } }).data;
       return `Recorded decision ${String(data.id)} at ${String(data.path)}.`;
     }
-    return `a-team ${String((result as { command: unknown }).command)} completed.`;
+    return `kotta ${String((result as { command: unknown }).command)} completed.`;
   }
   return String(result);
 }
 
+/**
+ * The old shape is refused once, here, instead of in every reader. `init` has no workspace to judge,
+ * `migrate` exists precisely to read the old shape, and `ui` explains the gap on the board rather than
+ * refusing to start — everything else stops with a message that names `kotta migrate`.
+ */
+const SHAPE_EXEMPT = new Set(["init", "migrate", "ui"]);
+
+program.hook("preAction", (_program, action) => {
+  const names = [action.name(), action.parent?.name()].filter(Boolean) as string[];
+  if (names.some((name) => SHAPE_EXEMPT.has(name))) return;
+  try {
+    assertCurrentWorkspaceShape(findRepositoryRoot());
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("kotta migrate")) return; // no repository, no workspace: not our refusal
+    throw error;
+  }
+});
+
+program
+  .command("migrate")
+  .description("Carry a pre-vocabulary workspace to the current shape: directories, stored states and references")
+  .option("--workspace <path>", "Repository root or workspace directory; omitted uses the repository around the cwd")
+  .option("--dry-run", "Report every change without writing anything")
+  .option("--json")
+  .action((options: { workspace?: string; dryRun?: boolean; json?: boolean }) => {
+    const root = options.workspace === undefined ? undefined : resolveWorkspaceLocation(options.workspace).projectRoot;
+    const result = migrateWorkspace({ dryRun: options.dryRun }, root);
+    process.stdout.write(options.json ? `${JSON.stringify(result)}\n` : `${formatMigration(result)}\n`);
+  });
+
 program
   .command("init")
-  .description("Create a .a-team workspace")
+  .description("Create a .kotta workspace")
   .option("--project-name <name>")
   .option("--json")
   .action((options: { projectName?: string; json?: boolean }) => print(initCommand(options.projectName), Boolean(options.json)));
 
 program
   .command("validate")
-  .description("Validate the A-Team workspace")
+  .description("Validate the Kotta workspace")
   .option("--json")
   .action((options: { json?: boolean }) => print(validateWorkspace(), Boolean(options.json)));
 
@@ -66,74 +107,77 @@ program
   .option("--json")
   .action((options: { json?: boolean }) => print(statusCommand(), Boolean(options.json)));
 
-const ticket = program.command("ticket").description("Create and transition tickets");
-ticket
+const contract = program.command("contract").description("Create and transition contracts");
+contract
   .command("new")
   .requiredOption("--title <title>")
   .requiredOption("--type <type>")
   .option("--profile <profile...>", "Requirement profiles", [])
   .option("--json")
-  .action((options: { title: string; type: string; profile: string[]; json?: boolean }) => print(newTicket({ title: options.title, type: options.type, profiles: options.profile }), Boolean(options.json)));
-ticket
+  .action((options: { title: string; type: string; profile: string[]; json?: boolean }) => print(newContract({ title: options.title, type: options.type, profiles: options.profile }), Boolean(options.json)));
+contract
   .command("validate <id>")
   .option("--json")
-  .action((id: string, options: { json?: boolean }) => print(validateTicket(id), Boolean(options.json)));
-ticket
+  .action((id: string, options: { json?: boolean }) => print(validateContract(id), Boolean(options.json)));
+contract
   .command("define <id>")
   .requiredOption("--from <path>", "Markdown definition file")
   .option("--json")
-  .action((id: string, options: { from: string; json?: boolean }) => print(defineTicket(id, options.from), Boolean(options.json)));
-ticket
-  .command("ready <id>")
+  .action((id: string, options: { from: string; json?: boolean }) => print(defineContract(id, options.from), Boolean(options.json)));
+contract
+  // `define` writes the contract; `sign` is the human gate that makes it binding and moves it to
+  // `defined`. Two different acts, so two different verbs (D-01kz240dn155hb97h6px6n2p85).
+  .command("sign <id>")
+  .description("Human gate: sign a validated backlog contract, moving it to defined")
   .option("--approve")
   .option("--json")
-  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(readyTicket(id, Boolean(options.approve)), Boolean(options.json)));
-ticket
+  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(signContract(id, Boolean(options.approve)), Boolean(options.json)));
+contract
   .command("start <id>")
   .requiredOption("--agent <agent>")
   .option("--json")
-  .action((id: string, options: { agent: string; json?: boolean }) => print(startTicket(id, options.agent), Boolean(options.json)));
-ticket
+  .action((id: string, options: { agent: string; json?: boolean }) => print(startContract(id, options.agent), Boolean(options.json)));
+contract
   .command("execute <id>")
-  .description("Run a ready ticket in a fresh agent context: start, brief and agent launch in one command (D-009)")
+  .description("Run a defined contract in a fresh agent context: start, brief and agent launch in one command (D-009)")
   .option("--agent <agent>", "Agent to launch; required unless --resume reuses the claim's agent")
   .option("--resume", "Reuse the existing execution context instead of creating a second one")
   .option("--inherit-context <reason>", "Explicit, logged exception to the fresh-context default; a reason is required")
   .option("--json")
   .action(async (id: string, options: { agent?: string; resume?: boolean; inheritContext?: string; json?: boolean }) => {
-    const result = await executeTicket(id, { agent: options.agent, resume: options.resume, inheritContext: options.inheritContext });
+    const result = await executeContract(id, { agent: options.agent, resume: options.resume, inheritContext: options.inheritContext });
     process.stdout.write(options.json ? `${JSON.stringify(result)}\n` : `${formatExecution(result)}\n`);
     if (!result.ok) process.exitCode = 1;
   });
-ticket
+contract
   .command("review <id>")
   .requiredOption("--evidence <evidence>")
   .option("--pull-request <identifier>")
-  .option("--deviations <text>", "Declared deviations from the ticket contract; omitted means 'Not declared.'")
-  .option("--findings-created <text>", "Findings created during execution; omitted means 'Not declared.'")
+  .option("--deviations <text>", "Declared deviations from the contract; omitted means 'Not declared.'")
+  .option("--observations-created <text>", "Observations created during execution; omitted means 'Not declared.'")
   .option("--known-concerns <text>", "Known concerns left open; omitted means 'Not declared.'")
   .option("--json")
-  .action((id: string, options: { evidence: string; pullRequest?: string; deviations?: string; findingsCreated?: string; knownConcerns?: string; json?: boolean }) => print(reviewTicket(id, options.evidence, options.pullRequest, { deviations: options.deviations, findingsCreated: options.findingsCreated, knownConcerns: options.knownConcerns }), Boolean(options.json)));
-ticket
+  .action((id: string, options: { evidence: string; pullRequest?: string; deviations?: string; observationsCreated?: string; knownConcerns?: string; json?: boolean }) => print(reviewContract(id, options.evidence, options.pullRequest, { deviations: options.deviations, observationsCreated: options.observationsCreated, knownConcerns: options.knownConcerns }), Boolean(options.json)));
+contract
   .command("close <id>")
   .option("--approve")
   .option("--json")
-  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(closeTicket(id, Boolean(options.approve)), Boolean(options.json)));
-ticket
+  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(closeContract(id, Boolean(options.approve)), Boolean(options.json)));
+contract
   .command("cancel <id>")
-  .description("Retire a backlog or ready ticket into done with a non-completed resolution")
+  .description("Retire a backlog or defined contract into done with a non-completed resolution")
   .requiredOption("--resolution <resolution>", "duplicate | obsolete | cancelled")
   .option("--approve")
   .option("--json")
-  .action((id: string, options: { resolution: string; approve?: boolean; json?: boolean }) => print(cancelTicket(id, options.resolution, Boolean(options.approve)), Boolean(options.json)));
-ticket
+  .action((id: string, options: { resolution: string; approve?: boolean; json?: boolean }) => print(cancelContract(id, options.resolution, Boolean(options.approve)), Boolean(options.json)));
+contract
   .command("brief <id>")
-  .description("Assemble the minimal execution context for a ticket (D-009)")
+  .description("Assemble the minimal execution context for a contract (D-009)")
   .option("--out <path>", "Write the brief to a file instead of stdout")
   .option("--warn-tokens <count>", "Warn above this approximate token count", (value) => Number(value), 12000)
   .option("--json")
   .action((id: string, options: { out?: string; warnTokens: number; json?: boolean }) => {
-    const result = briefTicket(id, { out: options.out, warnTokens: options.warnTokens });
+    const result = briefContract(id, { out: options.out, warnTokens: options.warnTokens });
     if (options.json) {
       console.log(JSON.stringify(result));
       return;
@@ -142,37 +186,37 @@ ticket
     const summary = `brief ${id}: ~${result.data.tokens} tokens (${result.data.sections.length} sections)${result.data.path ? ` → ${result.data.path}` : ""}`;
     console.error(result.data.warning ? `${summary}\nWARNING: ${result.data.warning}` : summary);
   });
-ticket
+contract
   .command("dedupe <id>")
-  .description("Resolve a ticket a merge left in two state directories: keep the furthest-advanced copy")
+  .description("Resolve a contract a merge left in two state directories: keep the furthest-advanced copy")
   .option("--approve")
   .option("--json")
-  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(dedupeEntity("ticket", id, Boolean(options.approve)), Boolean(options.json)));
-ticket
+  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(dedupeEntity("contract", id, Boolean(options.approve)), Boolean(options.json)));
+contract
   .command("reopen <id>")
   .option("--approve")
   .option("--json")
-  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(reopenTicket(id, Boolean(options.approve)), Boolean(options.json)));
+  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(reopenContract(id, Boolean(options.approve)), Boolean(options.json)));
 
-const finding = program.command("finding").description("Capture and disposition findings");
-finding
+const observation = program.command("observation").description("Capture and disposition observations");
+observation
   .command("new")
   .requiredOption("--title <title>")
   .requiredOption("--type <type>")
   .requiredOption("--evidence <evidence>")
-  .option("--discovered-during <ticket>")
+  .option("--discovered-during <contract>")
   .option("--json")
-  .action((options: { title: string; type: string; evidence: string; discoveredDuring?: string; json?: boolean }) => print(newFinding(options), Boolean(options.json)));
-finding
+  .action((options: { title: string; type: string; evidence: string; discoveredDuring?: string; json?: boolean }) => print(newObservation(options), Boolean(options.json)));
+observation
   .command("validate <id>")
   .option("--json")
-  .action((id: string, options: { json?: boolean }) => print(validateFinding(id), Boolean(options.json)));
-finding
+  .action((id: string, options: { json?: boolean }) => print(validateObservation(id), Boolean(options.json)));
+observation
   .command("resolve <id>")
   .requiredOption("--disposition <disposition>")
   .option("--approve")
   .option("--json")
-  .action((id: string, options: { disposition: string; approve?: boolean; json?: boolean }) => print(resolveFinding(id, options.disposition, Boolean(options.approve)), Boolean(options.json)));
+  .action((id: string, options: { disposition: string; approve?: boolean; json?: boolean }) => print(resolveObservation(id, options.disposition, Boolean(options.approve)), Boolean(options.json)));
 
 const decision = program.command("decision").description("Record durable human decisions");
 decision
@@ -185,58 +229,58 @@ decision
   .action((options: { from: string; id?: string; approve?: boolean; json?: boolean }) =>
     print(createDecision({ from: options.from, id: options.id, approved: Boolean(options.approve) }), Boolean(options.json)));
 
-const packageCommand = program.command("package").description("Validate and execute coordinated packages");
-packageCommand
+const batchCommand = program.command("batch").description("Validate and execute coordinated batches");
+batchCommand
   .command("new")
   .requiredOption("--title <title>")
-  .option("--kind <kind>", "Package kind", "batch")
   .option("--goal <goal>")
-  .option("--parallelism <count>", "Maximum concurrent tickets", (value) => Number(value), 2)
+  .option("--parallelism <count>", "Maximum concurrent contracts", (value) => Number(value), 2)
   .option("--json")
-  .action((options: { title: string; kind: string; goal?: string; parallelism: number; json?: boolean }) => print(newPackage(options), Boolean(options.json)));
-packageCommand
-  .command("add <package-id> <ticket-id>")
+  .action((options: { title: string; goal?: string; parallelism: number; json?: boolean }) => print(newBatch(options), Boolean(options.json)));
+batchCommand
+  .command("add <batch-id> <contract-id>")
   .option("--json")
-  .action((packageId: string, ticketId: string, options: { json?: boolean }) => print(updatePackageTickets(packageId, ticketId, "add"), Boolean(options.json)));
-packageCommand
-  .command("remove <package-id> <ticket-id>")
+  .action((batchId: string, contractId: string, options: { json?: boolean }) => print(updateBatchContracts(batchId, contractId, "add"), Boolean(options.json)));
+batchCommand
+  .command("remove <batch-id> <contract-id>")
   .option("--json")
-  .action((packageId: string, ticketId: string, options: { json?: boolean }) => print(updatePackageTickets(packageId, ticketId, "remove"), Boolean(options.json)));
-packageCommand
+  .action((batchId: string, contractId: string, options: { json?: boolean }) => print(updateBatchContracts(batchId, contractId, "remove"), Boolean(options.json)));
+batchCommand
   .command("validate <id>")
   .option("--json")
-  .action((id: string, options: { json?: boolean }) => print(validatePackage(id), Boolean(options.json)));
-packageCommand
-  .command("ready <id>")
+  .action((id: string, options: { json?: boolean }) => print(validateBatch(id), Boolean(options.json)));
+batchCommand
+  .command("sign <id>")
+  .description("Human gate: sign a validated backlog batch, moving it to defined")
   .option("--approve")
   .option("--json")
-  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(readyPackage(id, Boolean(options.approve)), Boolean(options.json)));
-packageCommand
+  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(signBatch(id, Boolean(options.approve)), Boolean(options.json)));
+batchCommand
   .command("start <id>")
   .requiredOption("--agent <agent>")
   .option("--json")
-  .action((id: string, options: { agent: string; json?: boolean }) => print(startPackage(id, options.agent), Boolean(options.json)));
-packageCommand
+  .action((id: string, options: { agent: string; json?: boolean }) => print(startBatch(id, options.agent), Boolean(options.json)));
+batchCommand
   .command("status <id>")
   .option("--json")
-  .action((id: string, options: { json?: boolean }) => print(packageStatus(id), Boolean(options.json)));
-packageCommand
+  .action((id: string, options: { json?: boolean }) => print(batchStatus(id), Boolean(options.json)));
+batchCommand
   .command("close <id>")
-  .description("Complete a package whose member tickets have all reached done, from any package state")
+  .description("Complete a batch whose member contracts have all reached done, from any batch state")
   .option("--approve")
   .option("--json")
-  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(closePackage(id, Boolean(options.approve)), Boolean(options.json)));
-packageCommand
+  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(closeBatch(id, Boolean(options.approve)), Boolean(options.json)));
+batchCommand
   .command("dedupe <id>")
-  .description("Resolve a package a merge left in two state directories: keep the furthest-advanced copy")
+  .description("Resolve a batch a merge left in two state directories: keep the furthest-advanced copy")
   .option("--approve")
   .option("--json")
-  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(dedupeEntity("package", id, Boolean(options.approve)), Boolean(options.json)));
-packageCommand
+  .action((id: string, options: { approve?: boolean; json?: boolean }) => print(dedupeEntity("batch", id, Boolean(options.approve)), Boolean(options.json)));
+batchCommand
   .command("finalize <id>")
-  .description("Clean up the coordinator branch of a done package after its integration is proven")
+  .description("Clean up the coordinator branch of a done batch after its integration is proven")
   .option("--json")
-  .action((id: string, options: { json?: boolean }) => print(finalizePackage(id), Boolean(options.json)));
+  .action((id: string, options: { json?: boolean }) => print(finalizeBatch(id), Boolean(options.json)));
 
 const claim = program.command("claim").description("Inspect and recover execution claims");
 claim
@@ -251,8 +295,8 @@ claim
 
 program
   .command("ui")
-  .description("Serve the local filesystem-backed A-Team board")
-  .option("--workspace <path>", "Repository root or .a-team directory", ".")
+  .description("Serve the local filesystem-backed Kotta board")
+  .option("--workspace <path>", "Repository root or workspace directory", ".")
   .option("--port <port>", "Local port; omitted starts at 4311 and advances to the next free port")
   .option("--host <host>", "Bind host", "127.0.0.1")
   .option("--no-open", "Print the URL without opening it in the default browser")

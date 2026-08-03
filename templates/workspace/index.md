@@ -1,17 +1,17 @@
-# A-Team Status
+# Kotta Status
 
 > Generated file. Do not edit manually.
 
-## Ready packages
+## Defined batches
 
-## Active packages
+## Active batches
 
-## Ready tickets
+## Defined contracts
 
-## Active tickets
+## Active contracts
 
 ## Review
 
 ## Blocked
 
-## New findings
+## New observations

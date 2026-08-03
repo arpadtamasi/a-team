@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/arpadtamasi/a-team/schemas/config.schema.json",
-  "title": "A-Team workspace configuration",
+  "$id": "https://github.com/arpadtamasi/kotta/schemas/config.schema.json",
+  "title": "Kotta workspace configuration",
   "type": "object",
-  "required": ["version", "project", "workflow", "git", "packages", "validation"],
+  "required": ["version", "project", "workflow", "git", "batches", "validation"],
   "properties": {
-    "version": { "const": 1 },
+    "version": { "const": 2 },
     "project": {
       "type": "object",
       "required": ["name"],
@@ -14,12 +14,12 @@
     },
     "workflow": {
       "type": "object",
-      "required": ["require_human_ready_approval", "require_human_done_approval", "allow_agent_findings", "allow_agent_ready_tickets"],
+      "required": ["require_human_sign_approval", "require_human_done_approval", "allow_agent_observations", "allow_agent_defined_contracts"],
       "properties": {
-        "require_human_ready_approval": { "type": "boolean" },
+        "require_human_sign_approval": { "type": "boolean" },
         "require_human_done_approval": { "type": "boolean" },
-        "allow_agent_findings": { "type": "boolean" },
-        "allow_agent_ready_tickets": { "type": "boolean" }
+        "allow_agent_observations": { "type": "boolean" },
+        "allow_agent_defined_contracts": { "type": "boolean" }
       },
       "additionalProperties": false
     },
@@ -36,7 +36,7 @@
       },
       "additionalProperties": false
     },
-    "packages": {
+    "batches": {
       "type": "object",
       "required": ["default_parallelism", "stop_on_failure"],
       "properties": { "default_parallelism": { "type": "integer", "minimum": 1 }, "stop_on_failure": { "type": "boolean" } },
@@ -44,11 +44,11 @@
     },
     "validation": {
       "type": "object",
-      "required": ["strict", "reject_unknown_profiles", "require_verification_for_ready", "require_review_evidence_for_done"],
+      "required": ["strict", "reject_unknown_profiles", "require_verification_for_defined", "require_review_evidence_for_done"],
       "properties": {
         "strict": { "type": "boolean" },
         "reject_unknown_profiles": { "type": "boolean" },
-        "require_verification_for_ready": { "type": "boolean" },
+        "require_verification_for_defined": { "type": "boolean" },
         "require_review_evidence_for_done": { "type": "boolean" }
       },
       "additionalProperties": false

@@ -7,9 +7,9 @@ export interface CoordinatorMetadata {
   cleaned_at?: string | null;
 }
 
-/** Every package coordinates on a deterministic branch name; nothing infers a different one. */
-export function coordinatorBranchName(packageId: string): string {
-  return `coord/${packageId}`;
+/** Every batch coordinates on a deterministic branch name; nothing infers a different one. */
+export function coordinatorBranchName(batchId: string): string {
+  return `coord/${batchId}`;
 }
 
 export type IntegrationEvidence =
@@ -80,7 +80,7 @@ export function classifyBaseUpdate(root: string, base: string): BaseUpdate {
   const target = git(root, ["rev-parse", remote]);
   if (local === target) return { kind: "current" };
   if (isAncestor(root, base, remote)) return { kind: "fast-forward", from: local, to: target, remote };
-  // Local commits the remote has not seen yet are normal here — A-Team commits its own state locally.
+  // Local commits the remote has not seen yet are normal here — Kotta commits its own state locally.
   if (isAncestor(root, remote, base)) return { kind: "ahead" };
   return { kind: "diverged", local, remote: target };
 }

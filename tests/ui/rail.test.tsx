@@ -6,18 +6,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { Rail, readBoard } from "../../ui/src/App";
-import { decision, finding, pkg, ticket, workspace } from "./fixtures";
+import { decision, observation, batch, contract, workspace } from "./fixtures";
 
 afterEach(cleanup);
 
 const populated = workspace({
-  tickets: [
-    ticket("T-001", "Define the shaping plan schema", { status: "ready" }),
-    ticket("T-002", "Make the UI workspace argument explicit", { status: "active", package: "P-003", assigned_agent: "codex" }),
-    ticket("T-003", "Add a discoverable bug-reporting path", { status: "review", package: "P-003" }),
+  contracts: [
+    contract("T-001", "Define the shaping plan schema", { status: "defined" }),
+    contract("T-002", "Make the UI workspace argument explicit", { status: "active", batch: "P-003", assigned_agent: "codex" }),
+    contract("T-003", "Add a discoverable bug-reporting path", { status: "review", batch: "P-003" }),
   ],
-  packages: [pkg("P-003", "Trustworthy daily use", { status: "active", tickets: ["T-002", "T-003"] })],
-  findings: [finding("F-007", "Triage-assistant agent")],
+  batches: [batch("P-003", "Trustworthy daily use", { status: "active", contracts: ["T-002", "T-003"] })],
+  observations: [observation("F-007", "Triage-assistant agent")],
   decisions: [decision("D-001", "The directory is the state"), decision("D-002", "The board never picks a story")],
 });
 
@@ -41,7 +41,7 @@ describe("Rail", () => {
   it("draws the derivation chain with its numbers and subtitles", () => {
     renderRail();
     expect(screen.getByText("derivation chain")).toBeDefined();
-    for (const [step, label, sub] of [["01", "Observations", "new information"], ["02", "Contracts", "tickets"], ["03", "Batches", "sequencing"]]) {
+    for (const [step, label, sub] of [["01", "Observations", "new information"], ["02", "Contracts", "agreements"], ["03", "Batches", "sequencing"]]) {
       const entry = screen.getByRole("button", { name: new RegExp(`${step}.*${label}.*${sub}`) });
       expect(entry).toBeDefined();
     }

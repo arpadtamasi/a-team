@@ -2,10 +2,11 @@ import { spawn, spawnSync } from "node:child_process";
 import { accessSync, constants, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { findRepositoryRoot } from "../filesystem/workspace.js";
-import { findTicket } from "../filesystem/entities.js";
+import { findRepositoryRoot, workspacePath } from "../filesystem/workspace.js";
+import { findContract } from "../filesystem/entities.js";
 import { assertClean, git } from "../git/git.js";
-import { briefTicket, startTicket } from "./ticket.js";
+import { briefContract, startContract } from "./contract.js";
+import { ENV_PREFIX, readEnv } from "../core/env.js";
 
 /**
  * Arguments a named agent expects around a prompt that arrives on stdin.
@@ -17,7 +18,7 @@ const AGENT_ARGUMENTS: Record<string, string[]> = {
 };
 
 /** The launch seam: tests substitute a deterministic script double for a real agent binary. */
-export const AGENT_COMMAND_ENV = "A_TEAM_AGENT_COMMAND";
+export const AGENT_COMMAND_ENV = `${ENV_PREFIX}AGENT_COMMAND`;
 
 export interface AgentInvocation {
   command: string;
@@ -38,7 +39,7 @@ export interface AgentRun {
 export type AgentLauncher = (invocation: AgentInvocation) => Promise<AgentRun>;
 
 export function resolveAgentCommand(agent: string): { command: string; args: string[] } {
-  const override = process.env[AGENT_COMMAND_ENV]?.trim();
+  const override = readEnv("AGENT_COMMAND")?.trim();
   return { command: override || agent, args: AGENT_ARGUMENTS[agent] ?? [] };
 }
 
@@ -96,10 +97,10 @@ export interface ExecutionContext {
   agent: string;
 }
 
-/** An execution context exists when a claim for the ticket lives in its worktree. */
+/** An execution context exists when a claim for the contract lives in its worktree. */
 export function locateExecutionContext(root: string, id: string): ExecutionContext | null {
   const worktree = join(root, ".worktrees", id);
-  const claimPath = join(worktree, ".a-team/claims", `${id}.yaml`);
+  const claimPath = workspacePath(worktree, "claims", `${id}.yaml`);
   if (!existsSync(claimPath)) return null;
   const claim = parseYaml(readFileSync(claimPath, "utf8")) as Record<string, unknown>;
   return { worktree, branch: String(claim.branch ?? ""), agent: String(claim.agent ?? "") };
@@ -109,11 +110,11 @@ export type ExecutionState = "implemented" | "agent-failed" | "cancelled";
 
 export interface ExecuteResult {
   ok: boolean;
-  command: "ticket execute";
+  command: "contract execute";
   data: {
     id: string;
     state: ExecutionState;
-    ticketState: string;
+    contractState: string;
     agent: string;
     agentCommand: string;
     branch: string;
@@ -145,35 +146,35 @@ function promptFor(brief: string, inheritContext: string | null): string {
 }
 
 /**
- * Run one ready ticket in a fresh agent context (D-009): start, brief, launch —
+ * Run one defined contract in a fresh agent context (D-009): start, brief, launch —
  * one command, so the fresh-context model is the default path and not discipline.
  * The coordinator's context never reaches the agent: its only input is the brief.
  */
-export async function executeTicket(id: string, options: ExecuteOptions, launch: AgentLauncher = spawnAgent): Promise<ExecuteResult> {
+export async function executeContract(id: string, options: ExecuteOptions, launch: AgentLauncher = spawnAgent): Promise<ExecuteResult> {
   const root = findRepositoryRoot();
   if (options.inheritContext !== undefined && !options.inheritContext.trim()) {
-    throw new Error("--inherit-context requires a reason. Context carry-over is an explicit, logged exception (D-009); state why this ticket needs it.");
+    throw new Error("--inherit-context requires a reason. Context carry-over is an explicit, logged exception (D-009); state why this contract needs it.");
   }
   const inheritContext = options.inheritContext?.trim() ?? null;
   const existing = locateExecutionContext(root, id);
 
   if (options.resume) {
-    if (!existing) throw new Error(`Ticket ${id} has no execution context to resume. Run 'a-team ticket execute ${id} --agent <agent>' to create one.`);
+    if (!existing) throw new Error(`Contract ${id} has no execution context to resume. Run 'kotta contract execute ${id} --agent <agent>' to create one.`);
     const agent = options.agent?.trim() || existing.agent;
     if (!agent) throw new Error(`Claim for ${id} names no agent; pass --agent <agent> to resume.`);
-    const ticket = findTicket(existing.worktree, id);
-    if (ticket.state !== "active") throw new Error(`Ticket ${id} must be active in its worktree to resume; it is ${ticket.state}.`);
+    const contract = findContract(existing.worktree, id);
+    if (contract.state !== "active") throw new Error(`Contract ${id} must be active in its worktree to resume; it is ${contract.state}.`);
     const { command, args } = resolveAgentCommand(agent);
     if (!agentCommandAvailable(command)) throw new Error(agentMissingMessage(command));
     return await runAgent({ id, root, agent, command, args, context: existing, inheritContext, resumed: true, launch });
   }
 
-  const ticket = findTicket(root, id);
-  if (ticket.state !== "ready") throw new Error(`Ticket ${id} must be ready before execute; it is ${ticket.state}. Nothing was created.`);
+  const contract = findContract(root, id);
+  if (contract.state !== "defined") throw new Error(`Contract ${id} must be defined before execute; it is ${contract.state}. Nothing was created.`);
   if (existing) {
-    throw new Error(`Ticket ${id} already has an execution context (branch ${existing.branch}, worktree ${existing.worktree}). Execute refuses to start a second agent: retry inside it with '--resume', or release it with 'a-team claim release ${id} --force'.`);
+    throw new Error(`Contract ${id} already has an execution context (branch ${existing.branch}, worktree ${existing.worktree}). Execute refuses to start a second agent: retry inside it with '--resume', or release it with 'kotta claim release ${id} --force'.`);
   }
-  if (existsSync(join(root, ".a-team/claims", `${id}.yaml`))) throw new Error(`Ticket ${id} already has a claim. Execute refuses to start a second agent.`);
+  if (existsSync(workspacePath(root, "claims", `${id}.yaml`))) throw new Error(`Contract ${id} already has a claim. Execute refuses to start a second agent.`);
   const agent = options.agent?.trim();
   if (!agent) throw new Error("--agent <agent> is required to create an execution context.");
   assertClean(root);
@@ -181,7 +182,7 @@ export async function executeTicket(id: string, options: ExecuteOptions, launch:
   // The agent is resolved before any mutation: a missing binary must not leave a half-built context.
   if (!agentCommandAvailable(command)) throw new Error(agentMissingMessage(command));
 
-  const started = startTicket(id, agent);
+  const started = startContract(id, agent);
   const context: ExecutionContext = { worktree: String(started.data.worktree), branch: String(started.data.branch), agent };
   return await runAgent({ id, root, agent, command, args, context, inheritContext, resumed: false, launch });
 }
@@ -202,11 +203,11 @@ async function runAgent(input: {
   launch: AgentLauncher;
 }): Promise<ExecuteResult> {
   const { id, agent, command, args, context, inheritContext, resumed, launch } = input;
-  const contextNote = `Execution context exists: branch ${context.branch}, worktree ${context.worktree}. Inspect it, then retry with '--resume' or release it with 'a-team claim release ${id} --force'.`;
+  const contextNote = `Execution context exists: branch ${context.branch}, worktree ${context.worktree}. Inspect it, then retry with '--resume' or release it with 'kotta claim release ${id} --force'.`;
 
   let brief;
   try {
-    brief = briefTicket(id, {}, context.worktree);
+    brief = briefContract(id, {}, context.worktree);
   } catch (error) {
     throw new Error(`Brief assembly failed for ${id}: ${error instanceof Error ? error.message : String(error)}. ${contextNote}`);
   }
@@ -223,12 +224,12 @@ async function runAgent(input: {
           ? { state: "agent-failed" as const, reason: "Agent produced no output; the result is empty and cannot be treated as an implementation." }
           : null;
 
-  const ticketState = safeTicketState(context.worktree, id);
+  const contractState = safeContractState(context.worktree, id);
   const uncommittedChanges = Boolean(git(context.worktree, ["status", "--porcelain"]));
   const data: ExecuteResult["data"] = {
     id,
     state: failure?.state ?? "implemented",
-    ticketState,
+    contractState,
     agent,
     agentCommand: command,
     branch: context.branch,
@@ -243,18 +244,18 @@ async function runAgent(input: {
     uncommittedChanges,
     reason: failure?.reason ?? null,
   };
-  if (!failure) return { ok: true, command: "ticket execute", data };
+  if (!failure) return { ok: true, command: "contract execute", data };
   return {
     ok: false,
-    command: "ticket execute",
+    command: "contract execute",
     data,
     errors: [{ code: failure.state === "cancelled" ? "EXECUTION_CANCELLED" : "AGENT_FAILED", message: `${failure.reason} ${contextNote}` }],
   };
 }
 
-function safeTicketState(worktree: string, id: string): string {
+function safeContractState(worktree: string, id: string): string {
   try {
-    return findTicket(worktree, id).state;
+    return findContract(worktree, id).state;
   } catch {
     return "unknown";
   }
@@ -263,16 +264,16 @@ function safeTicketState(worktree: string, id: string): string {
 export function formatExecution(result: ExecuteResult): string {
   const data = result.data;
   const lines = [
-    `a-team ticket execute ${data.id}: ${data.state}`,
+    `kotta contract execute ${data.id}: ${data.state}`,
     `  agent:    ${data.agent} (command: ${data.agentCommand})`,
     `  brief:    ~${data.briefTokens} tokens, ${data.briefSections} sections — the agent's only input`,
     `  branch:   ${data.branch}`,
     `  worktree: ${data.worktree}`,
     `  context:  ${data.context === "fresh" ? "fresh (D-009 default)" : `INHERITED — ${String(data.inheritContext)}`}`,
-    `  ticket:   ${data.ticketState}${data.uncommittedChanges ? " (worktree has uncommitted changes)" : ""}`,
+    `  contract:   ${data.contractState}${data.uncommittedChanges ? " (worktree has uncommitted changes)" : ""}`,
   ];
   if (data.briefWarning) lines.push(`  WARNING:  ${data.briefWarning}`);
-  if (result.ok) lines.push(`Next: verify the work, then 'a-team ticket review ${data.id} --evidence "..."'. Review stays a separate gate.`);
-  else lines.push(`  reason:   ${String(data.reason)}`, `The claim and worktree are preserved. Retry with 'a-team ticket execute ${data.id} --resume' or release with 'a-team claim release ${data.id} --force'.`);
+  if (result.ok) lines.push(`Next: verify the work, then 'kotta contract review ${data.id} --evidence "..."'. Review stays a separate gate.`);
+  else lines.push(`  reason:   ${String(data.reason)}`, `The claim and worktree are preserved. Retry with 'kotta contract execute ${data.id} --resume' or release with 'kotta claim release ${data.id} --force'.`);
   return lines.join("\n");
 }

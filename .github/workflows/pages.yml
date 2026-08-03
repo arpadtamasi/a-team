@@ -33,15 +33,15 @@ jobs:
           npm run typecheck
           npm test
       - uses: actions/configure-pages@v5
-        if: github.repository == 'arpadtamasi/a-team' && github.ref == 'refs/heads/main'
+        if: github.repository == 'arpadtamasi/kotta' && github.ref == 'refs/heads/main'
       - uses: actions/upload-pages-artifact@v4
-        if: github.repository == 'arpadtamasi/a-team' && github.ref == 'refs/heads/main'
+        if: github.repository == 'arpadtamasi/kotta' && github.ref == 'refs/heads/main'
         with:
           path: site-dist
 
   pages-deploy:
     name: pages-deploy
-    if: github.repository == 'arpadtamasi/a-team' && github.ref == 'refs/heads/main'
+    if: github.repository == 'arpadtamasi/kotta' && github.ref == 'refs/heads/main'
     needs: site-build
     runs-on: ubuntu-latest
     environment:

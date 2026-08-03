@@ -29,7 +29,7 @@ afterEach(async () => {
 });
 
 function initializedRepository(label: string) {
-  const root = mkdtempSync(join(tmpdir(), `a-team-ui-port-${label}-`));
+  const root = mkdtempSync(join(tmpdir(), `kotta-ui-port-${label}-`));
   execFileSync("git", ["init", "-b", "main"], { cwd: root });
   execFileSync("node", [cli, "init", "--json"], { cwd: root });
   return root;
@@ -61,7 +61,7 @@ const occupy = (port: number) => new Promise<Server | null>((done) => {
   server.listen(port, HOST, () => { held.push(server); done(server); });
 });
 
-describe("a-team ui port selection through the CLI", () => {
+describe("kotta ui port selection through the CLI", () => {
   test("documents the fallback contract in help", () => {
     const help = execFileSync("node", [cli, "ui", "--help"], { encoding: "utf8" }).replace(/\s+/g, " ");
     expect(help).toContain("omitted starts at 4311 and advances to the next free port");
@@ -76,7 +76,7 @@ describe("a-team ui port selection through the CLI", () => {
     expect(payload.data.host).toBe(HOST);
     expect(payload.data.port).toBeGreaterThan(0);
     expect(payload.data.url).toBe(`http://${HOST}:${payload.data.port}`);
-    expect(payload.data.workspace).toBe(join(realpathSync(root), ".a-team"));
+    expect(payload.data.workspace).toBe(join(realpathSync(root), ".kotta"));
     expect(payload.data.fallback).toBe(false);
   });
 
@@ -117,6 +117,6 @@ describe("a-team ui port selection through the CLI", () => {
     if (!blocker) return; // See above: the note itself is asserted only when 4311 is ours to occupy.
     const root = initializedRepository("human");
     const { line } = await startUi(root, []);
-    expect(line).toMatch(/^A-Team UI: http:\/\/127\.0\.0\.1:\d+$/);
+    expect(line).toMatch(/^Kotta UI: http:\/\/127\.0\.0\.1:\d+$/);
   });
 });

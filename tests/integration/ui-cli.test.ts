@@ -8,7 +8,7 @@ import { readWorkspace } from "../../src/commands/ui.js";
 const cli = resolve("dist/cli/index.js");
 
 function initializedRepository() {
-  const root = mkdtempSync(join(tmpdir(), "a-team-ui-cli-"));
+  const root = mkdtempSync(join(tmpdir(), "kotta-ui-cli-"));
   execFileSync("git", ["init", "-b", "main"], { cwd: root });
   execFileSync("node", [cli, "init", "--json"], { cwd: root });
   return root;
@@ -54,26 +54,26 @@ function startUi(cwd: string, workspace?: string): Promise<Record<string, unknow
   });
 }
 
-describe("a-team ui workspace option", () => {
+describe("kotta ui workspace option", () => {
   test("documents an optional workspace with the runtime default", () => {
     const help = execFileSync("node", [cli, "ui", "--help"], { encoding: "utf8" });
 
     expect(help).toContain("--workspace <path>");
-    expect(help).toContain("Repository root or .a-team directory (default: \".\")");
+    expect(help).toContain("Repository root or workspace directory (default: \".\")");
     expect(help).not.toContain("required option '--workspace <path>'");
   });
 
-  test("omission resolves like explicit repository-root and .a-team paths", async () => {
+  test("omission resolves like explicit repository-root and .kotta paths", async () => {
     const root = initializedRepository();
     const omitted = await startUi(root);
     const explicitRoot = await startUi(root, ".");
-    const explicitWorkspace = await startUi(root, ".a-team");
+    const explicitWorkspace = await startUi(root, ".kotta");
     const results = [omitted, explicitRoot, explicitWorkspace];
 
     if (results.every((result) => result.ok === true)) {
-      expect(omitted).toMatchObject({ ok: true, command: "ui", data: { workspace: join(realpathSync(root), ".a-team") } });
-      expect(explicitRoot).toMatchObject({ data: { workspace: join(realpathSync(root), ".a-team") } });
-      expect(explicitWorkspace).toMatchObject({ data: { workspace: join(realpathSync(root), ".a-team") } });
+      expect(omitted).toMatchObject({ ok: true, command: "ui", data: { workspace: join(realpathSync(root), ".kotta") } });
+      expect(explicitRoot).toMatchObject({ data: { workspace: join(realpathSync(root), ".kotta") } });
+      expect(explicitWorkspace).toMatchObject({ data: { workspace: join(realpathSync(root), ".kotta") } });
     } else {
       expect(results).toEqual(results.map(() => ({
         ok: false,
@@ -81,22 +81,22 @@ describe("a-team ui workspace option", () => {
       })));
     }
 
-    expect(readWorkspace(root).workspace).toBe(join(resolve(root), ".a-team"));
-    expect(readWorkspace(join(root, ".a-team")).workspace).toBe(join(resolve(root), ".a-team"));
+    expect(readWorkspace(root).workspace).toBe(join(resolve(root), ".kotta"));
+    expect(readWorkspace(join(root, ".kotta")).workspace).toBe(join(resolve(root), ".kotta"));
   });
 
   test("omission outside a workspace has actionable human and JSON errors", () => {
-    const outside = mkdtempSync(join(tmpdir(), "a-team-ui-outside-"));
+    const outside = mkdtempSync(join(tmpdir(), "kotta-ui-outside-"));
     const human = spawnSync("node", [cli, "ui", "--port", "0"], { cwd: outside, encoding: "utf8" });
     const json = spawnSync("node", [cli, "ui", "--port", "0", "--json"], { cwd: outside, encoding: "utf8" });
     const canonicalOutside = realpathSync(outside);
 
     expect(human.status).toBe(1);
-    expect(human.stderr).toContain(`No A-Team workspace found at ${canonicalOutside}.`);
+    expect(human.stderr).toContain(`No Kotta workspace found at ${canonicalOutside}.`);
     expect(json.status).toBe(1);
     expect(JSON.parse(json.stdout)).toMatchObject({
       ok: false,
-      errors: [{ code: "COMMAND_FAILED", message: `No A-Team workspace found at ${canonicalOutside}.` }],
+      errors: [{ code: "COMMAND_FAILED", message: `No Kotta workspace found at ${canonicalOutside}.` }],
     });
   });
 });

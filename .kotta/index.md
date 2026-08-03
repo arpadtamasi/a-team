@@ -12,7 +12,7 @@ None.
 
 ## Defined contracts
 
-- T-022-a-szomszed-hasznalo-projektek-migracioja-oneanda-crm-kit-flo
+None.
 
 ## Active contracts
 
@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-None.
+- T-022-a-szomszed-hasznalo-projektek-migracioja-oneanda-crm-kit-flo
 
 ## Blocked
 
@@ -48,10 +48,14 @@ None.
 - a-ticket-brief-nem-szedi-fel-a-mintazott-azonositoju-dontese-phd95n90
 - a-vitest-a-worktrees-ala-is-benez-egy-elo-ticket-worktree-me-cahhcmt5
 - a-workspace-konyvtar-atnevezese-uressen-mutatja-a-boardot-am-0n2rjcpt
+- crm-kit-and-flowbench-cannot-be-migrated-unrelated-dirty-tre-9m3dkmxv
 - gray-matter-memoizes-frontmatter-so-every-writer-mutates-a-s-s8j3h62g
+- kotta-migrate-writes-a-root-gitattributes-it-never-reports-i-hkr7tyh2
 - migration-json-keeps-the-pre-vocabulary-words-and-nothing-de-3hcysj58
 - nincs-agents-md-semmi-nem-mondja-meg-egy-erkezo-agensnek-hog-pky2an1x
+- no-before-baseline-is-obtainable-kotta-validate-refuses-a-pr-4e63se3v
 - ready-ticket-szovege-nem-javithato-a-define-csak-backlogbol--147t946f
+- renaming-the-workspace-drops-tracked-but-now-ignored-files-o-nkb8sbc4
 - schemas-package-schema-json-rejects-every-started-package-an-8et554b5
 - state-drift-has-no-reconcile-command-so-the-board-can-only-p-5mqcvk49
 - tests-integration-ui-port-cli-test-ts-is-flaky-aftereach-tim-hqqt57nj

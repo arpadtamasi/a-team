@@ -22,7 +22,7 @@ coordinator:
   branch: coord/P-004
   base_branch: main
   base_commit: b40be85fde341e05193370f96d243e132b4d7de3
-  cleaned_at: null
+  cleaned_at: '2026-08-03'
 ---
 # P-004 — Teljes rename: a-team → kotta
 

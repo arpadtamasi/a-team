@@ -13,11 +13,11 @@ None.
 ## Defined contracts
 
 - az-agenseknek-szolo-szabalyok-csak-egy-masolt-agents-md-ben--bd1366pk
-- the-run-visszakapja-a-hullam-alapu-vegrehajtasi-nezetet-ynebm578
 
 ## Active contracts
 
 - live-control-plane-persistent-contract-chat-and-chat-first-a-seka50v9
+- the-run-visszakapja-a-hullam-alapu-vegrehajtasi-nezetet-ynebm578
 
 ## Review
 

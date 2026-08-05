@@ -200,31 +200,13 @@ Purpose: watch the machine work; accept or reject what comes back.
 - Done batches/contracts roll into **Done** (an archive stage or filter —
   low-priority screen; a searchable list is enough).
 
-### 4.6 Chat dock (the built-in chats)
+### 4.6 Read-only activity timeline
 
-Chat is a global surface, not a drawer feature. One dock, three context levels:
-
-1. **Workspace thread** — PM-level: "what should I do next", "summarize state",
-   "draft a observation". No entity attached.
-2. **Contract threads** — the current per-contract chat (context: the contract +
-   repo). Reached from any contract row's "Discuss/Shape" verb, or from the dock's
-   thread list.
-3. **Batch threads** — coordinator-level: composition ("what belongs
-   together"), launch, and mid-run intervention.
-
-Dock behavior:
-
-- Collapsible bottom or side dock; expanded state coexists with the stage view
-  (operator watches the board while talking). Full-screen takeover is wrong.
-- Thread list with entity chips (T-012, P-003…) + agent identity per thread.
-- Agent routing per thread (Codex / Claude), availability from `/api/agents`,
-  streaming as today. Entity ids in messages stay clickable (existing
-  `entity:` link behavior) and navigate to the right stage/detail.
-- Seeded prompt starters per context (keep the current two for contracts; add
-  batch- and workspace-level starters).
-- Contract threads persist per entity on the control plane and survive reloads. Workspace- and
-  batch-level threads remain **[backend-gap]** surfaces; design them with the same persistence
-  contract rather than falling back to in-memory history.
+The board is not a second chat surface. Entity drawers reconstruct visible messages, lifecycle
+events and approval outcomes from the canonical control branch, with no composer, retry, prepare,
+approve or reject controls. Pending approvals say that they are waiting in the calling host chat.
+The caller-chat MCP tools own structured actions and human elicitation; the board only refreshes the
+result.
 
 ## 5. What the design must express (principles)
 
@@ -237,9 +219,8 @@ Dock behavior:
 3. **Density over poster.** This is an operator tool: rows, tables, monospace
    ids, tight vertical rhythm. No staggered entrance animations, no numbered
    editorial section labels, no decorative seals.
-4. **Verbs on the object.** Every entity carries its 1–2 legal next actions
-   inline (disposition, validate, launch, accept). Illegal actions are visible
-   but disabled with the reason ("membership locked: batch is active").
+4. **State, not verbs.** Every entity shows its legal next state and why it may be blocked, but
+   mutation controls stay in the calling chat rather than on the board.
 5. **The machine is a colleague.** Agent presence (who holds which claim, who
    is streaming in which thread) is first-class visual information.
 6. **Keyboard-first is welcome** (j/k row nav, `/` search, `g i`/`g s`/`g p`/
@@ -251,15 +232,10 @@ Dock behavior:
   optional migration block); UI polls every 1.5 s. Fields: see types in
   `ui/src/App.tsx` (Contract, Batch, Observation, Workspace).
 - `GET /api/agents` — `{ codex: boolean, claude: boolean }`.
-- `POST /api/chat` — persists the human message, streams transient deltas, then persists only
-  the final visible assistant response or a failed-turn marker.
-- `POST /api/approval/propose` and `POST /api/approval/decide` — one durable, entity-scoped
-  approval at a time. Sign, disposition, review acceptance/change request, contract close and
-  batch close all use these endpoints.
-- `POST /api/observation` captures a new observation. Disposition goes through approval.
-- `POST /api/batch` (create), `POST /api/batch/contracts` (add/remove).
-- Direct `/api/contract/sign` and `/api/observation/resolve` writes are retired; they return 410
-  so no caller can bypass an explicit approval receipt.
+- Every non-GET/HEAD request returns `405`; historical chat, approval, observation and batch write
+  routes are intentionally unavailable from the board.
+- `kotta mcp` owns structured caller-chat tools and delegates lifecycle mutations to the same
+  validated domain services as the CLI.
 - `GET /api/source?id|path` — read-only markdown of any canonical file.
 - Launch/run control remains a CLI/orchestrator action. Claims, worktrees, lifecycle state,
   persistent chat and drift diagnostics are included in the workspace response.
@@ -286,13 +262,11 @@ the detection API; the design must reserve the slot.
 ## 9. Acceptance for the design deliverable
 
 1. IA matches §4: four stages + needs-you strip + chat dock.
-2. Every current capability (observation capture/disposition, validate→defined,
-   batch CRUD + membership, contract chat, source viewing, migration audit)
-   has a home in the new IA — nothing silently dropped.
+2. Every canonical state and history capability has a board view; write capabilities live in the
+   calling-chat MCP tools and never appear as board controls.
 3. Every [backend-gap] surface is designed and visibly marked in the deliverable
    so the frontend can ship with graceful "here's the command" fallbacks.
 4. The three operator questions in §2 are each answerable within one glance or
    one click from any screen.
-5. Screens delivered: Inbox, Shape, Batches (list + detail with launch
-   pre-flight), Run (with review flow), chat dock in collapsed/expanded/
-   streaming states, needs-you strip populated + empty, drift-warning state.
+5. Screens delivered: Inbox, Shape, Batches (list + detail), Run, read-only entity activity,
+   needs-you strip populated + empty, and drift-warning state.

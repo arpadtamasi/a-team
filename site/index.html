@@ -134,7 +134,7 @@
                 <tr><th scope="col">Layer</th><th scope="col">Keeps intent</th><th scope="col">Controls execution</th><th scope="col">Verifies completion</th></tr>
               </thead>
               <tbody>
-                <tr><th scope="row">Agent chat</th><td data-label="Keeps intent">Conversation</td><td data-label="Controls execution">Session-dependent execution</td><td data-label="Verifies completion">Reported by the agent</td></tr>
+                <tr><th scope="row">Agent chat</th><td data-label="Keeps intent">Conversation</td><td data-label="Controls execution">Kotta MCP actions + human gates</td><td data-label="Verifies completion">Reported by the agent</td></tr>
                 <tr><th scope="row">Jira / Linear</th><td data-label="Keeps intent">Human-readable issue</td><td data-label="Controls execution">Status tracking</td><td data-label="Verifies completion">Team convention</td></tr>
                 <tr><th scope="row">Agent orchestrator</th><td data-label="Keeps intent">Prompt or task input</td><td data-label="Controls execution">Agent runtime</td><td data-label="Verifies completion">Runtime-specific checks</td></tr>
                 <tr class="kotta-row"><th scope="row">Kotta</th><td data-label="Keeps intent">Repository-native contract</td><td data-label="Controls execution">Claim plus Git isolation</td><td data-label="Verifies completion">Acceptance mapped to evidence</td></tr>
@@ -157,7 +157,7 @@
                 <span class="step-badge" aria-hidden="true">1</span>
                 <h3>Install and open Codex</h3>
               </div>
-              <pre tabindex="0" aria-label="Kotta quickstart commands"><code>npm install --global @arpadtamasi/kotta@0.4.2
+              <pre tabindex="0" aria-label="Kotta quickstart commands"><code>npm install --global @arpadtamasi/kotta@0.5.0
 kotta --version
 npx skills@1.5.20 add arpadtamasi/kotta
 
@@ -165,11 +165,10 @@ npx skills@1.5.20 add arpadtamasi/kotta
 /setup-kotta
 /define-contract
 
-kotta contract validate T-001
-kotta validate</code></pre>
+# Continue in chat; Kotta returns the id and approval here.</code></pre>
               <div class="terminal-result" aria-label="Successful validation result">
-                <span>kotta contract validate completed.</span>
-                <span>kotta validate completed.</span>
+                <span>Kotta caller-chat tools connected.</span>
+                <span>Created contract T-… · waiting for your approval.</span>
               </div>
             </div>
             <div class="quickstart-col">

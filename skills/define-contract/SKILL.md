@@ -17,7 +17,9 @@ Investigate before asking the human. Use the `kotta` CLI for every contract crea
    When a human resolves a choice and asks to retain it durably, use `kotta decision create --from <draft.md> --approve` instead of editing `.kotta/decisions/`.
 6. Create the item with `kotta contract new`, write the investigated definition to a temporary Markdown file, then apply it with `kotta contract define <contract-id> --from <file>`. Keep incomplete work in backlog.
 7. Run `kotta contract validate <contract-id>` and `kotta validate`.
-8. Only after the definition is complete, prepare its execution approval in contract chat. The human
-   approves there; `kotta contract sign <contract-id> --approve` remains the human-run CLI fallback.
+8. Only after the definition is complete, call the Kotta `approval_request` tool for
+   `contract.sign`. The human approves the exact transition in the calling host chat;
+   `kotta contract sign <contract-id> --approve` remains the human-run CLI fallback. Never ask the
+   human to copy the id or run that fallback when the MCP tools are available.
 
 A defined contract must have an explicit outcome, bounded scope, acceptance and verification, all active-profile requirements, no blocking open decision, and a valid dependency order.

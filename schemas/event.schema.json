@@ -18,7 +18,7 @@
     "state": { "type": "string" },
     "summary": { "type": "string" },
     "approval_id": { "type": "string", "pattern": "^E-[0-9a-hjkmnp-tv-z]{26}$" },
-    "phase": { "enum": ["proposed", "approved", "rejected", "applied", "failed"] },
+    "phase": { "enum": ["proposed", "approved", "rejected", "cancelled", "applied", "failed"] },
     "action": { "type": "string" },
     "payload": { "type": "object" },
     "source_message": { "type": ["string", "null"] },

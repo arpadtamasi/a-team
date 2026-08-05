@@ -15,6 +15,8 @@ import { createDecision } from "../commands/decision.js";
 import { dedupeEntity, describeDedupe, type DedupeResult } from "../commands/dedupe.js";
 import { formatMigration, migrateWorkspace } from "../commands/migrate.js";
 import { assertCurrentWorkspaceShape, findRepositoryRoot } from "../filesystem/workspace.js";
+import { mcpCommand } from "../commands/mcp.js";
+import { integrateCodex } from "../commands/integrate.js";
 
 const program = new Command();
 const packagePath = fileURLToPath(new URL("../../package.json", import.meta.url));
@@ -42,6 +44,10 @@ function humanize(result: unknown): string {
         `'kotta contract execute <id> --agent <agent>' does start, brief and agent launch in one command.`,
       ].join("\n");
     }
+    if (command === "contract new" && "data" in result) {
+      const data = (result as { data: { id: unknown; path: unknown } }).data;
+      return `Created contract ${String(data.id)} at ${String(data.path)}.`;
+    }
     if (command === "status" && "data" in result) {
       // The workspace path leads: with `.kotta/` and `.a-team/` both readable, the directory that
       // answered is the first thing a reader needs (D-007).
@@ -55,6 +61,10 @@ function humanize(result: unknown): string {
       const data = (result as { data: { id: unknown; path: unknown } }).data;
       return `Recorded decision ${String(data.id)} at ${String(data.path)}.`;
     }
+    if (command === "integrate codex" && "data" in result) {
+      const data = (result as { data: { path: unknown; changed: unknown } }).data;
+      return data.changed ? `Connected Kotta caller-chat tools in ${String(data.path)}.` : `Kotta caller-chat tools are already configured in ${String(data.path)}.`;
+    }
     return `kotta ${String((result as { command: unknown }).command)} completed.`;
   }
   return String(result);
@@ -65,7 +75,7 @@ function humanize(result: unknown): string {
  * `migrate` exists precisely to read the old shape, and `ui` explains the gap on the board rather than
  * refusing to start — everything else stops with a message that names `kotta migrate`.
  */
-const SHAPE_EXEMPT = new Set(["init", "migrate", "ui"]);
+const SHAPE_EXEMPT = new Set(["init", "migrate", "ui", "mcp"]);
 
 program.hook("preAction", (_program, action) => {
   const names = [action.name(), action.parent?.name()].filter(Boolean) as string[];
@@ -295,6 +305,24 @@ claim
   .option("--force")
   .option("--json")
   .action((id: string, options: { force?: boolean; json?: boolean }) => print(releaseClaim(id, Boolean(options.force)), Boolean(options.json)));
+
+program
+  .command("integrate")
+  .description("Connect Kotta to a calling agent host")
+  .argument("<host>", "Supported host: codex")
+  .option("--json")
+  .action((host: string, options: { json?: boolean }) => {
+    if (host !== "codex") throw new Error(`Unsupported host '${host}'. Supported host: codex.`);
+    print(integrateCodex(), Boolean(options.json));
+  });
+
+program
+  .command("mcp")
+  .description("Serve Kotta tools to the calling chat over stdio MCP")
+  .option("--workspace <path>", "Repository root or linked worktree", ".")
+  .action(async (options: { workspace: string }) => {
+    await mcpCommand(options.workspace);
+  });
 
 program
   .command("ui")

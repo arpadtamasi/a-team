@@ -1,7 +1,7 @@
 # AGENTS.md
 
 This repository runs on **Kotta**. Work is defined, executed, reviewed and closed as plain files
-in `.kotta/`, and every state change goes through Kotta's validated services via contract chat or
+in `.kotta/`, and every state change goes through Kotta's validated services via calling-chat MCP tools or
 the `kotta` CLI fallback. Read this before you touch
 anything.
 
@@ -9,8 +9,9 @@ anything.
 
 `.kotta/` is the canonical source of truth for work: contracts, observations, batches, lifecycle
 state, claims and decisions. Chat, the board (`kotta ui`), pull requests and CI are views or
-history — they never override `.kotta/`. Never hand-edit workspace files; use contract chat for
-human approvals and the CLI for automation and recovery. Both validate before writing and name the
+history — they never override `.kotta/`. The board is read-only. Never hand-edit workspace files;
+use the calling chat's Kotta MCP tools for actions and human approvals, and the CLI for automation
+and recovery. Both validate before writing and name the
 violated rule when they refuse.
 
 ## Orient yourself first
@@ -33,10 +34,10 @@ backlog → defined → active → review → done
 | --- | --- | --- |
 | Capture intent | `kotta contract new --title "…" --type <type> [--profile …]` | human, or agent if allowed by config |
 | Formalize | `kotta contract define <id> --from <file>` then `kotta contract validate <id>` | agent |
-| Approve for execution | Contract chat approval, or `kotta contract sign <id> --approve` | **human only** |
+| Approve for execution | Calling-chat `approval_request`, or `kotta contract sign <id> --approve` | **human only** |
 | Execute | `kotta contract execute <id> --agent <agent>` | agent, in its own claim + branch + worktree |
 | Submit | `kotta contract review <id> --evidence "…" --pull-request <ref>` | agent |
-| Close | Contract chat approval, or `kotta contract close <id> --approve` | **human only** |
+| Close | Calling-chat `approval_request`, or `kotta contract close <id> --approve` | **human only** |
 
 `contract execute` does the start, builds the brief and launches a fresh agent context whose only
 input is `kotta contract brief <id>`. Resume an interrupted or failed run with `--resume`; a second
@@ -51,6 +52,11 @@ without a final period) under `Open decisions`. Any substantive text there block
 Canonical live state, claims and visible conversation stay on `git.base_branch`; implementation
 worktrees contain code and their original baseline, not a divergent lifecycle copy. Commands invoked
 from any linked worktree route state changes back to the checked-out control worktree.
+
+When the Kotta MCP server is available, use its structured tools instead of asking the human to copy
+ids or run commands. `contract_start_caller` is the inherited-context start path. Consequential
+transitions must go through `approval_request`, whose elicitation is answered by the human in the
+calling chat. `kotta ui` only displays the resulting canonical state and timeline.
 
 ## Rules for agents
 

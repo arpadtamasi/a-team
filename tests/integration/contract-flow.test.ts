@@ -17,6 +17,17 @@ function git(repository: string, ...args: string[]): void {
 }
 
 describe("contract execution vertical slice", () => {
+  test("human contract creation output includes the stable id and canonical path", () => {
+    const repository = mkdtempSync(join(tmpdir(), "kotta-new-output-"));
+    git(repository, "init", "-b", "main");
+    writeFileSync(join(repository, "README.md"), "fixture\n");
+    run(repository, ["init"]);
+    const created = spawnSync("node", [cli, "contract", "new", "--title", "Visible id", "--type", "feature"], { cwd: repository, encoding: "utf8" });
+    expect(created.status).toBe(0);
+    expect(created.stdout).toMatch(/^Created contract T-[0-9a-hjkmnp-tv-z]{26} at .+\.md\.\n$/);
+    expect(created.stdout).not.toBe("kotta contract new completed.\n");
+  });
+
   test("defines a complete backlog contract through the canonical CLI", () => {
     const repository = mkdtempSync(join(tmpdir(), "kotta-define-"));
     git(repository, "init", "-b", "main");

@@ -87,8 +87,8 @@ function profileHeadings(profile: string): string[] {
   return requirements[profile] ?? [];
 }
 
-export function validateContract(id: string) {
-  const root = controlPlaneRoot(findRepositoryRoot());
+export function validateContract(id: string, repositoryRoot?: string) {
+  const root = controlPlaneRoot(repositoryRoot ?? findRepositoryRoot());
   const contract = findContract(root, id);
   const report = validateContractFile(contract.path);
   return { ok: report.valid, command: "contract validate", data: { id, state: contract.state }, errors: report.errors };
@@ -124,8 +124,8 @@ export function signContract(id: string, approved: boolean, repositoryRoot?: str
   return options.locked ? sign(requestedRoot) : withControlPlaneMutation(requestedRoot, sign, { requireClean: false });
 }
 
-export function startContract(id: string, agent: string, executionMode: "fresh" | "inherited" = "fresh") {
-  const callerRoot = findRepositoryRoot();
+export function startContract(id: string, agent: string, executionMode: "fresh" | "inherited" = "fresh", repositoryRoot?: string) {
+  const callerRoot = repositoryRoot ?? findRepositoryRoot();
   return withControlPlaneMutation(callerRoot, (root) => {
     const contract = findContract(root, id);
     if (contract.state !== "defined") throw new Error(`Contract ${id} must be defined before start.`);
@@ -203,8 +203,8 @@ export interface ReviewDeclarations {
 
 const NOT_DECLARED = "Not declared.";
 
-export function reviewContract(id: string, evidence: string, pullRequest?: string, declarations: ReviewDeclarations = {}) {
-  const callerRoot = findRepositoryRoot();
+export function reviewContract(id: string, evidence: string, pullRequest?: string, declarations: ReviewDeclarations = {}, repositoryRoot?: string) {
+  const callerRoot = repositoryRoot ?? findRepositoryRoot();
   return withControlPlaneMutation(callerRoot, (root) => {
   const canonical = findContract(root, id);
   const executionRoot = join(root, ".worktrees", id);

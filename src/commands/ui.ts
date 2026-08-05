@@ -1,21 +1,15 @@
-import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createReadStream, existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { createInterface } from "node:readline";
+import { createServer, type Server, type ServerResponse } from "node:http";
 import { basename, dirname, extname, join, normalize, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import matter from "gray-matter";
 import { parse } from "yaml";
 import { sections } from "../core/markdown.js";
 import { findContract, idFromFilename } from "../filesystem/entities.js";
-import { OBSERVATION_ID, BATCH_ID, CONTRACT_ID, mintEventId } from "../core/identity.js";
-import { findObservation, newObservation, resolveObservation } from "./observation.js";
-import { closeBatch, findBatch, newBatch, updateBatchContracts } from "./batch.js";
-import { closeContract, reopenContract, signContract } from "./contract.js";
 import { ENV_PREFIX, readEnv } from "../core/env.js";
 import { WORKSPACE_DIRECTORIES, hasWorkspace, legacyStateDirectories, workspaceDirectoryName } from "../filesystem/workspace.js";
-import { appendEvent, approvalHistory, readEvents, type KottaEvent, type NewEvent } from "../core/events.js";
-import { commitControlState, withControlPlaneMutation } from "../git/control-plane.js";
+import type { KottaEvent } from "../core/events.js";
 
 const CONTRACT_STATES = ["backlog", "defined", "active", "review", "done"];
 const BATCH_STATES = ["backlog", "defined", "active", "done"];
@@ -281,192 +275,6 @@ function json(response: ServerResponse, status: number, value: unknown): void {
   response.end(JSON.stringify(value));
 }
 
-type JsonRpcMessage = { id?: number; method?: string; result?: unknown; error?: { message?: string }; params?: Record<string, unknown> };
-
-class CodexAppServer {
-  private readonly process: ChildProcessWithoutNullStreams;
-  private readonly pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
-  private readonly listeners = new Map<string, Set<(message: JsonRpcMessage) => void>>();
-  private readonly threadContracts = new Map<string, string>();
-  private nextId = 1;
-  readonly ready: Promise<void>;
-
-  constructor(private readonly cwd: string) {
-    this.process = spawn("codex", ["app-server"], { cwd, stdio: ["pipe", "pipe", "pipe"] });
-    createInterface({ input: this.process.stdout }).on("line", (line) => this.receive(line));
-    this.process.stderr.on("data", (chunk) => {
-      const message = String(chunk).trim();
-      if (message) process.stderr.write(`[codex app-server] ${message}\n`);
-    });
-    this.process.on("error", (error) => this.failAll(error));
-    this.process.on("exit", (code) => this.failAll(new Error(`Codex app-server exited with code ${code ?? "unknown"}.`)));
-    this.ready = this.request("initialize", { clientInfo: { name: "kotta_pm", title: "Kotta PM", version: "0.1.0" } }).then(() => {
-      this.notify("initialized", {});
-    });
-  }
-
-  private send(message: unknown): void {
-    this.process.stdin.write(`${JSON.stringify(message)}\n`);
-  }
-
-  private request(method: string, params: unknown): Promise<unknown> {
-    const id = this.nextId++;
-    return new Promise((resolvePromise, reject) => {
-      this.pending.set(id, { resolve: resolvePromise, reject });
-      this.send({ method, id, params });
-    });
-  }
-
-  private notify(method: string, params: unknown): void {
-    this.send({ method, params });
-  }
-
-  private receive(line: string): void {
-    let message: JsonRpcMessage;
-    try { message = JSON.parse(line) as JsonRpcMessage; }
-    catch { return; }
-    if (typeof message.id === "number") {
-      const pending = this.pending.get(message.id);
-      if (!pending) return;
-      this.pending.delete(message.id);
-      if (message.error) pending.reject(new Error(message.error.message ?? "Codex request failed."));
-      else pending.resolve(message.result);
-      return;
-    }
-    const threadId = typeof message.params?.threadId === "string" ? message.params.threadId : null;
-    if (threadId) this.listeners.get(threadId)?.forEach((listener) => listener(message));
-  }
-
-  private failAll(error: Error): void {
-    this.pending.forEach((pending) => pending.reject(error));
-    this.pending.clear();
-  }
-
-  async chat(scopeId: string, existingThreadId: string | null, prompt: string, onEvent: (event: Record<string, unknown>) => void): Promise<void> {
-    await this.ready;
-    let threadId = existingThreadId && this.threadContracts.get(existingThreadId) === scopeId ? existingThreadId : null;
-    let isNew = false;
-    if (!threadId) {
-      const result = await this.request("thread/start", { cwd: this.cwd, approvalPolicy: "never", sandbox: "workspace-write", serviceName: "kotta-pm" }) as { thread?: { id?: string } };
-      threadId = result.thread?.id ?? null;
-      if (!threadId) throw new Error("Codex did not return a thread id.");
-      this.threadContracts.set(threadId, scopeId);
-      isNew = true;
-    }
-    onEvent({ type: "thread", threadId });
-    const instruction = "You are inside the Kotta PM contract chat. You may inspect and modify files inside the current workspace when the user asks you to implement or change something. Stay within the selected contract's scope, avoid destructive operations, and report the files and verification performed. If you discover evidence-backed work outside this contract's scope, do not silently expand the contract and do not create another contract: capture it as a Kotta observation with the canonical CLI so a human can disposition it.";
-    const input = isNew ? `${prompt}\n\n${instruction}` : prompt;
-
-    await new Promise<void>(async (resolvePromise, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Codex response timed out.")), 180_000);
-      const finish = (error?: Error) => {
-        clearTimeout(timeout);
-        this.listeners.get(threadId!)?.delete(listener);
-        error ? reject(error) : resolvePromise();
-      };
-      const listener = (message: JsonRpcMessage) => {
-        if (message.method === "item/agentMessage/delta" && typeof message.params?.delta === "string") onEvent({ type: "delta", delta: message.params.delta });
-        if (message.method === "error" && message.params?.willRetry === false) {
-          const detail = message.params.error as { message?: string } | undefined;
-          finish(new Error(detail?.message ?? "Codex turn failed."));
-        }
-        if (message.method === "turn/completed") {
-          const turn = message.params?.turn as { status?: string; error?: { message?: string } } | undefined;
-          turn?.status === "failed" ? finish(new Error(turn.error?.message ?? "Codex turn failed.")) : finish();
-        }
-      };
-      const listeners = this.listeners.get(threadId!) ?? new Set();
-      listeners.add(listener);
-      this.listeners.set(threadId!, listeners);
-      try {
-        await this.request("turn/start", { threadId, input: [{ type: "text", text: input, text_elements: [] }] });
-      } catch (error) {
-        finish(error instanceof Error ? error : new Error(String(error)));
-      }
-    });
-  }
-
-  close(): void {
-    this.process.kill();
-  }
-}
-
-async function requestBody(request: IncomingMessage, limit = 100_000): Promise<Record<string, unknown>> {
-  const chunks: Buffer[] = [];
-  let size = 0;
-  for await (const chunk of request) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    size += buffer.length;
-    if (size > limit) throw new Error("Request body is too large.");
-    chunks.push(buffer);
-  }
-  return JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
-}
-
-function persistEvent(projectRoot: string, input: NewEvent, message: string): KottaEvent {
-  return withControlPlaneMutation(projectRoot, (controlRoot) => {
-    const result = appendEvent(controlRoot, input);
-    if (result.created) commitControlState(controlRoot, message);
-    return result.event;
-  });
-}
-
-const APPROVAL_ACTIONS = new Set(["contract.sign", "observation.resolve", "contract.close", "contract.request-changes", "batch.close"]);
-const OBSERVATION_DISPOSITIONS = new Set(["create-contract", "attach-existing", "investigate", "accept-risk", "reject", "merge-duplicate"]);
-
-function validateApprovalPayload(action: string, payload: Record<string, unknown>): void {
-  if (action === "observation.resolve") {
-    const disposition = typeof payload.disposition === "string" ? payload.disposition : "";
-    if (!OBSERVATION_DISPOSITIONS.has(disposition)) throw new Error("observation.resolve requires one explicit valid disposition.");
-    if (Object.keys(payload).some((key) => key !== "disposition")) throw new Error("observation.resolve accepts only the scoped disposition payload.");
-    return;
-  }
-  if (Object.keys(payload).length) throw new Error(`${action} does not accept an approval payload.`);
-}
-
-function approvalContract(root: string, entity: string, action: string): string | null {
-  if (action.startsWith("contract.")) return entity;
-  if (action === "observation.resolve") {
-    const observation = findObservation(root, entity);
-    const data = matter(readFileSync(observation.path, "utf8")).data;
-    return typeof data.discovered_during === "string" && CONTRACT_ID.test(data.discovered_during) ? data.discovered_during : null;
-  }
-  return null;
-}
-
-function approvalDescription(proposal: KottaEvent): string {
-  const detail = proposal.action === "observation.resolve" ? ` (disposition=${String(proposal.payload?.disposition)})` : "";
-  return `${proposal.action}${detail}`;
-}
-
-function assertApprovalApplicable(root: string, entity: string, action: string): void {
-  if (action.startsWith("contract.")) {
-    const state = findContract(root, entity).state;
-    const expected = action === "contract.sign" ? "backlog" : "review";
-    if (state !== expected) throw new Error(`${action} requires ${entity} to be ${expected}; it is ${state}. Refresh the board before preparing another action.`);
-  } else if (action === "observation.resolve") {
-    const state = findObservation(root, entity).state;
-    if (state !== "new") throw new Error(`${entity} is already resolved.`);
-  } else if (action === "batch.close") {
-    const batch = findBatch(root, entity);
-    const data = matter(readFileSync(batch.path, "utf8")).data as { contracts?: unknown[] };
-    const open = (data.contracts ?? []).map(String).filter((id) => findContract(root, id).state !== "done");
-    if (batch.state === "done" || open.length) throw new Error(`${entity} is not ready to close${open.length ? `; open contracts: ${open.join(", ")}` : ""}.`);
-  }
-}
-
-function applyApprovedAction(root: string, proposal: KottaEvent): unknown {
-  const payload = proposal.payload ?? {};
-  switch (proposal.action) {
-    case "contract.sign": return signContract(proposal.entity, true, root, { approvalRecorded: true, locked: true, commit: false });
-    case "observation.resolve": return resolveObservation(proposal.entity, String(payload.disposition), true, root, { approvalRecorded: true, locked: true, commit: false });
-    case "contract.close": return closeContract(proposal.entity, true, root, { locked: true, commit: false, approvalRecorded: true });
-    case "contract.request-changes": return reopenContract(proposal.entity, true, root, { locked: true, commit: false, approvalRecorded: true });
-    case "batch.close": return closeBatch(proposal.entity, true, root, { skipClean: true, commit: false, approvalRecorded: true });
-    default: throw new Error(`Unsupported approval action '${String(proposal.action)}'.`);
-  }
-}
-
 function commandAvailable(command: string): boolean {
   return spawnSync(command, ["--version"], { stdio: "ignore" }).status === 0;
 }
@@ -559,11 +367,15 @@ export async function uiCommand(options: { workspace: string; port?: number; hos
   const initial = readWorkspace(options.workspace);
   const projectRoot = resolveWorkspaceLocation(options.workspace).projectRoot;
   const agents = { codex: commandAvailable("codex"), claude: commandAvailable("claude") };
-  let codex: CodexAppServer | null = null;
   const staticRoot = fileURLToPath(new URL("../../ui-dist", import.meta.url));
   if (!existsSync(join(staticRoot, "index.html"))) throw new Error("UI assets are missing. Run npm run build first.");
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
+    const requestMethod = String(request.method ?? "GET");
+    if (requestMethod !== "GET" && requestMethod !== "HEAD") {
+      json(response, 405, { ok: false, error: "The Kotta board is read-only. Use the calling chat's Kotta tools for actions and approvals." });
+      return;
+    }
     if (url.pathname === "/api/workspace") {
       try { json(response, 200, readWorkspace(initial.workspace)); }
       catch (error) { json(response, 500, { error: error instanceof Error ? error.message : String(error) }); }
@@ -600,166 +412,6 @@ export async function uiCommand(options: { workspace: string; port?: number; hos
       }
       return;
     }
-    if (url.pathname === "/api/chat" && request.method === "POST") {
-      response.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store", connection: "keep-alive", "x-content-type-options": "nosniff" });
-      const event = (value: Record<string, unknown>) => response.write(`${JSON.stringify(value)}\n`);
-      let contractId = "";
-      let humanEvent: KottaEvent | null = null;
-      let assistantText = "";
-      let providerThreadId: string | null = null;
-      try {
-        const body = await requestBody(request);
-        contractId = typeof body.contractId === "string" ? body.contractId : "";
-        const message = typeof body.message === "string" ? body.message.trim() : "";
-        const agent = body.agent === "claude" ? "claude" : "codex";
-        const threadId = typeof body.threadId === "string" ? body.threadId : null;
-        const attemptOf = typeof body.attemptOf === "string" ? body.attemptOf : null;
-        const clientEventId = typeof body.clientEventId === "string" ? body.clientEventId : null;
-        const workspace = readWorkspace(initial.workspace);
-        const contract = (workspace.contracts as unknown as Array<{ id: string; title: string; status: string; sections: Record<string, string> }>).find((candidate) => candidate.id === contractId);
-        if (!contract || !message) throw new Error("A valid contract and non-empty message are required.");
-        if (attemptOf && !(workspace.events as KottaEvent[]).some((candidate) => candidate.id === attemptOf && candidate.entity === contractId && candidate.kind === "turn-failed")) throw new Error("A retry must reference a failed turn in this contract.");
-        if (agent === "claude") throw new Error("Claude Code is not connected on this machine yet.");
-        if (!agents.codex) throw new Error("Codex is not installed or not available on PATH.");
-        humanEvent = persistEvent(projectRoot, { entity: contract.id, contract: contract.id, kind: "message", role: "human", text: message, client_event_id: clientEventId, attempt_of: attemptOf }, `chore(kotta): record human message for ${contract.id}`);
-        event({ type: "persisted", event: humanEvent });
-        codex ??= new CodexAppServer(projectRoot);
-        const context = `Selected contract: ${contract.id} — ${contract.title}\nStatus: ${contract.status}\nOutcome: ${contract.sections.outcome ?? "—"}\nScope: ${contract.sections.scope ?? "—"}\nAcceptance: ${contract.sections.acceptance ?? "—"}\nVerification: ${contract.sections.verification ?? "—"}\n\nUser message: ${message}`;
-        await codex.chat(contract.id, threadId, context, (value) => {
-          if (value.type === "delta" && typeof value.delta === "string") assistantText += value.delta;
-          if (value.type === "thread" && typeof value.threadId === "string") providerThreadId = value.threadId;
-          event(value);
-        });
-        const assistantEvent = assistantText.trim()
-          ? persistEvent(projectRoot, { entity: contract.id, contract: contract.id, kind: "message", role: "assistant", text: assistantText.trim(), thread_id: providerThreadId, attempt_of: humanEvent.id }, `chore(kotta): record assistant message for ${contract.id}`)
-          : null;
-        event({ type: "done", event: assistantEvent });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (contractId && humanEvent) {
-          try {
-            const failed = persistEvent(projectRoot, { entity: contractId, contract: contractId, kind: "turn-failed", error: message, attempt_of: humanEvent.id }, `chore(kotta): record failed chat turn for ${contractId}`);
-            event({ type: "failed", event: failed });
-          } catch { /* keep the original failure visible */ }
-        }
-        event({ type: "error", message });
-      } finally {
-        response.end();
-      }
-      return;
-    }
-    if (url.pathname === "/api/approval/propose" && request.method === "POST") {
-      try {
-        const body = await requestBody(request);
-        const entity = typeof body.entity === "string" ? body.entity : "";
-        const action = typeof body.action === "string" ? body.action : "";
-        const payload = body.payload && typeof body.payload === "object" && !Array.isArray(body.payload) ? body.payload as Record<string, unknown> : {};
-        const expectedPattern = action === "observation.resolve" ? OBSERVATION_ID : action === "batch.close" ? BATCH_ID : CONTRACT_ID;
-        if (!expectedPattern.test(entity) || !APPROVAL_ACTIONS.has(action)) throw new Error("The approval action and entity type do not match.");
-        const proposed = withControlPlaneMutation(projectRoot, (controlRoot) => {
-          validateApprovalPayload(action, payload);
-          assertApprovalApplicable(controlRoot, entity, action);
-          const contract = approvalContract(controlRoot, entity, action);
-          const events = readEvents(controlRoot, entity);
-          const pending = events.find((candidate) => candidate.kind === "approval" && candidate.phase === "proposed"
-            && !events.some((later) => later.kind === "approval" && later.approval_id === candidate.approval_id && later.phase !== "proposed"));
-          if (pending) throw new Error(`${entity} already has a pending approval: ${pending.action}. Approve or reject it before preparing another action.`);
-          const approvalId = mintEventId();
-          const event = appendEvent(controlRoot, { id: approvalId, entity, contract, kind: "approval", approval_id: approvalId, phase: "proposed", action, payload, source_message: null }).event;
-          commitControlState(controlRoot, `chore(kotta): propose ${action} for ${entity}`);
-          return event;
-        });
-        json(response, 201, { ok: true, event: proposed });
-      } catch (error) {
-        json(response, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
-      }
-      return;
-    }
-    if (url.pathname === "/api/approval/decide" && request.method === "POST") {
-      try {
-        const body = await requestBody(request);
-        const approvalId = typeof body.approvalId === "string" ? body.approvalId : "";
-        const decision = body.decision === "approve" ? "approved" : body.decision === "reject" ? "rejected" : null;
-        if (!approvalId || !decision) throw new Error("A valid approval id and approve/reject decision are required.");
-        const result = withControlPlaneMutation(projectRoot, (controlRoot) => {
-          const events = readEvents(controlRoot);
-          const proposal = events.find((candidate) => candidate.kind === "approval" && candidate.phase === "proposed" && candidate.approval_id === approvalId);
-          if (!proposal) throw new Error(`Approval ${approvalId} was not found.`);
-          const history = approvalHistory(events, approvalId);
-          const terminal = history.find((candidate) => ["rejected", "applied", "failed"].includes(String(candidate.phase)));
-          if (terminal?.phase === "failed") throw Object.assign(new Error(`Approval ${approvalId} previously failed: ${terminal.error ?? "application failed"}. Prepare a new scoped approval to retry.`), { event: terminal });
-          if (terminal) return { event: terminal, repeated: true };
-          const description = approvalDescription(proposal);
-          const human = appendEvent(controlRoot, { entity: proposal.entity, contract: proposal.contract, kind: "message", role: "human", text: decision === "approved" ? `Approved: ${description}` : `Rejected: ${description}` }).event;
-          appendEvent(controlRoot, { entity: proposal.entity, contract: proposal.contract, kind: "approval", approval_id: approvalId, phase: decision, action: proposal.action, payload: proposal.payload, source_message: human.id });
-          if (decision === "rejected") {
-            commitControlState(controlRoot, `chore(kotta): reject ${proposal.action} for ${proposal.entity}`);
-            return { event: human, repeated: false };
-          }
-          try {
-            const appliedResult = applyApprovedAction(controlRoot, proposal);
-            const applied = appendEvent(controlRoot, { entity: proposal.entity, contract: proposal.contract, kind: "approval", approval_id: approvalId, phase: "applied", action: proposal.action, payload: proposal.payload, source_message: human.id }).event;
-            commitControlState(controlRoot, `chore(kotta): approve ${proposal.action} for ${proposal.entity}`);
-            return { event: applied, result: appliedResult, repeated: false };
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            const failed = appendEvent(controlRoot, { entity: proposal.entity, contract: proposal.contract, kind: "approval", approval_id: approvalId, phase: "failed", action: proposal.action, payload: proposal.payload, source_message: human.id, error: message }).event;
-            commitControlState(controlRoot, `chore(kotta): record failed ${proposal.action} for ${proposal.entity}`);
-            throw Object.assign(new Error(message), { event: failed });
-          }
-        });
-        json(response, 200, { ok: true, ...result });
-      } catch (error) {
-        json(response, 409, { ok: false, error: error instanceof Error ? error.message : String(error), event: (error as { event?: unknown }).event ?? null });
-      }
-      return;
-    }
-    if (url.pathname === "/api/contract/sign" && request.method === "POST") {
-      json(response, 410, { ok: false, error: "Direct sign is retired. Prepare contract.sign through /api/approval/propose, then record an explicit human decision through /api/approval/decide." });
-      return;
-    }
-    if (url.pathname === "/api/batch" && request.method === "POST") {
-      try {
-        const body = await requestBody(request);
-        const title = typeof body.title === "string" ? body.title.trim() : "";
-        const goal = typeof body.goal === "string" ? body.goal : undefined;
-        json(response, 201, newBatch({ title, goal }, projectRoot));
-      } catch (error) {
-        json(response, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
-      }
-      return;
-    }
-    if (url.pathname === "/api/batch/contracts" && request.method === "POST") {
-      try {
-        const body = await requestBody(request);
-        const batchId = typeof body.batchId === "string" ? body.batchId : "";
-        const contractId = typeof body.contractId === "string" ? body.contractId : "";
-        const action = body.action === "remove" ? "remove" : "add";
-        if (!BATCH_ID.test(batchId) || !CONTRACT_ID.test(contractId)) throw new Error("Valid batch and contract ids are required.");
-        json(response, 200, updateBatchContracts(batchId, contractId, action, projectRoot));
-      } catch (error) {
-        json(response, 409, { ok: false, error: error instanceof Error ? error.message : String(error) });
-      }
-      return;
-    }
-    if (url.pathname === "/api/observation" && request.method === "POST") {
-      try {
-        const body = await requestBody(request);
-        const title = typeof body.title === "string" ? body.title.trim() : "";
-        const type = typeof body.type === "string" ? body.type : "product";
-        const evidence = typeof body.evidence === "string" ? body.evidence.trim() : "";
-        const discoveredDuring = typeof body.discoveredDuring === "string" ? body.discoveredDuring : undefined;
-        if (!title || !evidence) throw new Error("Observation title and evidence are required.");
-        json(response, 201, newObservation({ title, type, evidence, discoveredDuring }, projectRoot));
-      } catch (error) {
-        json(response, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
-      }
-      return;
-    }
-    if (url.pathname === "/api/observation/resolve" && request.method === "POST") {
-      json(response, 410, { ok: false, error: "Direct disposition is retired. Prepare observation.resolve through the scoped approval API." });
-      return;
-    }
     const requested = url.pathname === "/" ? "index.html" : url.pathname.replace(/^\/+/, "");
     const path = normalize(join(staticRoot, requested));
     const safePath = path.startsWith(staticRoot) && existsSync(path) && statSync(path).isFile() ? path : join(staticRoot, "index.html");
@@ -767,7 +419,6 @@ export async function uiCommand(options: { workspace: string; port?: number; hos
     createReadStream(safePath).pipe(response);
   });
   const { port, fallback } = await bindUiServer(server, options.host, options.port);
-  server.on("close", () => codex?.close());
   const url = `http://${options.host}:${port}`;
   const note = fallback ? `Port ${DEFAULT_UI_PORT} was busy; selected ${port}.\n` : "";
   process.stdout.write(options.json

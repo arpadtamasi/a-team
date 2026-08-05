@@ -13,6 +13,7 @@ None.
 ## Defined contracts
 
 - az-agenseknek-szolo-szabalyok-csak-egy-masolt-agents-md-ben--bd1366pk
+- live-control-plane-persistent-contract-chat-and-chat-first-a-seka50v9
 
 ## Active contracts
 
@@ -47,18 +48,24 @@ None.
 - a-define-nem-javithatja-a-contract-cimet-igy-egy-observation-a469asbk
 - a-kiadatlan-changelog-bejegyzes-a-regi-binaris-nevet-hasznal-m4m7q531
 - a-markdown-h1-a-teljes-azonositot-hordozza-igy-a-mintazott-u-rb71ckkr
+- a-prioritas-szuletesi-attributum-pedig-valtozo-tulajdonsag-a-9666rqce
 - a-resolve-disposition-enumja-elte-r-a-publikalt-sematol-atta-dm37tkv3
+- a-slug-hash-emberi-azonosito-mar-letezik-es-dokumentalt-a-ui-1p7xrhzb
 - a-ticket-brief-nem-szedi-fel-a-mintazott-azonositoju-dontese-phd95n90
 - a-vitest-a-worktrees-ala-is-benez-egy-elo-ticket-worktree-me-cahhcmt5
 - a-workspace-konyvtar-atnevezese-uressen-mutatja-a-boardot-am-0n2rjcpt
+- az-approve-kapu-ceremonia-bizonyitek-nelkul-senki-nem-elleno-md9f1zcv
 - az-entitast-letrehozo-parancsok-nem-irjak-ki-az-azonositot-e-9mg56yk6
 - az-id-azert-szivarog-a-human-kommunikaciora-mert-o-az-egyetl-szetd8cz
+- contract-validate-can-pass-a-backlog-contract-that-sign-imme-0ms18ejw
 - crm-kit-and-flowbench-cannot-be-migrated-unrelated-dirty-tre-9m3dkmxv
 - gray-matter-memoizes-frontmatter-so-every-writer-mutates-a-s-s8j3h62g
 - harom-szomszed-repo-agents-md-je-ideiglenes-szabalyblokkot-h-10cpc3k3
 - kotta-migrate-writes-a-root-gitattributes-it-never-reports-i-hkr7tyh2
 - migration-json-keeps-the-pre-vocabulary-words-and-nothing-de-3hcysj58
 - nincs-agents-md-semmi-nem-mondja-meg-egy-erkezo-agensnek-hog-pky2an1x
+- nincs-backlog-review-es-epp-azert-kell-tolnia-magat-a-termek-sjb9v9w9
+- nincs-sprint-vegi-rendcsinalas-a-close-takarit-de-a-maradeko-6mmdp86q
 - no-before-baseline-is-obtainable-kotta-validate-refuses-a-pr-4e63se3v
 - ready-ticket-szovege-nem-javithato-a-define-csak-backlogbol--147t946f
 - renaming-the-workspace-drops-tracked-but-now-ignored-files-o-nkb8sbc4

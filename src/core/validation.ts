@@ -49,8 +49,9 @@ function validateContract(path: string, expectedState?: string, requireDefinitio
       if (body === undefined || body.trim() === "") errors.push({ code: "MISSING_PROFILE_SECTION", message: `Profile '${profile}' requires section: ${heading}.`, path });
     }
   }
-  if (state === "defined" && bodySections.get("open decisions")?.trim().toLowerCase() !== "none.") {
-    errors.push({ code: "OPEN_DECISIONS", message: "A defined contract must state 'None.' under Open decisions.", path });
+  const openDecisions = bodySections.get("open decisions")?.trim() ?? "";
+  if (state === "defined" && !/^(?:none|n\/a|no open decisions)\.?$/i.test(openDecisions)) {
+    errors.push({ code: "OPEN_DECISIONS", message: "A defined contract must say that no decisions remain open (for example 'None.').", path });
   }
   const cancelled = state === "done" && ["cancelled", "duplicate", "obsolete"].includes(String(entity.data.resolution));
   if (["review", "done"].includes(state) && !cancelled && !bodySections.get("review evidence")?.trim()) errors.push({ code: "MISSING_REVIEW_EVIDENCE", message: `${state} contract requires review evidence.`, path });

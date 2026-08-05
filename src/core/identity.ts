@@ -63,6 +63,11 @@ export function mintId(prefix: EntityPrefix, now: number = Date.now()): string {
   return `${prefix}-${encodeTime(now)}${encodeRandom()}`;
 }
 
+/** Sortable immutable event identity; events are not user-facing entities. */
+export function mintEventId(now: number = Date.now()): string {
+  return `E-${encodeTime(now)}${encodeRandom()}`;
+}
+
 export function isMintedId(id: string): boolean {
   return MINTED.test(id);
 }

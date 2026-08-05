@@ -10,7 +10,8 @@ Use `kotta contract close` as the canonical completion operation. Never delete c
 1. Verify recorded review acceptance, merged or integrated status, acceptance evidence, and all active-profile completion checks.
 2. Confirm the final resolution, normally `completed`; use another supported resolution only when it truthfully describes the outcome.
 3. Inspect the claimed worktree and branch for uncommitted or unintegrated work. Stop rather than delete unsafe Git resources.
-4. Run `kotta contract close <contract-id>` with the required approval, integration, and resolution inputs.
+4. Prepare contract close in chat and let the human inspect and approve the exact action there. The
+   human-run CLI fallback is `kotta contract close <contract-id> --approve`.
 5. Verify that the contract moved to done, the claim was released, safe worktree and local-branch cleanup occurred, the containing batch was updated, and `.kotta/index.md` was regenerated.
 6. Report any resource intentionally retained and the exact safe follow-up.
 

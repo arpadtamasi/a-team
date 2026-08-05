@@ -33,10 +33,12 @@ function humanize(result: unknown): string {
       return describeDedupe((result as DedupeResult).data);
     }
     if (command === "contract start" && "data" in result) {
-      const data = (result as { data: { id: unknown; branch: unknown; worktree: unknown; nextStep: unknown } }).data;
+      const data = (result as { data: { id: unknown; branch: unknown; worktree: unknown; nextStep: unknown; executionMode?: unknown; callerStep?: unknown } }).data;
       return [
         `Started ${String(data.id)}: branch ${String(data.branch)}, worktree ${String(data.worktree)}.`,
-        `Next: run the contract in a fresh agent context (D-009) — ${String(data.nextStep)}.`,
+        data.executionMode === "inherited"
+          ? `Execution mode: inherited context — ${String(data.callerStep)}`
+          : `Next: run the contract in a fresh agent context (D-009) — ${String(data.nextStep)}.`,
         `'kotta contract execute <id> --agent <agent>' does start, brief and agent launch in one command.`,
       ].join("\n");
     }
@@ -135,8 +137,9 @@ contract
 contract
   .command("start <id>")
   .requiredOption("--agent <agent>")
+  .option("--caller", "Let the current caller execute inside the new worktree with inherited context")
   .option("--json")
-  .action((id: string, options: { agent: string; json?: boolean }) => print(startContract(id, options.agent), Boolean(options.json)));
+  .action((id: string, options: { agent: string; caller?: boolean; json?: boolean }) => print(startContract(id, options.agent, options.caller ? "inherited" : "fresh"), Boolean(options.json)));
 contract
   .command("execute <id>")
   .description("Run a defined contract in a fresh agent context: start, brief and agent launch in one command (D-009)")

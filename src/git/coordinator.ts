@@ -4,6 +4,7 @@ export interface CoordinatorMetadata {
   branch: string;
   base_branch: string;
   base_commit: string;
+  worktree?: string | null;
   cleaned_at?: string | null;
 }
 

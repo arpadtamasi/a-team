@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 //
-// The board reads. This test renders the whole board, walks every view, opens every
-// overlay and clicks every control it can find, then asserts that the only request the
-// board ever made was GET /api/workspace — and that no mutation path appears anywhere in
-// what it rendered. The six write endpoints stay on the server; the board stops offering
-// them, and this is the test that keeps it that way.
+// Passive board navigation only reads. Scoped chat and approval writes appear after an
+// entity is opened; merely browsing views never mutates canonical state.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { App } from "../../ui/src/App";
@@ -45,7 +42,7 @@ function go(view: string) {
   fireEvent.click(within(rail).getByRole("button", { name: new RegExp(view) }));
 }
 
-describe("The board does not write", () => {
+describe("Passive board navigation", () => {
   it("loads the workspace through one GET and nothing else", async () => {
     await boot();
     expect(calls.length).toBeGreaterThanOrEqual(1);
@@ -53,7 +50,7 @@ describe("The board does not write", () => {
     expect(new Set(calls.map((call) => call.method))).toEqual(new Set(["GET"]));
   });
 
-  it("offers no mutation path anywhere it renders", async () => {
+  it("keeps mutation controls inside entity drawers", async () => {
     await boot();
     const views = ["Observations", "Contracts", "Batches", "Decisions", "Home"];
     let rendered = document.body.innerHTML;
@@ -90,11 +87,11 @@ describe("The board does not write", () => {
     await waitFor(() => expect(calls.every((call) => call.method === "GET" && call.url === "/api/workspace")).toBe(true));
   });
 
-  it("says out loud that the CLI does the writing", async () => {
+  it("presents the CLI as a fallback to chat-first approvals", async () => {
     await boot();
     fireEvent.click(screen.getByRole("button", { name: /CLI/ }));
-    const sheet = await screen.findByRole("dialog", { name: "The CLI does the writing" });
-    expect(sheet.textContent).toContain("This board reads. Every state change happens through one of these — nothing on a row writes.");
+    const sheet = await screen.findByRole("dialog", { name: "CLI fallback" });
+    expect(sheet.textContent).toContain("Chat is the primary approval surface.");
     expect(sheet.textContent).toContain("kotta contract close <id> --approve");
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();

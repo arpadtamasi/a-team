@@ -8,12 +8,14 @@ import matter from "gray-matter";
 import { parse } from "yaml";
 import { sections } from "../core/markdown.js";
 import { findContract, idFromFilename } from "../filesystem/entities.js";
-import { OBSERVATION_ID, BATCH_ID, CONTRACT_ID } from "../core/identity.js";
-import { newObservation, resolveObservation } from "./observation.js";
-import { newBatch, updateBatchContracts } from "./batch.js";
-import { signContract } from "./contract.js";
+import { OBSERVATION_ID, BATCH_ID, CONTRACT_ID, mintEventId } from "../core/identity.js";
+import { findObservation, newObservation, resolveObservation } from "./observation.js";
+import { closeBatch, findBatch, newBatch, updateBatchContracts } from "./batch.js";
+import { closeContract, reopenContract, signContract } from "./contract.js";
 import { ENV_PREFIX, readEnv } from "../core/env.js";
 import { WORKSPACE_DIRECTORIES, hasWorkspace, legacyStateDirectories, workspaceDirectoryName } from "../filesystem/workspace.js";
+import { appendEvent, approvalHistory, readEvents, type KottaEvent, type NewEvent } from "../core/events.js";
+import { commitControlState, withControlPlaneMutation } from "../git/control-plane.js";
 
 const CONTRACT_STATES = ["backlog", "defined", "active", "review", "done"];
 const BATCH_STATES = ["backlog", "defined", "active", "done"];
@@ -22,11 +24,14 @@ function git(root: string, args: string[]): { ok: boolean; out: string } {
   const result = spawnSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
   return { ok: result.status === 0, out: result.stdout ?? "" };
 }
-function listMdFromRef(root: string, ref: string, directory: string, subpath: string): string[] {
+function listFilesFromRef(root: string, ref: string, directory: string, subpath: string, extension: string): string[] {
   const result = git(root, ["ls-tree", "-r", "--name-only", ref, `${directory}/${subpath}`]);
-  return result.ok ? result.out.split("\n").map((line) => line.trim()).filter((line) => line.endsWith(".md")) : [];
+  return result.ok ? result.out.split("\n").map((line) => line.trim()).filter((line) => line.endsWith(extension)) : [];
 }
-function readMdFromRef(root: string, ref: string, repoPath: string): string | null {
+function listMdFromRef(root: string, ref: string, directory: string, subpath: string): string[] {
+  return listFilesFromRef(root, ref, directory, subpath, ".md");
+}
+function readFileFromRef(root: string, ref: string, repoPath: string): string | null {
   const result = git(root, ["show", `${ref}:${repoPath}`]);
   return result.ok ? result.out : null;
 }
@@ -143,7 +148,7 @@ export function readWorkspace(workspaceOption: string) {
   // primary dir IS on the base branch, union its uncommitted workspace additions so freshly-created intake
   // shows immediately. Active worktrees are overlaid per contract below. (T-016 / D-001)
   const readMd = (repoPath: string, fromRef: boolean): string =>
-    (fromRef ? (refFiles?.get(repoPath) ?? readMdFromRef(projectRoot, base, repoPath)) : readFileSync(join(projectRoot, repoPath), "utf8")) ?? "";
+    (fromRef ? (refFiles?.get(repoPath) ?? readFileFromRef(projectRoot, base, repoPath)) : readFileSync(join(projectRoot, repoPath), "utf8")) ?? "";
   const listRefMd = (subpath: string): string[] => refFiles
     ? [...refFiles.keys()].filter((path) => path.startsWith(`${workspaceDirectory}/${subpath}/`) && path.endsWith(".md"))
     : listMdFromRef(projectRoot, base, workspaceDirectory, subpath);
@@ -172,7 +177,8 @@ export function readWorkspace(workspaceOption: string) {
 
   const diagnostics: Array<{ entity: "contract"; id: string; worktree: string; message: string }> = [];
 
-  // Contracts: base-ref baseline, overlaid per id by any live worktree (in-flight truth from .worktrees/<id>).
+  // Contracts: the base control plane is canonical. A defined base plus an active worktree is the
+  // legacy pre-control-plane shape and remains readable until its next lifecycle mutation adopts it.
   // Identity comes from the frontmatter: a minted entity's filename carries only its short id suffix.
   const contractBase = new Map<string, Record<string, unknown>>();
   for (const entry of gather(CONTRACT_STATES, (state) => state)) {
@@ -187,7 +193,11 @@ export function readWorkspace(workspaceOption: string) {
         const location = findContract(worktree, id);
         const parsed = matter(readFileSync(location.path, "utf8"));
         if (String(parsed.data.id) !== id) throw new Error(`Contract metadata id '${String(parsed.data.id)}' does not match ${id}.`);
-        return { ...parsed.data, status: location.state, filename: location.filename, sections: sectionObject(parsed.content), migration: migrationById.get(id) ?? null, worktree: worktree };
+        if (String(baseline.status) === "defined" && location.state === "active") {
+          diagnostics.push({ entity: "contract", id, worktree, message: "Legacy execution state is still stored in the feature worktree; the next lifecycle mutation will adopt it into the control plane." });
+          return { ...parsed.data, status: location.state, filename: location.filename, sections: sectionObject(parsed.content), migration: migrationById.get(id) ?? null, worktree };
+        }
+        return { ...baseline, migration: migrationById.get(id) ?? null, worktree };
       } catch (error) {
         diagnostics.push({ entity: "contract", id, worktree: worktree, message: error instanceof Error ? error.message : String(error) });
       }
@@ -209,8 +219,23 @@ export function readWorkspace(workspaceOption: string) {
       sections: sectionObject(parsed.content),
     };
   });
+  const eventPrefix = `${workspaceDirectory}/events/`;
+  const eventPaths = useBase
+    ? (refFiles ? [...refFiles.keys()].filter((path) => path.startsWith(eventPrefix) && path.endsWith(".json")) : listFilesFromRef(projectRoot, base, workspaceDirectory, "events", ".json"))
+    : (() => {
+        const directory = join(workspace, "events");
+        if (!existsSync(directory)) return [];
+        return readdirSync(directory).flatMap((entity) => {
+          const entityDirectory = join(directory, entity);
+          return statSync(entityDirectory).isDirectory()
+            ? readdirSync(entityDirectory).filter((name) => name.endsWith(".json")).map((name) => `${workspaceDirectory}/events/${entity}/${name}`)
+            : [];
+        });
+      })();
+  const events = eventPaths.map((path) => JSON.parse((useBase ? (refFiles?.get(path) ?? readFileFromRef(projectRoot, base, path)) : readFileSync(join(projectRoot, path), "utf8")) ?? "{}") as KottaEvent)
+    .sort((left, right) => left.created_at.localeCompare(right.created_at) || left.id.localeCompare(right.id));
   const notices = readNotices(projectRoot, workspace, useBase, base, contracts.length + batches.length + observations.length);
-  return { workspace, project: migration?.project ?? config.project?.name ?? "Kotta workspace", migration, contracts, batches, observations, decisions, diagnostics, notices, generatedAt: new Date().toISOString() };
+  return { workspace, project: migration?.project ?? config.project?.name ?? "Kotta workspace", migration, contracts, batches, observations, decisions, events, diagnostics, notices, generatedAt: new Date().toISOString() };
 }
 
 /** Entity files sitting in the working tree, under either vocabulary — the counterweight to the ref read. */
@@ -378,6 +403,70 @@ async function requestBody(request: IncomingMessage, limit = 100_000): Promise<R
   return JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
 }
 
+function persistEvent(projectRoot: string, input: NewEvent, message: string): KottaEvent {
+  return withControlPlaneMutation(projectRoot, (controlRoot) => {
+    const result = appendEvent(controlRoot, input);
+    if (result.created) commitControlState(controlRoot, message);
+    return result.event;
+  });
+}
+
+const APPROVAL_ACTIONS = new Set(["contract.sign", "observation.resolve", "contract.close", "contract.request-changes", "batch.close"]);
+const OBSERVATION_DISPOSITIONS = new Set(["create-contract", "attach-existing", "investigate", "accept-risk", "reject", "merge-duplicate"]);
+
+function validateApprovalPayload(action: string, payload: Record<string, unknown>): void {
+  if (action === "observation.resolve") {
+    const disposition = typeof payload.disposition === "string" ? payload.disposition : "";
+    if (!OBSERVATION_DISPOSITIONS.has(disposition)) throw new Error("observation.resolve requires one explicit valid disposition.");
+    if (Object.keys(payload).some((key) => key !== "disposition")) throw new Error("observation.resolve accepts only the scoped disposition payload.");
+    return;
+  }
+  if (Object.keys(payload).length) throw new Error(`${action} does not accept an approval payload.`);
+}
+
+function approvalContract(root: string, entity: string, action: string): string | null {
+  if (action.startsWith("contract.")) return entity;
+  if (action === "observation.resolve") {
+    const observation = findObservation(root, entity);
+    const data = matter(readFileSync(observation.path, "utf8")).data;
+    return typeof data.discovered_during === "string" && CONTRACT_ID.test(data.discovered_during) ? data.discovered_during : null;
+  }
+  return null;
+}
+
+function approvalDescription(proposal: KottaEvent): string {
+  const detail = proposal.action === "observation.resolve" ? ` (disposition=${String(proposal.payload?.disposition)})` : "";
+  return `${proposal.action}${detail}`;
+}
+
+function assertApprovalApplicable(root: string, entity: string, action: string): void {
+  if (action.startsWith("contract.")) {
+    const state = findContract(root, entity).state;
+    const expected = action === "contract.sign" ? "backlog" : "review";
+    if (state !== expected) throw new Error(`${action} requires ${entity} to be ${expected}; it is ${state}. Refresh the board before preparing another action.`);
+  } else if (action === "observation.resolve") {
+    const state = findObservation(root, entity).state;
+    if (state !== "new") throw new Error(`${entity} is already resolved.`);
+  } else if (action === "batch.close") {
+    const batch = findBatch(root, entity);
+    const data = matter(readFileSync(batch.path, "utf8")).data as { contracts?: unknown[] };
+    const open = (data.contracts ?? []).map(String).filter((id) => findContract(root, id).state !== "done");
+    if (batch.state === "done" || open.length) throw new Error(`${entity} is not ready to close${open.length ? `; open contracts: ${open.join(", ")}` : ""}.`);
+  }
+}
+
+function applyApprovedAction(root: string, proposal: KottaEvent): unknown {
+  const payload = proposal.payload ?? {};
+  switch (proposal.action) {
+    case "contract.sign": return signContract(proposal.entity, true, root, { approvalRecorded: true });
+    case "observation.resolve": return resolveObservation(proposal.entity, String(payload.disposition), true, root, { approvalRecorded: true });
+    case "contract.close": return closeContract(proposal.entity, true, root, { locked: true, commit: false, approvalRecorded: true });
+    case "contract.request-changes": return reopenContract(proposal.entity, true, root, { locked: true, commit: false, approvalRecorded: true });
+    case "batch.close": return closeBatch(proposal.entity, true, root, { skipClean: true, commit: false, approvalRecorded: true });
+    default: throw new Error(`Unsupported approval action '${String(proposal.action)}'.`);
+  }
+}
+
 function commandAvailable(command: string): boolean {
   return spawnSync(command, ["--version"], { stdio: "ignore" }).status === 0;
 }
@@ -514,41 +603,119 @@ export async function uiCommand(options: { workspace: string; port?: number; hos
     if (url.pathname === "/api/chat" && request.method === "POST") {
       response.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store", connection: "keep-alive", "x-content-type-options": "nosniff" });
       const event = (value: Record<string, unknown>) => response.write(`${JSON.stringify(value)}\n`);
+      let contractId = "";
+      let humanEvent: KottaEvent | null = null;
+      let assistantText = "";
+      let providerThreadId: string | null = null;
       try {
         const body = await requestBody(request);
-        const contractId = typeof body.contractId === "string" ? body.contractId : "";
+        contractId = typeof body.contractId === "string" ? body.contractId : "";
         const message = typeof body.message === "string" ? body.message.trim() : "";
         const agent = body.agent === "claude" ? "claude" : "codex";
         const threadId = typeof body.threadId === "string" ? body.threadId : null;
+        const attemptOf = typeof body.attemptOf === "string" ? body.attemptOf : null;
+        const clientEventId = typeof body.clientEventId === "string" ? body.clientEventId : null;
         const workspace = readWorkspace(initial.workspace);
         const contract = (workspace.contracts as unknown as Array<{ id: string; title: string; status: string; sections: Record<string, string> }>).find((candidate) => candidate.id === contractId);
         if (!contract || !message) throw new Error("A valid contract and non-empty message are required.");
+        if (attemptOf && !(workspace.events as KottaEvent[]).some((candidate) => candidate.id === attemptOf && candidate.entity === contractId && candidate.kind === "turn-failed")) throw new Error("A retry must reference a failed turn in this contract.");
         if (agent === "claude") throw new Error("Claude Code is not connected on this machine yet.");
         if (!agents.codex) throw new Error("Codex is not installed or not available on PATH.");
+        humanEvent = persistEvent(projectRoot, { entity: contract.id, contract: contract.id, kind: "message", role: "human", text: message, client_event_id: clientEventId, attempt_of: attemptOf }, `chore(kotta): record human message for ${contract.id}`);
+        event({ type: "persisted", event: humanEvent });
         codex ??= new CodexAppServer(projectRoot);
         const context = `Selected contract: ${contract.id} — ${contract.title}\nStatus: ${contract.status}\nOutcome: ${contract.sections.outcome ?? "—"}\nScope: ${contract.sections.scope ?? "—"}\nAcceptance: ${contract.sections.acceptance ?? "—"}\nVerification: ${contract.sections.verification ?? "—"}\n\nUser message: ${message}`;
-        await codex.chat(contract.id, threadId, context, event);
-        event({ type: "done" });
+        await codex.chat(contract.id, threadId, context, (value) => {
+          if (value.type === "delta" && typeof value.delta === "string") assistantText += value.delta;
+          if (value.type === "thread" && typeof value.threadId === "string") providerThreadId = value.threadId;
+          event(value);
+        });
+        const assistantEvent = assistantText.trim()
+          ? persistEvent(projectRoot, { entity: contract.id, contract: contract.id, kind: "message", role: "assistant", text: assistantText.trim(), thread_id: providerThreadId, attempt_of: humanEvent.id }, `chore(kotta): record assistant message for ${contract.id}`)
+          : null;
+        event({ type: "done", event: assistantEvent });
       } catch (error) {
-        event({ type: "error", message: error instanceof Error ? error.message : String(error) });
+        const message = error instanceof Error ? error.message : String(error);
+        if (contractId && humanEvent) {
+          try {
+            const failed = persistEvent(projectRoot, { entity: contractId, contract: contractId, kind: "turn-failed", error: message, attempt_of: humanEvent.id }, `chore(kotta): record failed chat turn for ${contractId}`);
+            event({ type: "failed", event: failed });
+          } catch { /* keep the original failure visible */ }
+        }
+        event({ type: "error", message });
       } finally {
         response.end();
       }
       return;
     }
-    if (url.pathname === "/api/contract/sign" && request.method === "POST") {
+    if (url.pathname === "/api/approval/propose" && request.method === "POST") {
       try {
         const body = await requestBody(request);
-        const contractId = typeof body.contractId === "string" ? body.contractId : "";
-        if (!CONTRACT_ID.test(contractId)) throw new Error("A valid contract id is required.");
-        json(response, 200, signContract(contractId, true, projectRoot));
+        const entity = typeof body.entity === "string" ? body.entity : "";
+        const action = typeof body.action === "string" ? body.action : "";
+        const payload = body.payload && typeof body.payload === "object" && !Array.isArray(body.payload) ? body.payload as Record<string, unknown> : {};
+        const expectedPattern = action === "observation.resolve" ? OBSERVATION_ID : action === "batch.close" ? BATCH_ID : CONTRACT_ID;
+        if (!expectedPattern.test(entity) || !APPROVAL_ACTIONS.has(action)) throw new Error("The approval action and entity type do not match.");
+        const proposed = withControlPlaneMutation(projectRoot, (controlRoot) => {
+          validateApprovalPayload(action, payload);
+          assertApprovalApplicable(controlRoot, entity, action);
+          const contract = approvalContract(controlRoot, entity, action);
+          const events = readEvents(controlRoot, entity);
+          const pending = events.find((candidate) => candidate.kind === "approval" && candidate.phase === "proposed"
+            && !events.some((later) => later.kind === "approval" && later.approval_id === candidate.approval_id && later.phase !== "proposed"));
+          if (pending) throw new Error(`${entity} already has a pending approval: ${pending.action}. Approve or reject it before preparing another action.`);
+          const approvalId = mintEventId();
+          const event = appendEvent(controlRoot, { id: approvalId, entity, contract, kind: "approval", approval_id: approvalId, phase: "proposed", action, payload, source_message: null }).event;
+          commitControlState(controlRoot, `chore(kotta): propose ${action} for ${entity}`);
+          return event;
+        });
+        json(response, 201, { ok: true, event: proposed });
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        json(response, 409, { ok: false, errors: message.split("\n").filter(Boolean).map((line) => {
-          const separator = line.indexOf(":");
-          return separator > 0 ? { code: line.slice(0, separator), message: line.slice(separator + 1).trim() } : { code: "TRANSITION_REJECTED", message: line };
-        }) });
+        json(response, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
       }
+      return;
+    }
+    if (url.pathname === "/api/approval/decide" && request.method === "POST") {
+      try {
+        const body = await requestBody(request);
+        const approvalId = typeof body.approvalId === "string" ? body.approvalId : "";
+        const decision = body.decision === "approve" ? "approved" : body.decision === "reject" ? "rejected" : null;
+        if (!approvalId || !decision) throw new Error("A valid approval id and approve/reject decision are required.");
+        const result = withControlPlaneMutation(projectRoot, (controlRoot) => {
+          const events = readEvents(controlRoot);
+          const proposal = events.find((candidate) => candidate.kind === "approval" && candidate.phase === "proposed" && candidate.approval_id === approvalId);
+          if (!proposal) throw new Error(`Approval ${approvalId} was not found.`);
+          const history = approvalHistory(events, approvalId);
+          const terminal = history.find((candidate) => ["rejected", "applied", "failed"].includes(String(candidate.phase)));
+          if (terminal?.phase === "failed") throw Object.assign(new Error(`Approval ${approvalId} previously failed: ${terminal.error ?? "application failed"}. Prepare a new scoped approval to retry.`), { event: terminal });
+          if (terminal) return { event: terminal, repeated: true };
+          const description = approvalDescription(proposal);
+          const human = appendEvent(controlRoot, { entity: proposal.entity, contract: proposal.contract, kind: "message", role: "human", text: decision === "approved" ? `Approved: ${description}` : `Rejected: ${description}` }).event;
+          appendEvent(controlRoot, { entity: proposal.entity, contract: proposal.contract, kind: "approval", approval_id: approvalId, phase: decision, action: proposal.action, payload: proposal.payload, source_message: human.id });
+          if (decision === "rejected") {
+            commitControlState(controlRoot, `chore(kotta): reject ${proposal.action} for ${proposal.entity}`);
+            return { event: human, repeated: false };
+          }
+          try {
+            const appliedResult = applyApprovedAction(controlRoot, proposal);
+            const applied = appendEvent(controlRoot, { entity: proposal.entity, contract: proposal.contract, kind: "approval", approval_id: approvalId, phase: "applied", action: proposal.action, payload: proposal.payload, source_message: human.id }).event;
+            commitControlState(controlRoot, `chore(kotta): approve ${proposal.action} for ${proposal.entity}`);
+            return { event: applied, result: appliedResult, repeated: false };
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            const failed = appendEvent(controlRoot, { entity: proposal.entity, contract: proposal.contract, kind: "approval", approval_id: approvalId, phase: "failed", action: proposal.action, payload: proposal.payload, source_message: human.id, error: message }).event;
+            commitControlState(controlRoot, `chore(kotta): record failed ${proposal.action} for ${proposal.entity}`);
+            throw Object.assign(new Error(message), { event: failed });
+          }
+        });
+        json(response, 200, { ok: true, ...result });
+      } catch (error) {
+        json(response, 409, { ok: false, error: error instanceof Error ? error.message : String(error), event: (error as { event?: unknown }).event ?? null });
+      }
+      return;
+    }
+    if (url.pathname === "/api/contract/sign" && request.method === "POST") {
+      json(response, 410, { ok: false, error: "Direct sign is retired. Prepare contract.sign through /api/approval/propose, then record an explicit human decision through /api/approval/decide." });
       return;
     }
     if (url.pathname === "/api/batch" && request.method === "POST") {
@@ -590,15 +757,7 @@ export async function uiCommand(options: { workspace: string; port?: number; hos
       return;
     }
     if (url.pathname === "/api/observation/resolve" && request.method === "POST") {
-      try {
-        const body = await requestBody(request);
-        const observationId = typeof body.observationId === "string" ? body.observationId : "";
-        const disposition = body.disposition === "create-contract" ? "create-contract" : "reject";
-        if (!OBSERVATION_ID.test(observationId)) throw new Error("A valid observation id is required.");
-        json(response, 200, resolveObservation(observationId, disposition, true, projectRoot));
-      } catch (error) {
-        json(response, 409, { ok: false, error: error instanceof Error ? error.message : String(error) });
-      }
+      json(response, 410, { ok: false, error: "Direct disposition is retired. Prepare observation.resolve through the scoped approval API." });
       return;
     }
     const requested = url.pathname === "/" ? "index.html" : url.pathname.replace(/^\/+/, "");

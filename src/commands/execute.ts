@@ -7,6 +7,8 @@ import { findContract } from "../filesystem/entities.js";
 import { assertClean, git } from "../git/git.js";
 import { briefContract, startContract } from "./contract.js";
 import { ENV_PREFIX, readEnv } from "../core/env.js";
+import { commitControlState, controlPlaneRoot, withControlPlaneMutation } from "../git/control-plane.js";
+import { appendLifecycleEvent } from "../core/events.js";
 
 /**
  * Arguments a named agent expects around a prompt that arrives on stdin.
@@ -99,10 +101,15 @@ export interface ExecutionContext {
 
 /** An execution context exists when a claim for the contract lives in its worktree. */
 export function locateExecutionContext(root: string, id: string): ExecutionContext | null {
-  const worktree = join(root, ".worktrees", id);
-  const claimPath = workspacePath(worktree, "claims", `${id}.yaml`);
-  if (!existsSync(claimPath)) return null;
+  const controlRoot = controlPlaneRoot(root);
+  const canonicalClaim = workspacePath(controlRoot, "claims", `${id}.yaml`);
+  const conventionalWorktree = join(controlRoot, ".worktrees", id);
+  const legacyClaim = workspacePath(conventionalWorktree, "claims", `${id}.yaml`);
+  const claimPath = existsSync(canonicalClaim) ? canonicalClaim : existsSync(legacyClaim) ? legacyClaim : null;
+  if (!claimPath) return null;
   const claim = parseYaml(readFileSync(claimPath, "utf8")) as Record<string, unknown>;
+  const recorded = typeof claim.worktree === "string" ? claim.worktree : `.worktrees/${id}`;
+  const worktree = recorded.startsWith("/") ? recorded : join(controlRoot, recorded);
   return { worktree, branch: String(claim.branch ?? ""), agent: String(claim.agent ?? "") };
 }
 
@@ -151,29 +158,32 @@ function promptFor(brief: string, inheritContext: string | null): string {
  * The coordinator's context never reaches the agent: its only input is the brief.
  */
 export async function executeContract(id: string, options: ExecuteOptions, launch: AgentLauncher = spawnAgent): Promise<ExecuteResult> {
-  const root = findRepositoryRoot();
+  const callerRoot = findRepositoryRoot();
+  const root = controlPlaneRoot(callerRoot);
   if (options.inheritContext !== undefined && !options.inheritContext.trim()) {
     throw new Error("--inherit-context requires a reason. Context carry-over is an explicit, logged exception (D-009); state why this contract needs it.");
   }
   const inheritContext = options.inheritContext?.trim() ?? null;
-  const existing = locateExecutionContext(root, id);
+  const existing = locateExecutionContext(callerRoot, id);
 
   if (options.resume) {
     if (!existing) throw new Error(`Contract ${id} has no execution context to resume. Run 'kotta contract execute ${id} --agent <agent>' to create one.`);
     const agent = options.agent?.trim() || existing.agent;
     if (!agent) throw new Error(`Claim for ${id} names no agent; pass --agent <agent> to resume.`);
-    const contract = findContract(existing.worktree, id);
-    if (contract.state !== "active") throw new Error(`Contract ${id} must be active in its worktree to resume; it is ${contract.state}.`);
+    const contract = findContract(root, id);
+    const legacyContract = contract.state === "defined" ? findContract(existing.worktree, id) : contract;
+    if (legacyContract.state !== "active") throw new Error(`Contract ${id} must be active to resume; it is ${legacyContract.state}.`);
     const { command, args } = resolveAgentCommand(agent);
     if (!agentCommandAvailable(command)) throw new Error(agentMissingMessage(command));
-    return await runAgent({ id, root, agent, command, args, context: existing, inheritContext, resumed: true, launch });
+    const briefRoot = contract.state === "defined" ? existing.worktree : root;
+    return await runAgent({ id, root: briefRoot, controlRoot: root, agent, command, args, context: existing, inheritContext, resumed: true, launch });
   }
 
   const contract = findContract(root, id);
-  if (contract.state !== "defined") throw new Error(`Contract ${id} must be defined before execute; it is ${contract.state}. Nothing was created.`);
   if (existing) {
     throw new Error(`Contract ${id} already has an execution context (branch ${existing.branch}, worktree ${existing.worktree}). Execute refuses to start a second agent: retry inside it with '--resume', or release it with 'kotta claim release ${id} --force'.`);
   }
+  if (contract.state !== "defined") throw new Error(`Contract ${id} must be defined before execute; it is ${contract.state}. Nothing was created.`);
   if (existsSync(workspacePath(root, "claims", `${id}.yaml`))) throw new Error(`Contract ${id} already has a claim. Execute refuses to start a second agent.`);
   const agent = options.agent?.trim();
   if (!agent) throw new Error("--agent <agent> is required to create an execution context.");
@@ -184,7 +194,7 @@ export async function executeContract(id: string, options: ExecuteOptions, launc
 
   const started = startContract(id, agent);
   const context: ExecutionContext = { worktree: String(started.data.worktree), branch: String(started.data.branch), agent };
-  return await runAgent({ id, root, agent, command, args, context, inheritContext, resumed: false, launch });
+  return await runAgent({ id, root, controlRoot: root, agent, command, args, context, inheritContext, resumed: false, launch });
 }
 
 function agentMissingMessage(command: string): string {
@@ -194,6 +204,7 @@ function agentMissingMessage(command: string): string {
 async function runAgent(input: {
   id: string;
   root: string;
+  controlRoot: string;
   agent: string;
   command: string;
   args: string[];
@@ -202,12 +213,12 @@ async function runAgent(input: {
   resumed: boolean;
   launch: AgentLauncher;
 }): Promise<ExecuteResult> {
-  const { id, agent, command, args, context, inheritContext, resumed, launch } = input;
+  const { id, root, controlRoot, agent, command, args, context, inheritContext, resumed, launch } = input;
   const contextNote = `Execution context exists: branch ${context.branch}, worktree ${context.worktree}. Inspect it, then retry with '--resume' or release it with 'kotta claim release ${id} --force'.`;
 
   let brief;
   try {
-    brief = briefContract(id, {}, context.worktree);
+    brief = briefContract(id, {}, root);
   } catch (error) {
     throw new Error(`Brief assembly failed for ${id}: ${error instanceof Error ? error.message : String(error)}. ${contextNote}`);
   }
@@ -224,7 +235,7 @@ async function runAgent(input: {
           ? { state: "agent-failed" as const, reason: "Agent produced no output; the result is empty and cannot be treated as an implementation." }
           : null;
 
-  const contractState = safeContractState(context.worktree, id);
+  const contractState = safeContractState(controlRoot, id);
   const uncommittedChanges = Boolean(git(context.worktree, ["status", "--porcelain"]));
   const data: ExecuteResult["data"] = {
     id,
@@ -244,6 +255,10 @@ async function runAgent(input: {
     uncommittedChanges,
     reason: failure?.reason ?? null,
   };
+  withControlPlaneMutation(controlRoot, (canonicalRoot) => {
+    appendLifecycleEvent(canonicalRoot, id, `execution-${data.state}`, failure?.reason ?? `Executor ${agent} completed its implementation run.`);
+    commitControlState(canonicalRoot, `chore(kotta): record ${data.state} execution for ${id}`);
+  });
   if (!failure) return { ok: true, command: "contract execute", data };
   return {
     ok: false,

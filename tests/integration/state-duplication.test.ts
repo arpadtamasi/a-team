@@ -56,12 +56,14 @@ describe("one entity in two state directories (T-036)", () => {
     git(root, "add", "-A");
     git(root, "commit", "-m", "capture contract");
 
-    // Branch one readies the contract; main cancels it. Both moves are supported writers.
-    git(root, "checkout", "-b", "branch-defined");
+    // Build the historical split while main remains the checked-out control plane. Modern Kotta
+    // no longer creates this shape, but dedupe must still repair repositories that already have it.
+    const commonBase = git(root, "rev-parse", "HEAD");
     run(root, ["contract", "sign", contract.id, "--approve"]);
     git(root, "add", "-A");
     git(root, "commit", "-m", "defined");
-    git(root, "checkout", "main");
+    git(root, "branch", "branch-defined");
+    git(root, "reset", "--hard", commonBase);
     run(root, ["contract", "cancel", contract.id, "--resolution", "obsolete", "--approve"]);
 
     const merge = spawnSync("git", ["merge", "--no-ff", "branch-defined", "-m", "merge"], { cwd: root, encoding: "utf8" });
@@ -117,12 +119,13 @@ describe("one entity in two state directories (T-036)", () => {
     git(root, "add", "-A");
     git(root, "commit", "-m", "capture batch");
 
-    // The P-015 shape: one branch readies the batch while main keeps editing it in backlog.
-    git(root, "checkout", "-b", "branch-defined");
+    // Reconstruct the pre-control-plane P-015 shape without checking main out elsewhere.
+    const commonBase = git(root, "rev-parse", "HEAD");
     run(root, ["batch", "sign", batch.id, "--approve"]);
     git(root, "add", "-A");
     git(root, "commit", "-m", "defined batch");
-    git(root, "checkout", "main");
+    git(root, "branch", "branch-defined");
+    git(root, "reset", "--hard", commonBase);
     run(root, ["batch", "add", batch.id, second.id]);
     git(root, "add", "-A");
     git(root, "commit", "-m", "add second contract");
@@ -162,11 +165,12 @@ describe("one entity in two state directories (T-036)", () => {
     git(root, "add", "-A");
     git(root, "commit", "-m", "capture contract");
 
-    git(root, "checkout", "-b", "branch-defined");
+    const commonBase = git(root, "rev-parse", "HEAD");
     run(root, ["contract", "sign", contract.id, "--approve"]);
     git(root, "add", "-A");
     git(root, "commit", "-m", "defined");
-    git(root, "checkout", "main");
+    git(root, "branch", "branch-defined");
+    git(root, "reset", "--hard", commonBase);
 
     // Main rewrites the contract body in place while the other branch moves it to defined.
     const definition = join(root, "definition.md");

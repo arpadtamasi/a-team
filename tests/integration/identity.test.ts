@@ -46,7 +46,7 @@ function writeSequentialContract(root: string, id: string, slug: string, extra: 
 }
 
 describe("coordination-free identity (D-003, narrowed by D-010)", () => {
-  test("two branches that know nothing about each other mint distinct ids and merge cleanly", () => {
+  test("two isolated callers mint distinct ids into the shared control plane", () => {
     const root = repository("branches");
     const worktrees = ["alpha", "beta"].map((label) => {
       const path = join(root, `.worktrees/${label}`);
@@ -54,14 +54,15 @@ describe("coordination-free identity (D-003, narrowed by D-010)", () => {
       return { label, path };
     });
 
-    // Neither branch can see the other's writes: this is exactly the F-008 race.
+    // Callers stay isolated, while all durable workflow state lands on the checked-out main.
     const minted = worktrees.map(({ label, path }) => {
       const contract = run(path, ["contract", "new", "--title", `Slice ${label}`, "--type", "feature"]).data as { id: string; path: string };
       const observation = run(path, ["observation", "new", "--title", `Observation ${label}`, "--type", "bug", "--evidence", `${label} evidence`]).data as { id: string; path: string };
       const batch = run(path, ["batch", "new", "--title", `Batch ${label}`, "--goal", `Ship ${label}`]).data as { id: string };
       run(path, ["batch", "add", batch.id, contract.id]);
-      git(path, "add", "-A");
-      git(path, "commit", "-m", `chore: capture ${label}`);
+      expect(git(path, "status", "--porcelain")).toBe("");
+      git(root, "add", "-A");
+      git(root, "commit", "-m", `chore: capture ${label}`);
       return { label, contract, observation, batch };
     });
 
@@ -77,12 +78,7 @@ describe("coordination-free identity (D-003, narrowed by D-010)", () => {
     expect(alpha.observation.id).not.toBe(beta.observation.id);
     expect(alpha.batch.id).not.toBe(beta.batch.id);
 
-    // Acceptance 5: the generated index is merged, not fought over.
-    for (const { label } of worktrees) {
-      const merge = spawnSync("git", ["merge", "--no-ff", `feat/${label}`, "-m", `merge ${label}`], { cwd: root, encoding: "utf8" });
-      expect(`${merge.stdout}${merge.stderr}`).not.toContain("CONFLICT");
-      expect(merge.status).toBe(0);
-    }
+    // The generated index is already canonical; there is no state merge to perform.
     const index = readFileSync(join(root, ".kotta/index.md"), "utf8");
     expect(index).not.toContain("<<<<<<<");
     for (const entry of minted) expect(index).toContain(`${entry.observation.id.slice(-8)}`);

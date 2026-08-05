@@ -81,11 +81,15 @@ export function findContract(root: string, id: string): ContractLocation {
 export function resolveEffectiveContract<T>(root: string, id: string, read: (contract: ContractLocation) => T): EffectiveContract<T> {
   if (!CONTRACT_ID.test(id)) throw new Error(`Invalid contract id: ${id}`);
   const coordinator = findContract(root, id);
+  // Current-shape workspaces keep live lifecycle state on the control plane. Only a defined
+  // coordinator plus an active worktree is the legacy pre-control-plane execution shape.
+  if (coordinator.state !== "defined") return { value: read(coordinator), location: coordinator };
   const worktree = join(root, ".worktrees", id);
   if (existsSync(worktree)) {
     try {
       const location = findContract(worktree, id);
-      return { value: read(location), location, worktree };
+      if (location.state === "active") return { value: read(location), location, worktree };
+      return { value: read(coordinator), location: coordinator };
     } catch (error) {
       return {
         value: read(coordinator),

@@ -2,9 +2,10 @@ import { findRepositoryRoot, workspacePath } from "../filesystem/workspace.js";
 import { idFromEntityFile, listIds } from "../filesystem/entities.js";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { controlPlaneRoot } from "../git/control-plane.js";
 
 export function statusCommand() {
-  const root = findRepositoryRoot();
+  const root = controlPlaneRoot(findRepositoryRoot());
   const byDirectory = (state: string) => {
     const path = workspacePath(root, state);
     if (!existsSync(path)) return [];

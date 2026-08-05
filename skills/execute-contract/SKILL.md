@@ -7,7 +7,7 @@ description: Implement and verify one active Kotta contract within its approved 
 
 Work only in the branch and worktree recorded by the contract's claim. Kotta state mutations belong to the `kotta` CLI; normal product-code edits use the repository's regular tools.
 
-**Context contract (D-009):** execution starts in a FRESH agent context whose intent input is `kotta contract brief <id>` — the contract body, its referenced decisions, its profiles and its claim. The code lives in the worktree. If the brief plus the worktree is not enough to start, that gap is a contract defect: record it (observation or definition contradiction), do not silently pull in wider context.
+**Context contract (D-009):** execution starts in a FRESH agent context whose intent input is `kotta contract brief <id>` — the contract body, its referenced decisions, its profiles and its claim. The code lives in the worktree. If the brief plus the worktree is not enough to start, that gap is a contract defect: record it (observation or definition contradiction), do not silently pull in wider context. The explicit exception is `contract start --caller`, which records inherited execution and lets the current caller continue in that worktree; it never makes inheritance the default.
 
 **Launching that context is a command, not a manual step.** A coordinator runs `kotta contract execute <id> --agent <agent>`: it performs the start, assembles the brief and launches the contract agent with the brief as its only input, then reports the brief's token count, the agent, the branch and the worktree. Never re-implement that sequence by hand and never implement a contract in the coordinator's own context. Use `--resume` to retry inside an existing execution context (also after `agent-failed`, and for a context created by `contract start`); a plain second `execute` refuses instead of starting a second agent. Carrying context beyond the brief requires `--inherit-context "<reason>"` and is logged. The steps below are the contract the launched contract agent follows.
 
@@ -18,6 +18,6 @@ Work only in the branch and worktree recorded by the contract's claim. Kotta sta
 5. Include only the first two categories when supported by the contract. Create unrelated work with `kotta observation new`; do not silently expand scope.
 6. Stop for missing product intent, an unsafe expansion, or a definition contradiction. Record the issue and use a legal CLI transition back to defined or backlog when required.
 7. Run the repository checks and contract-specific verification. Capture exact, reproducible evidence for every acceptance condition and profile requirement.
-8. Keep implementation and Kotta state changes committed on the feature branch and leave the working tree clean before review.
+8. Keep implementation changes committed on the feature branch and leave the working tree clean before review. Lifecycle state, claims and visible chat remain on the control branch and are mutated only through Kotta.
 
 Do not merge, close, or claim acceptance. Execution produces an implementation candidate and evidence; review remains a separate state.

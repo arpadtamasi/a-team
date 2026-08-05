@@ -17,7 +17,7 @@ by the installer may expose installed skills differently.
 Install the public CLI and confirm the exact version:
 
 ```bash
-npm install --global kotta@0.3.0
+npm install --global kotta@0.4.0
 kotta --version
 ```
 
@@ -166,9 +166,27 @@ backlog → defined → active → review → done
 - Profiles add work-specific requirements for bugs, UI, performance, workflows, metrics, refactors, and discovery.
 - Batches coordinate sprints, milestones, batches, or missions with sequential, parallel, or dependency-aware execution.
 - Observations capture possible bugs and technical debt without silently expanding active work.
-- Claims connect each active contract to one agent, one feature branch, and one isolated execution context.
+- Claims connect each active contract to one agent, one feature branch, and one isolated implementation worktree.
 
-All mutations go through the `kotta` CLI. Skills, automation, and a future local UI share the same command and validation services; none implements a competing workflow.
+Live lifecycle state, claims, decisions, visible chat and approval events stay on the configured base
+branch (`main` by default). Feature worktrees contain implementation code without a competing active,
+review or done copy. Contract execution lifecycle, claim, execution-outcome, discovered-work and
+chat/approval writers are serialized by a repository-wide mutation lock. The configured base branch
+must remain checked out in one linked worktree; commands invoked from another worktree route these
+mutations there and refuse rather than writing live state into a feature branch when it is missing.
+
+The contract chat in `kotta ui` is the primary human approval surface. It prepares one exact,
+entity-scoped action, records an explicit approve or reject event, then calls the same validated
+mutation service as the CLI. Open an entity, choose its available **Prepare…** action, inspect the
+displayed operation, then approve or reject it in the timeline. A failed application is recorded as
+failed without consuming the lifecycle transition. The CLI remains the automation and recovery
+fallback.
+
+Visible human messages are stored before an agent is launched. Kotta stores the final visible
+assistant response, or a failed-turn marker that can be retried explicitly; it never stores hidden
+reasoning, raw tool output or transient streaming deltas. Restarting `kotta ui` reconstructs the same
+contract timeline from `.kotta/events/`; [the event schema](schemas/event.schema.json) defines the
+stored format.
 
 Open the local filesystem-backed board from an initialized repository:
 
@@ -192,9 +210,11 @@ keeps serving.
 ## Batch coordinator branches
 
 `kotta batch start` runs a batch on a deterministic coordinator branch, `coord/<batch-id>`.
-Started from the configured base branch it creates and checks out that branch and records the
-branch, the base branch, and the base commit in the batch file. Starting again on the recorded
-branch is a safe no-op; starting from an unrelated branch is refused rather than guessed.
+Started from the configured base branch it creates a dedicated linked worktree at
+`.worktrees/batches/<batch-id>` and checks the coordinator branch out there, leaving the control
+checkout on the base branch. The batch records the coordinator branch, worktree, base branch and
+base commit. Starting again reuses the recorded coordinator worktree; a missing worktree or an
+unrelated control checkout is refused rather than guessed.
 
 Completing the last contract does **not** delete the coordinator branch — its final commit is what
 gets integrated. `kotta batch status <id>` reports where the batch stands: `active`,
@@ -209,16 +229,16 @@ a contract, and is a no-op on an already finished batch.
 
 Once the branch is merged, `kotta batch finalize <id>` performs the cleanup, and only what it
 can prove is safe: it verifies by Git ancestry that the coordinator head is contained in the base
-branch or its remote-tracking ref, switches to the base, fast-forwards it when needed, and deletes
-the merged local branch with `git branch -d`. A dirty worktree, an active claim, a linked contract
-worktree, a branch held by another worktree, or a diverged base each stop it with an explanation
-and change nothing. It never forces, resets, rebases, or deletes a remote branch, and re-running it
-after success is a no-op.
+branch or its remote-tracking ref, fast-forwards the control checkout when needed, removes the clean
+coordinator worktree, and deletes the merged local branch with `git branch -d`. A dirty worktree, an
+active claim, a linked contract worktree, a branch held by another worktree, or a diverged base each
+stop it with an explanation and change nothing. It never forces, resets, rebases, or deletes a remote
+branch, and re-running it after success is a no-op.
 
 ## Core safety rules
 
 - A backlog item is not executable until it is valid and explicitly defined.
-- A observation is not automatically a contract.
+- An observation is not automatically a contract.
 - Agents do not invent missing product intent or accepted trade-offs.
 - Every active contract has at most one claim and one feature branch.
 - Parallel execution uses separate Git worktrees.
@@ -286,6 +306,7 @@ kotta contract define T-014 --from /tmp/T-014-definition.md
 kotta contract validate T-014
 kotta contract sign T-014 --approve
 kotta contract start T-014 --agent codex
+kotta contract start T-014 --agent codex --caller
 kotta contract brief T-014 --out /tmp/T-014-brief.md
 kotta contract execute T-014 --agent claude
 kotta contract execute T-014 --resume
@@ -310,9 +331,18 @@ kotta claim release T-014 --force
 
 Every command supports `--json`. Mutations validate before writing and report both the violated rule and corrective action when rejected.
 
+Before a contract can be signed, its `Open decisions` section must say that no decision remains.
+Kotta accepts `None`, `None.`, `N/A`, `N/A.`, `No open decisions` and `No open decisions.`
+case-insensitively; real unresolved choices still keep the contract in backlog.
+
 **Small contexts by default.** Each contract executes in a fresh agent context whose intent input is `kotta contract brief <id>` — the contract body, its referenced decisions, its profiles and its claim, nothing else. The brief is deterministic and reports an approximate token count; above a threshold (`--warn-tokens`, default 12000) it warns that the contract is probably too large or under-referenced. This is a quality gauge, not a thrift trick: if a contract cannot be executed from its brief plus the code in the worktree, the contract is incomplete — record the gap instead of widening the context.
 
 **`contract execute` is the command that makes that the default (D-009).** `kotta contract execute <id> --agent <agent>` does the start, assembles the brief and launches the agent with the brief as its only input — the caller's context never reaches it. It refuses before creating anything when the contract is not defined, a claim or execution context already exists, the repository is dirty, or the agent command is missing, so a missing binary can never leave a half-built worktree. The output — human and `--json` — names the brief's token count, the agent, the branch and the worktree; record the token count per contract in the run log.
+
+When continuity matters more than isolation, `kotta contract start <id> --agent <agent> --caller`
+creates the same branch, claim and worktree but labels the run `inherited`. The current caller then
+continues inside the returned worktree. This is explicit and opt-in; fresh brief-only execution stays
+the default, and persisted chat is never injected wholesale into a fresh executor.
 
 A non-zero exit or an empty result is `agent-failed`: the claim and worktree are kept for inspection and the contract does not move to review. An interrupt terminates the agent, keeps the claim and worktree, and names what to decide by hand. Retry with `kotta contract execute <id> --resume`, which reuses the existing execution context (and is also how a context created by `contract start` gets its agent) — a second plain `execute` always refuses rather than starting a second agent. Context carry-over is an explicit, logged exception: `--inherit-context "<reason>"` requires a reason, appends it to the prompt as a declared deviation and reports it in the output.
 
@@ -349,7 +379,7 @@ allowlist, and exercises a clean install before publishing.
 
 ### The first release under the name `kotta`
 
-The batch name changed with 0.3.0, and a name that does not exist yet on the registry has no
+The package name changed with 0.3.0, and a name that does not exist yet on the registry has no
 trusted publisher configured — so the **first** `kotta` release is published by a maintainer by
 hand, from a clean `main` checkout at the release commit:
 

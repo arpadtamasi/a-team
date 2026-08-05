@@ -18,6 +18,7 @@ const DIRECTORIES = [
   "profiles",
   "claims",
   "decisions",
+  "events",
 ];
 
 /** The primary workspace directory name: what `init` creates and what discovery looks for first (D-007). */
@@ -199,7 +200,7 @@ export function initializeWorkspace(options: InitOptions = {}): { root: string; 
   writeFileSync(join(workspace, "config.yaml"), stringify(config));
   writeFileSync(
     join(workspace, "README.md"),
-    "# Kotta workspace\n\nRepository files are canonical. Use the `kotta` CLI to change state.\n\nCreate durable human decisions from a reviewed Markdown draft with `kotta decision create --from <draft.md> --approve`; do not edit `decisions/` directly. Canonical records use identity-only filenames such as `D-001.md`.\n",
+    "# Kotta workspace\n\nRepository files are canonical. Use contract chat for scoped human approvals and the `kotta` CLI as an automation-compatible fallback; both call the same validated mutation services.\n\nLive state and visible conversation stay on the configured control branch while implementation remains isolated in contract worktrees. Create durable human decisions from a reviewed Markdown draft with `kotta decision create --from <draft.md> --approve`; do not edit `decisions/` directly. Canonical records use identity-only filenames such as `D-001.md`.\n",
   );
   writeFileSync(join(workspace, "index.md"), renderEmptyIndex());
   const bundledProfiles = fileURLToPath(new URL("../../profiles", import.meta.url));

@@ -72,13 +72,14 @@ function findBatchFile(root: string, batchId: string): string {
 /** Drives the batch to done with its coordinator commit on `coord/P-001`, without integrating it. */
 function completeBatch(root: string, batchId: string, ids: string[]) {
   run(root, ["batch", "start", batchId, "--agent", "codex"]);
+  const coordinator = join(root, ".worktrees", "batches", batchId);
   for (const id of ids) {
     const worktree = join(root, ".worktrees", id);
     writeFileSync(join(worktree, `${id}.md`), `# ${id}\n`);
     git(worktree, "add", ".");
     git(worktree, "commit", "-m", `feat: ${id}`);
     run(worktree, ["contract", "review", id, "--evidence", "verified", "--deviations", "None."]);
-    git(root, "merge", "--no-ff", git(worktree, "branch", "--show-current"), "-m", `merge ${id}`);
+    git(coordinator, "merge", "--no-ff", git(worktree, "branch", "--show-current"), "-m", `merge ${id}`);
     run(root, ["contract", "close", id, "--approve"]);
   }
 }
@@ -135,7 +136,8 @@ describe("batch start owns the coordinator branch", () => {
     const baseCommit = git(root, "rev-parse", "HEAD");
     const started = run(root, ["batch", "start", batchId, "--agent", "codex"]);
     expect(started.data.coordinator).toMatchObject({ branch: `coord/${batchId}`, base_branch: "main", action: "created" });
-    expect(git(root, "branch", "--show-current")).toBe(`coord/${batchId}`);
+    expect(git(root, "branch", "--show-current")).toBe("main");
+    expect(existsSync(join(root, ".worktrees", "batches", batchId))).toBe(true);
     const file = readFileSync(findBatchFile(root, batchId), "utf8");
     expect(file).toContain(`branch: coord/${batchId}`);
     expect(file).toContain("base_branch: main");
@@ -151,15 +153,13 @@ describe("batch start owns the coordinator branch", () => {
     expect(snapshot(root)).toEqual(before);
   });
 
-  test("starting from an unrelated branch is refused without mutation", () => {
+  test("starting from a linked unrelated branch still routes to the control plane", () => {
     const { root, batchId } = workspaceWithBatch("unrelated");
     run(root, ["batch", "start", batchId, "--agent", "codex"]);
-    git(root, "switch", "-c", "spike/elsewhere");
-    const before = snapshot(root);
-    const refusal = attempt(root, ["batch", "start", batchId, "--agent", "codex"]);
-    expect(refusal.status).toBe(1);
-    expect(refusal.stdout + refusal.stderr).toContain(`coordinates on 'coord/${batchId}'`);
-    expect(snapshot(root)).toEqual(before);
+    const spike = join(root, ".worktrees", "spike");
+    git(root, "worktree", "add", spike, "-b", "spike/elsewhere", "HEAD");
+    expect(run(spike, ["batch", "start", batchId, "--agent", "codex"]).data.coordinator).toMatchObject({ action: "resumed" });
+    expect(git(root, "branch", "--show-current")).toBe("main");
   });
 
   test("an existing conventional branch is never overwritten by start", () => {
@@ -188,6 +188,7 @@ describe("batch finalize", () => {
   test("switches to the base, fast-forwards it and deletes the merged branch", () => {
     const { root, remote, ids, batchId } = workspaceWithBatch("success");
     completeBatch(root, batchId, ids);
+    git(root, "push", "origin", "main");
     // Integration happens elsewhere: push the coordinator branch and merge it into the remote base.
     git(root, "push", "origin", `coord/${batchId}`);
     const integrator = mkdtempSync(join(tmpdir(), "kotta-coord-integrator-"));
@@ -201,7 +202,7 @@ describe("batch finalize", () => {
     expect(run(root, ["batch", "status", batchId]).data.coordinator).toMatchObject({ state: "cleanup-pending", cleanup_pending: true, integration: { integrated: true, via: "remote-base" } });
     const finalized = run(root, ["batch", "finalize", batchId]);
     expect(finalized.data).toMatchObject({ state: "cleaned", branch: `coord/${batchId}` });
-    expect(finalized.data.actions).toEqual(["switched-to:main", "fast-forwarded:main", `deleted-local-branch:coord/${batchId}`]);
+    expect(finalized.data.actions).toEqual(["fast-forwarded:main", expect.stringContaining("removed-worktree:"), `deleted-local-branch:coord/${batchId}`]);
     expect(git(root, "branch", "--show-current")).toBe("main");
     expect(git(root, "for-each-ref", "--format=%(refname)", "refs/heads")).not.toContain(`coord/${batchId}`);
     // main carries the remote head plus the local finalize commit; nothing was reset away.
@@ -287,6 +288,7 @@ describe("batch finalize", () => {
     git(root, "switch", "main");
     git(root, "merge", "--no-ff", `coord/${batchId}`, "-m", "integrate");
     const held = join(root, ".worktrees", "held");
+    git(root, "worktree", "remove", join(root, ".worktrees", "batches", batchId));
     git(root, "worktree", "add", held, `coord/${batchId}`);
     const before = snapshot(root);
     const refusal = attempt(root, ["batch", "finalize", batchId]);
@@ -304,7 +306,7 @@ describe("batch finalize", () => {
     // Simulate a crash between the switch and the delete: on the base, branch still present.
     expect(git(root, "branch", "--show-current")).toBe("main");
     const finalized = run(root, ["batch", "finalize", batchId]);
-    expect(finalized.data.actions).toEqual([`deleted-local-branch:coord/${batchId}`]);
+    expect(finalized.data.actions).toEqual([expect.stringContaining("removed-worktree:"), `deleted-local-branch:coord/${batchId}`]);
     expect(git(root, "for-each-ref", "--format=%(refname)", "refs/heads")).not.toContain(`coord/${batchId}`);
   });
 
@@ -392,6 +394,7 @@ describe("legacy batches without coordinator metadata", () => {
     git(root, "add", "."); git(root, "commit", "-m", "strip coordinator metadata");
     git(root, "switch", "main");
     git(root, "merge", "--no-ff", `coord/${batchId}`, "-m", "integrate");
+    git(root, "worktree", "remove", join(root, ".worktrees", "batches", batchId));
     git(root, "branch", "-d", `coord/${batchId}`);
     const finalized = run(root, ["batch", "finalize", batchId]);
     expect(finalized.data).toMatchObject({ state: "cleaned", actions: [] });

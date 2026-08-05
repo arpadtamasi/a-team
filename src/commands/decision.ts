@@ -4,6 +4,7 @@ import { decisionDraftFromSource, renderDecision, validateDecision, validateDeci
 import { mintId } from "../core/identity.js";
 import { WORKSPACE_DIRECTORY_LABEL, findRepositoryRoot, workspacePath } from "../filesystem/workspace.js";
 import { readEnv } from "../core/env.js";
+import { controlPlaneRoot } from "../git/control-plane.js";
 
 export interface CreateDecisionOptions {
   from: string;
@@ -15,7 +16,7 @@ export function createDecision(options: CreateDecisionOptions, repositoryRoot?: 
   if (!options.approved) {
     throw new Error("Human approval is required to record a durable decision. Re-run with --approve after confirming the decision and consequences.");
   }
-  const root = repositoryRoot ?? findRepositoryRoot();
+  const root = controlPlaneRoot(repositoryRoot ?? findRepositoryRoot());
   const workspace = workspacePath(root);
   if (!existsSync(workspace)) throw new Error(`No ${WORKSPACE_DIRECTORY_LABEL} workspace exists at ${root}. Run kotta init first.`);
   const sourcePath = resolve(options.from);

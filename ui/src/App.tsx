@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 /* ══ Kotta Console v2 ═══════════════════════════════════
-   The board reads. Every state change happens through the CLI, so nothing here
-   posts: the only request this module makes is GET /api/workspace.
+   The board reads canonical state and writes chat-first actions through the
+   same validated services as the CLI.
    Layout, wording and behaviour come from design/kotta/Kotta Console v2.dc.html;
    every colour, space and radius comes from the Modernist tokens in styles.css. */
 
@@ -22,7 +22,7 @@ type Contract = {
   id: string; title: string; status: Status; types: string[]; profiles: string[]; priority: string; risk: string;
   batch: string | null; depends_on: string[]; blocks?: string[]; blocked?: boolean; resolution?: string;
   source_observation?: string | null; assigned_agent?: string | null; worktree?: string | null;
-  branch?: string | null; pull_request?: string | null; created_at?: string | null; updated_at?: string | null; sections: Record<string, string>;
+  execution_mode?: "fresh" | "inherited"; branch?: string | null; pull_request?: string | null; created_at?: string | null; updated_at?: string | null; sections: Record<string, string>;
   migration?: { legacy_id: string; legacy_title: string; lane: string; legacy_status: string; backlog_section: string; story_points: number | null; ready_candidate: boolean; split: boolean; status_correction?: string | null; source_file: string } | null;
 };
 type Batch = {
@@ -37,9 +37,16 @@ type Observation = {
 };
 type Decision = { id: string; title: string; date: string | null; sections: Record<string, string> };
 type Diagnostic = { entity: string; id: string; worktree: string; message: string };
+type KottaEvent = {
+  id: string; entity: string; contract: string | null; kind: "message" | "turn-failed" | "lifecycle" | "approval"; created_at: string;
+  role?: "human" | "assistant"; text?: string; thread_id?: string | null; attempt_of?: string | null; state?: string; summary?: string;
+  approval_id?: string; phase?: "proposed" | "approved" | "rejected" | "applied" | "failed"; action?: string;
+  payload?: Record<string, unknown>; source_message?: string | null; error?: string | null;
+};
 export type Workspace = {
   project: string; workspace?: string; migration: Migration | null;
   contracts: Contract[]; batches: Batch[]; observations: Observation[]; decisions?: Decision[]; diagnostics?: Diagnostic[];
+  events?: KottaEvent[];
   /* What the reader has to say about itself before the page is believed — see WorkspaceNotices. */
   notices?: string[];
 };
@@ -49,7 +56,7 @@ export type View = "home" | "observations" | "contracts" | "batches" | "decision
 
 /* Reporting leaves the workspace: the board never writes a report, it hands off to GitHub. */
 const BUG_REPORT_URL = "https://github.com/arpadtamasi/kotta/issues/new?template=bug.yml";
-/* The one request the board makes. Named so a test can assert nothing else is ever called. */
+/* The canonical workspace read endpoint. */
 export const WORKSPACE_ENDPOINT = "/api/workspace";
 /* The stored state and the board's word for it are the same again since T-023: `defined` on disk. */
 const DEFINED: Status = "defined";
@@ -180,7 +187,7 @@ export function readBoard(workspace: Workspace): Board {
   entityTitles.clear();
   for (const entity of [...contracts, ...batches, ...observations, ...decisions]) entityTitles.set(entity.id, entity.title);
 
-  // The three queues are exactly where the CLI refuses without --approve.
+  // The three queues are the human decisions surfaced directly in chat.
   const undisposed = observations.filter((f) => f.status === "new");
   const inReview = contracts.filter((t) => t.status === "review");
   const closable = batches.filter((p) => p.status !== "done" && p.contracts.length > 0 && p.contracts.every((id) => isDone(contractById.get(id))));
@@ -410,7 +417,7 @@ export function TopBar({ workspace, board, onHelp, onRefresh, refreshed }: {
     <button type="button" className="top__action" onClick={onRefresh}>
       <span className="top__key" aria-hidden="true">↻</span> Refresh <span className="top__ago">{refreshed}s</span>
     </button>
-    <button type="button" className="top__action" onClick={onHelp}><span className="top__key" aria-hidden="true">?</span> CLI</button>
+    <button type="button" className="top__action" onClick={onHelp}><span className="top__key" aria-hidden="true">?</span> CLI fallback</button>
   </header>;
 }
 
@@ -447,7 +454,7 @@ export function HomeView({ workspace, board, error, onView, onOpen, onRetry }: {
   return <div className="home">
     <section className="band" aria-labelledby="band-waiting">
       <BandHead id="band-waiting" title="Waiting on you">
-        Exactly where the CLI refuses without <code>--approve</code>. Queues are meant to be emptied — and they age.
+        Human gates ready for an explicit decision in contract chat. Queues are meant to be emptied — and they age.
       </BandHead>
       <div className="band__body">
         {loading && <Placeholder label="Reading the workspace…" />}
@@ -827,8 +834,146 @@ function titleCase(value: string): string {
   return value.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function EntityDrawer({ id, workspace, board, onClose, onOpen }: {
-  id: string; workspace: Workspace; board: Board; onClose: () => void; onOpen: (id: string) => void;
+function approvalLabel(action?: string, payload?: Record<string, unknown>): string {
+  if (action === "observation.resolve" && typeof payload?.disposition === "string") return `Resolve observation as ${titleCase(payload.disposition)}`;
+  return ({
+    "contract.sign": "Approve contract for execution",
+    "contract.close": "Accept review and close contract",
+    "contract.request-changes": "Request changes",
+    "observation.resolve": "Resolve observation",
+    "batch.close": "Close completed batch",
+  } as Record<string, string>)[action ?? ""] ?? titleCase(action ?? "approval");
+}
+
+function EntityTimeline({ id, contract, batch, observation, workspace, onRefresh }: {
+  id: string; contract?: Contract; batch?: Batch; observation?: Observation; workspace: Workspace; onRefresh: () => Promise<void>;
+}) {
+  const events = (workspace.events ?? []).filter((event) => event.entity === id);
+  const [message, setMessage] = useState("");
+  const [streaming, setStreaming] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [retryOf, setRetryOf] = useState<string | null>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const latestThread = [...events].reverse().find((event) => event.role === "assistant" && event.thread_id)?.thread_id ?? null;
+  const approvalOutcome = (approvalId?: string) => [...events].reverse().find((event) => event.kind === "approval" && event.approval_id === approvalId && event.phase !== "proposed");
+  const approvalState = (approvalId?: string) => approvalOutcome(approvalId)?.phase ?? "proposed";
+  const pendingApproval = events.find((event) => event.kind === "approval" && event.phase === "proposed" && approvalState(event.approval_id) === "proposed");
+
+  const post = async (url: string, body: Record<string, unknown>) => {
+    const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const payload = await response.json() as { ok?: boolean; error?: string; event?: { id?: string } };
+    if (!response.ok || payload.ok === false) throw new Error(payload.error ?? `HTTP ${response.status}`);
+    return payload;
+  };
+
+  const propose = async (action: string, payload: Record<string, unknown> = {}) => {
+    setBusy(true); setError(null);
+    try {
+      const proposed = await post("/api/approval/propose", { entity: id, action, payload });
+      await onRefresh();
+      requestAnimationFrame(() => document.getElementById(`approval-${proposed.event?.id}`)?.focus());
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); requestAnimationFrame(() => resultRef.current?.focus()); }
+    finally { setBusy(false); }
+  };
+
+  const decide = async (approvalId: string, decision: "approve" | "reject") => {
+    setBusy(true); setError(null);
+    try {
+      await post("/api/approval/decide", { approvalId, decision });
+      await onRefresh();
+      requestAnimationFrame(() => document.getElementById(`approval-${approvalId}`)?.focus());
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); await onRefresh(); requestAnimationFrame(() => resultRef.current?.focus()); }
+    finally { setBusy(false); }
+  };
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const text = message.trim();
+    if (!contract || !text || busy) return;
+    const attemptOf = retryOf;
+    setBusy(true); setError(null); setStreaming(""); setMessage("");
+    setRetryOf(null);
+    try {
+      const clientEventId = globalThis.crypto?.randomUUID?.() ?? `chat-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const response = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ contractId: contract.id, message: text, threadId: latestThread, clientEventId, attemptOf, agent: "codex" }) });
+      if (!response.ok || !response.body) throw new Error(`Chat returned HTTP ${response.status}`);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let pending = "";
+      while (true) {
+        const chunk = await reader.read();
+        pending += decoder.decode(chunk.value ?? new Uint8Array(), { stream: !chunk.done });
+        const lines = pending.split("\n");
+        pending = lines.pop() ?? "";
+        for (const line of lines.filter(Boolean)) {
+          const item = JSON.parse(line) as { type?: string; delta?: string; message?: string };
+          if (item.type === "delta" && item.delta) setStreaming((value) => value + item.delta);
+          if (item.type === "error") throw new Error(item.message ?? "Chat failed.");
+        }
+        if (chunk.done) break;
+      }
+      setStreaming("");
+      await onRefresh();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); await onRefresh(); requestAnimationFrame(() => resultRef.current?.focus()); }
+    finally { setBusy(false); }
+  };
+
+  const actionButtons: ReactNode[] = [];
+  if (!pendingApproval && contract?.status === "backlog") actionButtons.push(<button key="sign" type="button" disabled={busy} onClick={() => propose("contract.sign")}>Prepare execution approval</button>);
+  if (!pendingApproval && contract?.status === "review") {
+    actionButtons.push(<button key="close" type="button" disabled={busy} onClick={() => propose("contract.close")}>Prepare acceptance</button>);
+    actionButtons.push(<button key="changes" type="button" disabled={busy} onClick={() => propose("contract.request-changes")}>Prepare change request</button>);
+  }
+  if (!pendingApproval && observation?.status === "new") {
+    actionButtons.push(<button key="obs-contract" type="button" disabled={busy} onClick={() => propose("observation.resolve", { disposition: "create-contract" })}>Prepare create-contract disposition</button>);
+    actionButtons.push(<button key="obs-reject" type="button" disabled={busy} onClick={() => propose("observation.resolve", { disposition: "reject" })}>Prepare rejection</button>);
+  }
+  const batchClosable = batch && batch.status !== "done" && batch.contracts.length > 0 && batch.contracts.every((contractId) => workspace.contracts.find((candidate) => candidate.id === contractId)?.status === "done");
+  if (!pendingApproval && batchClosable) actionButtons.push(<button key="batch-close" type="button" disabled={busy} onClick={() => propose("batch.close")}>Prepare batch close</button>);
+
+  return <section className="timeline" aria-label={`${contract ? "Contract" : "Entity"} chat and activity`}>
+    <div className="timeline__head"><b>Conversation</b><span>persisted on the control plane</span></div>
+    <div className="timeline__events" role="log" aria-live="polite" aria-relevant="additions text">
+      {events.length === 0 && !streaming && <p className="timeline__empty">No conversation yet. Ask about this contract or prepare its next approval here.</p>}
+      {events.map((item) => {
+        if (item.kind === "approval" && item.phase !== "proposed") return null;
+        if (item.kind === "approval") {
+          const phase = approvalState(item.approval_id);
+          const outcome = approvalOutcome(item.approval_id);
+          return <article key={item.id} id={`approval-${item.approval_id}`} tabIndex={-1} className={`approval approval--${phase}`}>
+            <div className="approval__kind">Approval · {phase}</div>
+            <b>{approvalLabel(item.action, item.payload)}</b>
+            <code>{item.action} {item.entity}{item.action === "observation.resolve" ? ` --disposition ${String(item.payload?.disposition)}` : ""}</code>
+            {outcome?.error && <span role="alert">{outcome.error}</span>}
+            {phase === "proposed" && <div className="approval__actions">
+              <button type="button" disabled={busy} onClick={() => decide(item.approval_id!, "approve")}>Approve</button>
+              <button type="button" disabled={busy} onClick={() => decide(item.approval_id!, "reject")}>Reject</button>
+            </div>}
+          </article>;
+        }
+        if (item.kind === "message") return <article key={item.id} className={`message message--${item.role}`}><div className="message__role">{item.role === "human" ? "You" : "Kotta"}</div><div>{item.text}</div></article>;
+        if (item.kind === "turn-failed") {
+          const original = events.find((candidate) => candidate.id === item.attempt_of && candidate.kind === "message");
+          return <article key={item.id} className="message message--error" role="alert"><div className="message__role">Turn failed</div><div>{item.error}</div>{original?.text && <button type="button" disabled={busy} onClick={() => { setRetryOf(item.id); setMessage(original.text!); requestAnimationFrame(() => composerRef.current?.focus()); }}>Retry turn</button>}</article>;
+        }
+        return <article key={item.id} className="lifecycle"><div className="message__role">{item.state}</div><div>{item.summary}</div></article>;
+      })}
+      {streaming && <article className="message message--assistant message--streaming"><div className="message__role">Kotta · responding</div><div>{streaming}</div></article>}
+    </div>
+    {actionButtons.length > 0 && <div className="timeline__prepare" aria-label="Prepare approval">{actionButtons}</div>}
+    {contract && <form className="composer" onSubmit={submit}>
+      <label htmlFor={`chat-${id}`}>Message this contract</label>
+      <textarea ref={composerRef} id={`chat-${id}`} value={message} disabled={busy} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") event.currentTarget.form?.requestSubmit(); }} placeholder="Ask, clarify, or tell the executor what matters…" />
+      <button type="submit" disabled={busy || !message.trim()}>{busy ? "Working…" : "Send"}</button>
+    </form>}
+    <div ref={resultRef} tabIndex={-1} className={`timeline__result${error ? " timeline__result--error" : ""}`} aria-live="polite">{error ? <span role="alert">{error}</span> : busy ? "Saving…" : ""}</div>
+  </section>;
+}
+
+export function EntityDrawer({ id, workspace, board, onClose, onOpen, onRefresh }: {
+  id: string; workspace: Workspace; board: Board; onClose: () => void; onOpen: (id: string) => void; onRefresh?: () => Promise<void>;
 }) {
   const ref = useDialog(onClose);
   const contract = board.contractById.get(id);
@@ -877,6 +1022,7 @@ export function EntityDrawer({ id, workspace, board, onClose, onOpen }: {
               <dd>{ID_TEST.test(value) && titleOf(value) ? <>{titleOf(value)} <Tail id={value} /></> : value}</dd>
             </div>)}
           </dl>
+          {(contract || batch || observation) && <EntityTimeline id={id} contract={contract} batch={batch} observation={observation} workspace={workspace} onRefresh={onRefresh ?? (async () => {})} />}
           <DerivationPanel id={id} board={board} onOpen={onOpen} />
           {Object.entries(entity.sections ?? {}).map(([name, body]) => body && body.trim()
             ? <section key={name} className="drawer__section">
@@ -944,7 +1090,7 @@ export function RunOverlay({ board, onClose, onOpen }: { board: Board; onClose: 
             <span className="run__tick-text">{stateLabel(contract.status)} · {contract.title}</span>
           </div>)}
           {recent.length === 0 && <p className="run__empty">No dated movement on record.</p>}
-          <p className="run__side-note">Derived from <code>updated_at</code> in the frontmatter — the board reads state, not an event stream.</p>
+          <p className="run__side-note">This ticker is derived from <code>updated_at</code>; open an entity for its persisted event timeline.</p>
         </div>
       </div>
     </div>
@@ -974,12 +1120,12 @@ export function CliSheet({ onClose }: { onClose: () => void }) {
     ] },
   ];
   return <div className="scrim" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-    <div className="sheet" role="dialog" aria-modal="true" aria-label="The CLI does the writing" tabIndex={-1} ref={ref}>
+    <div className="sheet" role="dialog" aria-modal="true" aria-label="CLI fallback" tabIndex={-1} ref={ref}>
       <div className="sheet__head">
-        <b>The CLI does the writing</b>
+        <b>CLI fallback</b>
         <button type="button" className="drawer__close" onClick={onClose}>Close · esc</button>
       </div>
-      <p className="sheet__lede">This board reads. Every state change happens through one of these — nothing on a row writes.</p>
+      <p className="sheet__lede">Chat is the primary approval surface. These commands remain available for automation, recovery and terminal-first workflows; both paths use the same validated services.</p>
       {groups.map((group) => <div key={group.label} className="sheet__group">
         <div className="sheet__kicker">{group.label}</div>
         {group.rows.map(([command, what]) => <div key={command} className="sheet__row"><code>{command}</code><span>{what}</span></div>)}
@@ -1071,7 +1217,7 @@ export function App() {
       </main>
     </div>
     {watching && board && <RunOverlay board={board} onClose={() => setWatching(false)} onOpen={(id) => { setWatching(false); setDetailId(id); }} />}
-    {detailId && workspace && board && <EntityDrawer id={detailId} workspace={workspace} board={board} onClose={() => setDetailId(null)} onOpen={setDetailId} />}
+    {detailId && workspace && board && <EntityDrawer id={detailId} workspace={workspace} board={board} onClose={() => setDetailId(null)} onOpen={setDetailId} onRefresh={refresh} />}
     {helpOpen && <CliSheet onClose={() => setHelpOpen(false)} />}
   </div>;
 }

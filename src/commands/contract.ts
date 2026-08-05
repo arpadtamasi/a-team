@@ -8,6 +8,9 @@ import { parseMarkdown, renderMarkdown, sections } from "../core/markdown.js";
 import { assertValid, validateContractDefinitionFile, validateContractFile } from "../core/validation.js";
 import { BRANCH_PREFIXES } from "../core/profiles.js";
 import { assertClean, assertSafeWorktreePath, git } from "../git/git.js";
+import { commitControlState, controlPlaneRoot, withControlPlaneMutation } from "../git/control-plane.js";
+import { appendCliApprovalAudit, appendLifecycleEvent } from "../core/events.js";
+import { readEnv } from "../core/env.js";
 
 export function slugify(value: string): string {
   return value.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
@@ -18,7 +21,7 @@ export function branchName(type: string, id: string, title: string): string {
 }
 
 export function newContract(options: { title: string; type: string; profiles: string[] }, repositoryRoot?: string) {
-  const root = repositoryRoot ?? findRepositoryRoot();
+  const root = controlPlaneRoot(repositoryRoot ?? findRepositoryRoot());
   const id = mintId("T");
   const filename = entityFilename(id, slugify(options.title));
   const directory = workspacePath(root, "backlog");
@@ -37,7 +40,7 @@ export function newContract(options: { title: string; type: string; profiles: st
 const DEFINITION_FIELDS = new Set(["id", "types", "profiles", "priority", "risk", "depends_on", "blocks"]);
 
 export function defineContract(id: string, source: string, repositoryRoot?: string) {
-  const root = repositoryRoot ?? findRepositoryRoot();
+  const root = controlPlaneRoot(repositoryRoot ?? findRepositoryRoot());
   const contract = findContract(root, id);
   if (contract.state !== "backlog") throw new Error(`Contract ${id} can only be defined while it is in backlog.`);
   const sourcePath = resolve(source);
@@ -85,14 +88,14 @@ function profileHeadings(profile: string): string[] {
 }
 
 export function validateContract(id: string) {
-  const root = findRepositoryRoot();
+  const root = controlPlaneRoot(findRepositoryRoot());
   const contract = findContract(root, id);
   const report = validateContractFile(contract.path);
   return { ok: report.valid, command: "contract validate", data: { id, state: contract.state }, errors: report.errors };
 }
 
-export function signContract(id: string, approved: boolean, repositoryRoot?: string) {
-  const root = repositoryRoot ?? findRepositoryRoot();
+export function signContract(id: string, approved: boolean, repositoryRoot?: string, options: { approvalRecorded?: boolean } = {}) {
+  const root = controlPlaneRoot(repositoryRoot ?? findRepositoryRoot());
   const contract = findContract(root, id);
   if (contract.state !== "backlog") throw new Error(`Contract ${id} must be in backlog before it can be signed.`);
   if (!approved) throw new Error("Human sign-off is required. Re-run with --approve after reviewing intent and trade-offs.");
@@ -112,49 +115,80 @@ export function signContract(id: string, approved: boolean, repositoryRoot?: str
   }
   unlinkSync(contract.path);
   regenerateIndex(root);
+  appendLifecycleEvent(root, id, "defined", "Contract approved for execution.");
+  if (!options.approvalRecorded) appendCliApprovalAudit(root, id, "contract.sign");
   return { ok: true, command: "contract sign", data: { id, path: destination } };
 }
 
-export function startContract(id: string, agent: string) {
-  const root = findRepositoryRoot();
-  const contract = findContract(root, id);
-  if (contract.state !== "defined") throw new Error(`Contract ${id} must be defined before start.`);
-  assertValid(validateContractFile(contract.path, "defined"));
-  assertClean(root);
-  const claimInBase = workspacePath(root, "claims", `${id}.yaml`);
-  if (existsSync(claimInBase)) throw new Error(`Contract ${id} already has a claim.`);
-  const entity = parseMarkdown(readFileSync(contract.path, "utf8"));
-  const dependencies = Array.isArray(entity.data.depends_on) ? entity.data.depends_on.map(String) : [];
-  const incomplete = dependencies.filter((dependency) => findContract(root, dependency).state !== "done");
-  if (incomplete.length) throw new Error(`Unresolved dependencies: ${incomplete.join(", ")}. Complete them before starting ${id}.`);
-  const title = String(entity.data.title);
-  const type = Array.isArray(entity.data.types) ? String(entity.data.types[0]) : String(entity.data.type ?? "feature");
-  const branch = branchName(type, id, title);
-  const worktreeRelative = `.worktrees/${id}`;
-  const worktree = join(root, worktreeRelative);
-  assertSafeWorktreePath(worktree);
-  if (git(root, ["branch", "--list", branch])) throw new Error(`Branch already exists: ${branch}`);
-  git(root, ["worktree", "add", worktree, "-b", branch, "HEAD"]);
-  const worktreeContract = findContract(worktree, id);
-  const active = workspacePath(worktree, "active", worktreeContract.filename);
-  mkdirSync(workspacePath(worktree, "active"), { recursive: true });
-  mkdirSync(workspacePath(worktree, "claims"), { recursive: true });
-  const activeEntity = parseMarkdown(readFileSync(worktreeContract.path, "utf8"));
-  activeEntity.data.status = "active";
-  activeEntity.data.branch = branch;
-  activeEntity.data.assigned_agent = agent;
-  activeEntity.data.updated_at = new Date().toISOString().slice(0, 10);
-  writeFileSync(active, renderMarkdown(activeEntity.data, activeEntity.content));
-  unlinkSync(worktreeContract.path);
-  const claim = { contract: id, agent, branch, worktree: worktreeRelative, started_at: new Date().toISOString() };
-  writeFileSync(workspacePath(worktree, "claims", `${id}.yaml`), stringify(claim));
-  regenerateIndex(worktree);
-  git(worktree, ["add", workspaceDirectoryName(worktree)]);
-  git(worktree, ["commit", "-m", `chore(kotta): start ${id}`]);
-  // D-009: the execution context exists, but the contract still has to run in a FRESH agent
-  // context. `contract execute` is that path, so start names it instead of leaving it to discipline.
-  const nextStep = `kotta contract execute ${id} --resume`;
-  return { ok: true, command: "contract start", data: { id, branch, worktree, nextStep } };
+export function startContract(id: string, agent: string, executionMode: "fresh" | "inherited" = "fresh") {
+  const callerRoot = findRepositoryRoot();
+  return withControlPlaneMutation(callerRoot, (root) => {
+    const contract = findContract(root, id);
+    if (contract.state !== "defined") throw new Error(`Contract ${id} must be defined before start.`);
+    assertValid(validateContractFile(contract.path, "defined"));
+    const claimInControl = workspacePath(root, "claims", `${id}.yaml`);
+    if (existsSync(claimInControl)) throw new Error(`Contract ${id} already has a claim.`);
+    const definedSnapshot = readFileSync(contract.path, "utf8");
+    const entity = parseMarkdown(definedSnapshot);
+    const dependencies = Array.isArray(entity.data.depends_on) ? entity.data.depends_on.map(String) : [];
+    const incomplete = dependencies.filter((dependency) => findContract(root, dependency).state !== "done");
+    if (incomplete.length) throw new Error(`Unresolved dependencies: ${incomplete.join(", ")}. Complete them before starting ${id}.`);
+    const title = String(entity.data.title);
+    const type = Array.isArray(entity.data.types) ? String(entity.data.types[0]) : String(entity.data.type ?? "feature");
+    const branch = branchName(type, id, title);
+    const worktreeRelative = `.worktrees/${id}`;
+    const worktree = join(root, worktreeRelative);
+    assertSafeWorktreePath(worktree);
+    if (git(root, ["branch", "--list", branch])) throw new Error(`Branch already exists: ${branch}`);
+
+    let createdWorktree = false;
+    let lifecyclePath: string | null = null;
+    const active = workspacePath(root, "active", contract.filename);
+    try {
+      git(root, ["worktree", "add", worktree, "-b", branch, "HEAD"]);
+      createdWorktree = true;
+      if (readEnv("TEST_FAIL_START_AT") === "after-worktree") throw new Error("Injected start failure after worktree creation.");
+      mkdirSync(workspacePath(root, "active"), { recursive: true });
+      mkdirSync(workspacePath(root, "claims"), { recursive: true });
+      entity.data.status = "active";
+      entity.data.branch = branch;
+      entity.data.assigned_agent = agent;
+      entity.data.worktree = worktreeRelative;
+      entity.data.execution_mode = executionMode;
+      entity.data.updated_at = new Date().toISOString().slice(0, 10);
+      writeFileSync(active, renderMarkdown(entity.data, entity.content));
+      unlinkSync(contract.path);
+      if (readEnv("TEST_FAIL_START_AT") === "after-active") throw new Error("Injected start failure after control-plane activation.");
+      const claim = { contract: id, agent, branch, worktree: worktreeRelative, execution_mode: executionMode, started_at: new Date().toISOString() };
+      writeFileSync(claimInControl, stringify(claim));
+      if (readEnv("TEST_FAIL_START_AT") === "after-claim") throw new Error("Injected start failure after claim creation.");
+      assertValid(validateContractFile(active, "active"));
+      regenerateIndex(root);
+      lifecyclePath = appendLifecycleEvent(root, id, "active", `Execution started on ${branch} with ${agent}.`).path;
+      commitControlState(root, `chore(kotta): start ${id}`);
+    } catch (error) {
+      if (lifecyclePath && existsSync(lifecyclePath)) unlinkSync(lifecyclePath);
+      if (existsSync(active)) unlinkSync(active);
+      if (existsSync(claimInControl)) unlinkSync(claimInControl);
+      if (!existsSync(contract.path)) writeFileSync(contract.path, definedSnapshot);
+      regenerateIndex(root);
+      if (createdWorktree) {
+        try { git(root, ["worktree", "remove", worktree]); } catch { /* preserve the original failure */ }
+        try { git(root, ["branch", "-d", branch]); } catch { /* preserve the original failure */ }
+      }
+      throw error;
+    }
+    return {
+      ok: true,
+      command: "contract start",
+      data: {
+        id, branch, worktree,
+        executionMode,
+        nextStep: executionMode === "fresh" ? `kotta contract execute ${id} --resume` : `Continue execution in ${worktree}.`,
+        callerStep: `Continue in ${worktree}; this is the explicit inherited-context mode.`,
+      },
+    };
+  });
 }
 
 export interface ReviewDeclarations {
@@ -166,10 +200,24 @@ export interface ReviewDeclarations {
 const NOT_DECLARED = "Not declared.";
 
 export function reviewContract(id: string, evidence: string, pullRequest?: string, declarations: ReviewDeclarations = {}) {
-  const root = findRepositoryRoot();
-  const contract = findContract(root, id);
-  if (contract.state !== "active") throw new Error(`Contract ${id} must be active before review.`);
-  assertClean(root);
+  const callerRoot = findRepositoryRoot();
+  return withControlPlaneMutation(callerRoot, (root) => {
+  const canonical = findContract(root, id);
+  const executionRoot = join(root, ".worktrees", id);
+  const canonicalClaim = workspacePath(root, "claims", `${id}.yaml`);
+  const legacyClaim = workspacePath(executionRoot, "claims", `${id}.yaml`);
+  let contract = canonical;
+  let legacy = false;
+  if (canonical.state !== "active" && existsSync(executionRoot)) {
+    const candidate = findContract(executionRoot, id);
+    if (canonical.state === "defined" && candidate.state === "active" && existsSync(legacyClaim)) {
+      contract = candidate;
+      legacy = true;
+    }
+  }
+  if (contract.state !== "active") throw new Error(`Contract ${id} must be active before review; the control plane reports ${canonical.state}.`);
+  assertClean(executionRoot);
+  const canonicalSnapshot = readFileSync(canonical.path, "utf8");
   const entity = parseMarkdown(readFileSync(contract.path, "utf8"));
   entity.data.status = "review";
   entity.data.pull_request = pullRequest ?? null;
@@ -190,24 +238,42 @@ export function reviewContract(id: string, evidence: string, pullRequest?: strin
   mkdirSync(destinationDirectory, { recursive: true });
   const destination = join(destinationDirectory, contract.filename);
   writeFileSync(destination, renderMarkdown(entity.data, `${entity.content.trimEnd()}${reviewEvidence}`));
-  unlinkSync(contract.path);
+  unlinkSync(canonical.path);
+  if (legacy && !existsSync(canonicalClaim)) writeFileSync(canonicalClaim, readFileSync(legacyClaim, "utf8"));
   regenerateIndex(root);
-  git(root, ["add", workspaceDirectoryName(root)]);
-  git(root, ["commit", "-m", `chore(kotta): submit ${id} for review`]);
-  return { ok: true, command: "contract review", data: { id, pullRequest: pullRequest ?? null } };
+  appendLifecycleEvent(root, id, "review", pullRequest ? `Submitted for review in ${pullRequest}.` : "Submitted for review.");
+  commitControlState(root, `chore(kotta): submit ${id} for review`);
+
+  // One-time adoption path for executions started before the control-plane model existed.
+  // Restore the feature branch's original defined snapshot so its net diff contains code, not lifecycle state.
+  if (legacy) {
+    const legacyDefinedDirectory = workspacePath(executionRoot, "defined");
+    mkdirSync(legacyDefinedDirectory, { recursive: true });
+    writeFileSync(join(legacyDefinedDirectory, canonical.filename), canonicalSnapshot);
+    if (existsSync(contract.path)) unlinkSync(contract.path);
+    if (existsSync(legacyClaim)) unlinkSync(legacyClaim);
+    regenerateIndex(executionRoot);
+    git(executionRoot, ["add", workspaceDirectoryName(executionRoot)]);
+    git(executionRoot, ["commit", "-m", `chore(kotta): move ${id} lifecycle to control plane`]);
+  }
+  return { ok: true, command: "contract review", data: { id, pullRequest: pullRequest ?? null, controlRoot: root, adoptedLegacyState: legacy } };
+  });
 }
 
-export function closeContract(id: string, approved: boolean) {
-  const root = findRepositoryRoot();
+export function closeContract(id: string, approved: boolean, repositoryRoot?: string, options: { locked?: boolean; commit?: boolean; approvalRecorded?: boolean } = {}) {
+  const callerRoot = repositoryRoot ?? findRepositoryRoot();
+  const close = (root: string) => {
   const contract = findContract(root, id);
   if (contract.state !== "review") throw new Error(`Contract ${id} must be in review before close.`);
   if (!approved) throw new Error("Human done approval is required. Re-run with --approve after acceptance verification.");
-  assertClean(root);
   const entity = parseMarkdown(readFileSync(contract.path, "utf8"));
   const branch = String(entity.data.branch ?? "");
   if (!branch) throw new Error(`Contract ${id} has no execution branch.`);
-  const merged = git(root, ["branch", "--merged", "HEAD"]).split(/\r?\n/).map((line) => line.replace(/^[*+]?\s*/, "")).includes(branch);
-  if (!merged) throw new Error(`Branch ${branch} is not merged into the current branch.`);
+  const batch = typeof entity.data.batch === "string" ? entity.data.batch : null;
+  const coordinator = batch ? `coord/${batch}` : null;
+  const integrationTarget = coordinator && git(root, ["branch", "--list", coordinator]) ? coordinator : "HEAD";
+  const merged = git(root, ["branch", "--merged", integrationTarget]).split(/\r?\n/).map((line) => line.replace(/^[*+]?\s*/, "")).includes(branch);
+  if (!merged) throw new Error(`Branch ${branch} is not merged into ${integrationTarget === "HEAD" ? "the control branch" : `batch coordinator ${integrationTarget}`}.`);
   const worktree = join(root, ".worktrees", id);
   if (existsSync(worktree) && git(worktree, ["status", "--porcelain"])) throw new Error(`Worktree ${worktree} contains uncommitted changes; refusing cleanup.`);
   entity.data.status = "done";
@@ -222,19 +288,27 @@ export function closeContract(id: string, approved: boolean) {
   if (existsSync(claimPath)) unlinkSync(claimPath);
   updateContainingBatch(root, id);
   regenerateIndex(root);
+  appendLifecycleEvent(root, id, "done", "Review accepted and contract closed.");
+  if (!options.approvalRecorded) appendCliApprovalAudit(root, id, "contract.close");
   if (existsSync(worktree)) {
     git(root, ["worktree", "remove", worktree]);
   }
-  git(root, ["branch", "-d", branch]);
-  git(root, ["add", workspaceDirectoryName(root)]);
-  git(root, ["commit", "-m", `chore(kotta): close ${id}`]);
-  return { ok: true, command: "contract close", data: { id, resolution: "completed" } };
+  if (integrationTarget === "HEAD") git(root, ["branch", "-d", branch]);
+  else {
+    const expected = git(root, ["rev-parse", `refs/heads/${branch}`]);
+    git(root, ["update-ref", "-d", `refs/heads/${branch}`, expected]);
+  }
+  if (options.commit !== false) commitControlState(root, `chore(kotta): close ${id}`);
+  return { ok: true, command: "contract close", data: { id, resolution: "completed", controlRoot: root } };
+  };
+  return options.locked ? close(callerRoot) : withControlPlaneMutation(callerRoot, close);
 }
 
 const CANCEL_RESOLUTIONS = ["duplicate", "obsolete", "cancelled"] as const;
 
 export function cancelContract(id: string, resolution: string, approved: boolean, repositoryRoot?: string) {
-  const root = repositoryRoot ?? findRepositoryRoot();
+  const requestedRoot = repositoryRoot ?? findRepositoryRoot();
+  return withControlPlaneMutation(requestedRoot, (root) => {
   if (!CANCEL_RESOLUTIONS.includes(resolution as (typeof CANCEL_RESOLUTIONS)[number])) throw new Error(`Cancel resolution must be one of ${CANCEL_RESOLUTIONS.join(", ")}; got '${resolution}'.`);
   const contract = findContract(root, id);
   if (!["backlog", "defined"].includes(contract.state)) throw new Error(`Contract ${id} can only be cancelled from backlog or defined; ${contract.state} contracts exit through reopen/close.`);
@@ -261,29 +335,44 @@ export function cancelContract(id: string, resolution: string, approved: boolean
   unlinkSync(contract.path);
   updateContainingBatch(root, id);
   regenerateIndex(root);
+  appendLifecycleEvent(root, id, "done", `Contract cancelled with resolution ${resolution}.`);
   git(root, ["add", workspaceDirectoryName(root)]);
   git(root, ["commit", "-m", `chore(kotta): cancel ${id} (${resolution})`]);
   return { ok: true, command: "contract cancel", data: { id, resolution, path: destination } };
+  });
 }
 
-export function reopenContract(id: string, approved: boolean) {
-  const root = findRepositoryRoot();
+export function reopenContract(id: string, approved: boolean, repositoryRoot?: string, options: { locked?: boolean; commit?: boolean; approvalRecorded?: boolean } = {}) {
+  const requestedRoot = repositoryRoot ?? findRepositoryRoot();
+  const reopen = (root: string) => {
   const contract = findContract(root, id);
   if (!["review", "done"].includes(contract.state)) throw new Error(`Contract ${id} can only reopen from review or done.`);
   if (!approved) throw new Error("Human approval is required to reopen terminal or reviewed work.");
   const entity = parseMarkdown(readFileSync(contract.path, "utf8"));
-  entity.data.status = "backlog";
-  entity.data.resolution = null;
-  entity.data.branch = null;
+  const changesRequested = contract.state === "review";
+  if (changesRequested && !existsSync(workspacePath(root, "claims", `${id}.yaml`))) throw new Error(`Review changes cannot resume because ${id} has no claim.`);
+  entity.data.status = changesRequested ? "active" : "backlog";
+  if (!changesRequested) {
+    entity.data.resolution = null;
+    entity.data.branch = null;
+    delete entity.data.worktree;
+    delete entity.data.execution_mode;
+  }
   entity.data.pull_request = null;
   entity.data.updated_at = new Date().toISOString().slice(0, 10);
-  const directory = workspacePath(root, "backlog");
+  const directory = workspacePath(root, changesRequested ? "active" : "backlog");
   mkdirSync(directory, { recursive: true });
   const destination = join(directory, contract.filename);
-  writeFileSync(destination, renderMarkdown(entity.data, entity.content));
+  const content = changesRequested ? entity.content.replace(/\n\n## Review evidence[\s\S]*$/, "\n") : entity.content;
+  writeFileSync(destination, renderMarkdown(entity.data, content));
   unlinkSync(contract.path);
   regenerateIndex(root);
-  return { ok: true, command: "contract reopen", data: { id, state: "backlog" } };
+  appendLifecycleEvent(root, id, changesRequested ? "active" : "backlog", changesRequested ? "Review changes requested; execution resumed." : "Terminal contract reopened in backlog.");
+  if (!options.approvalRecorded) appendCliApprovalAudit(root, id, changesRequested ? "contract.request-changes" : "contract.reopen");
+  if (options.commit !== false) commitControlState(root, `chore(kotta): reopen ${id} for changes`);
+  return { ok: true, command: "contract reopen", data: { id, state: changesRequested ? "active" : "backlog" } };
+  };
+  return options.locked ? reopen(requestedRoot) : withControlPlaneMutation(requestedRoot, reopen);
 }
 
 export interface BriefSection {
@@ -320,7 +409,17 @@ function estimateTokens(text: string): number {
  * its claim — and nothing else. Deterministic: same workspace, same bytes.
  */
 export function briefContract(id: string, options: { out?: string; warnTokens?: number } = {}, repositoryRoot?: string): BriefResult {
-  const root = repositoryRoot ?? findRepositoryRoot();
+  const requestedRoot = repositoryRoot ?? findRepositoryRoot();
+  const controlRoot = controlPlaneRoot(requestedRoot);
+  let root = controlRoot;
+  // Compatibility for a run started by Kotta before lifecycle state moved to the control plane.
+  if (resolve(requestedRoot) !== resolve(controlRoot)) {
+    try {
+      const canonical = findContract(controlRoot, id);
+      const local = findContract(requestedRoot, id);
+      if (canonical.state === "defined" && local.state === "active" && existsSync(workspacePath(requestedRoot, "claims", `${id}.yaml`))) root = requestedRoot;
+    } catch { /* normal control-plane path below reports the useful error */ }
+  }
   const contract = findContract(root, id);
   const entity = parseMarkdown(readFileSync(contract.path, "utf8"));
 
@@ -414,6 +513,7 @@ function updateContainingBatch(root: string, contractId: string): void {
         mkdirSync(done, { recursive: true });
         writeFileSync(join(done, filename), renderMarkdown(entity.data, entity.content));
         unlinkSync(path);
+        appendLifecycleEvent(root, String(entity.data.id), "done", "All member contracts completed; batch closed.", null);
       } else {
         writeFileSync(path, renderMarkdown(entity.data, entity.content));
       }

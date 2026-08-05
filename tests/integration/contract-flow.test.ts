@@ -131,6 +131,20 @@ None.
     expect(readFileSync(contract, "utf8")).toBe(before);
   });
 
+  test("sign accepts an unambiguous no-open-decisions statement without exact punctuation", () => {
+    const repository = mkdtempSync(join(tmpdir(), "kotta-open-decisions-"));
+    git(repository, "init", "-b", "main");
+    writeFileSync(join(repository, "README.md"), "fixture\n");
+    run(repository, ["init"]);
+    const created = run(repository, ["contract", "new", "--title", "Flexible approval", "--type", "feature"]) as { data: { id: string; path: string } };
+    writeFileSync(created.data.path, readFileSync(created.data.path, "utf8")
+      .replace("Describe the observable outcome.", "Approval is not punctuation-sensitive.")
+      .replace("- Define an observable condition.", "- The valid contract is signed.")
+      .replace("- Explain how acceptance will be checked.", "- Run this test.")
+      .replace("## Open decisions\n\nNone.", "## Open decisions\n\nNone"));
+    expect(run(repository, ["contract", "sign", created.data.id, "--approve"])).toMatchObject({ ok: true, data: { id: created.data.id } });
+  });
+
   test("moves a valid profiled contract to defined and starts it in an isolated worktree", () => {
     const repository = mkdtempSync(join(tmpdir(), "kotta-flow-"));
     git(repository, "init", "-b", "main");
@@ -162,8 +176,9 @@ None.
     const started = run(repository, ["contract", "start", id, "--agent", "codex"]);
     expect(started).toMatchObject({ ok: true, command: "contract start", data: { branch: `feat/${id}-ship-export` } });
     const worktree = join(repository, ".worktrees", id);
-    expect(existsSync(join(worktree, ".kotta/active", basename(contract)))).toBe(true);
-    expect(readFileSync(join(worktree, ".kotta/claims", `${id}.yaml`), "utf8")).toContain("agent: codex");
+    expect(existsSync(join(repository, ".kotta/active", basename(contract)))).toBe(true);
+    expect(existsSync(join(worktree, ".kotta/active", basename(contract)))).toBe(false);
+    expect(readFileSync(join(repository, ".kotta/claims", `${id}.yaml`), "utf8")).toContain("agent: codex");
     expect(run(worktree, ["status"])).toMatchObject({ ok: true, data: { activeContracts: [id] } });
     expect(run(repository, ["claim", "list"])).toMatchObject({ ok: true, data: { claims: [{ contract: id, agent: "codex" }] } });
   });

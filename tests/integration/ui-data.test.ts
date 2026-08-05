@@ -83,7 +83,7 @@ The effective state is visible.
         assigned_agent: "codex",
       }),
     ]);
-    expect(workspace.diagnostics).toEqual([]);
+    expect(workspace.diagnostics).toEqual([expect.objectContaining({ id: "T-008", message: expect.stringContaining("Legacy execution state") })]);
   });
 
   test("retains the coordinator contract when no worktree directory exists", () => {

@@ -1,0 +1,11 @@
+[mcp_servers.kotta]
+command = "kotta"
+args = ["mcp", "--workspace", "."]
+enabled = true
+required = false
+startup_timeout_sec = 10
+tool_timeout_sec = 120
+default_tools_approval_mode = "auto"
+
+[mcp_servers.kotta.tools.approval_request]
+approval_mode = "approve"

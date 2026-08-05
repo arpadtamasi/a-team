@@ -4,7 +4,7 @@ import { ANY_ENTITY_ID_SOURCE, CONTRACT_ID, mintEventId } from "./identity.js";
 import { workspacePath } from "../filesystem/workspace.js";
 
 export type EventKind = "message" | "turn-failed" | "lifecycle" | "approval";
-export type ApprovalPhase = "proposed" | "approved" | "rejected" | "applied" | "failed";
+export type ApprovalPhase = "proposed" | "approved" | "rejected" | "cancelled" | "applied" | "failed";
 
 export interface KottaEvent {
   id: string;
@@ -29,7 +29,7 @@ export interface KottaEvent {
 
 const EVENT_ID = /^E-[0-9a-hjkmnp-tv-z]{26}$/;
 const ENTITY_ID = new RegExp(`^${ANY_ENTITY_ID_SOURCE}$`);
-const APPROVAL_PHASES = new Set<ApprovalPhase>(["proposed", "approved", "rejected", "applied", "failed"]);
+const APPROVAL_PHASES = new Set<ApprovalPhase>(["proposed", "approved", "rejected", "cancelled", "applied", "failed"]);
 
 export function validateEvent(event: KottaEvent): string[] {
   const errors: string[] = [];
@@ -47,7 +47,7 @@ export function validateEvent(event: KottaEvent): string[] {
     if (!event.approval_id || !EVENT_ID.test(event.approval_id)) errors.push("approval events require a valid approval_id");
     if (!event.phase || !APPROVAL_PHASES.has(event.phase)) errors.push("approval events require a valid phase");
     if (!event.action?.trim()) errors.push("approval events require an action");
-    if (["approved", "rejected"].includes(String(event.phase)) && !event.source_message) errors.push("approval decisions require a source human message");
+    if (["approved", "rejected", "cancelled"].includes(String(event.phase)) && !event.source_message) errors.push("approval decisions require a source human message");
   }
   return errors;
 }
@@ -95,6 +95,10 @@ export function appendEvent(root: string, input: NewEvent): { event: KottaEvent;
 
 export function approvalHistory(events: KottaEvent[], approvalId: string): KottaEvent[] {
   return events.filter((event) => event.kind === "approval" && event.approval_id === approvalId);
+}
+
+export function mintApprovalId(): string {
+  return mintEventId();
 }
 
 export function appendLifecycleEvent(root: string, entity: string, state: string, summary: string, contract: string | null = CONTRACT_ID.test(entity) ? entity : null) {

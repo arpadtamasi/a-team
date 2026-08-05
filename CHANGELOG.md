@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-05
+
+### Added
+
+- **Caller-chat control plane.** `kotta mcp` exposes structured status, contract, observation,
+  caller-execution, conversation and approval tools over stdio MCP. Consequential lifecycle tools
+  interrupt the calling chat with one exact approve/reject/cancel elicitation, link the durable
+  receipt to the visible human response, and apply the existing validated domain mutation once.
+- `kotta integrate codex` idempotently connects those tools in project-scoped
+  `.codex/config.toml` without replacing existing Codex settings. `contract_create` returns the new
+  id and path as structured data, so an agent never asks the human to copy an identifier.
+
+### Changed
+
+- **The board is read-only.** It continues to reconstruct canonical state, conversation,
+  lifecycle and approval history from the base branch, but its UI has no composer or mutation
+  controls and every historical POST endpoint returns `405`. Human approvals live in the calling
+  chat; the CLI remains a human-operated recovery and terminal-first fallback.
+- `kotta contract new` human output now prints both the created contract id and canonical path.
+
 ## [0.4.2] - 2026-08-05
 
 ### Fixed

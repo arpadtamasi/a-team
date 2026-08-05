@@ -17,7 +17,7 @@ by the installer may expose installed skills differently.
 Install the public CLI and confirm the exact version:
 
 ```bash
-npm install --global @arpadtamasi/kotta@0.4.2
+npm install --global @arpadtamasi/kotta@0.5.0
 kotta --version
 ```
 
@@ -31,6 +31,17 @@ Install the pinned skill collection from the public repository:
 npx skills@1.5.20 add arpadtamasi/kotta
 ```
 
+Connect Kotta to the project-scoped Codex chat once, then start a new chat (or restart the host) so
+the MCP tools are discovered:
+
+```bash
+kotta integrate codex
+```
+
+After that, create, define, validate, start and review contracts by asking in the calling chat.
+Kotta returns identifiers as structured tool results and presents sign/close/change-request
+decisions as scoped host-chat prompts; the human does not relay ids or run lifecycle commands.
+
 Then open an existing Git repository in the supported host and run:
 
 ```text
@@ -39,8 +50,9 @@ Then open an existing Git repository in the supported host and run:
 ```
 
 `/setup-kotta` invokes the canonical `kotta init` operation and creates the local
-`.kotta/` workspace. `/define-contract` guides you through an executable work contract. Finish
-by checking the generated contract and workspace:
+`.kotta/` workspace and connects the caller-chat tools. `/define-contract` guides you through an
+executable work contract. The calling agent checks the generated contract and workspace through
+Kotta's structured tools; the equivalent terminal commands remain available for recovery:
 
 ```bash
 kotta contract validate <contract-id>
@@ -69,7 +81,7 @@ place that compatibility is described; nothing else in the repository restates i
 
 | Surface | Now | Pre-rename name |
 | --- | --- | --- |
-| npm package | `kotta` | `@arpadtamasi/a-team` (deprecated, points here) |
+| npm package | `@arpadtamasi/kotta` | `@arpadtamasi/a-team` (deprecated, points here) |
 | CLI binary | `kotta` | `a-team` — still installed, same entrypoint, same version |
 | Workspace directory | `.kotta/` — what `kotta init` creates and what discovery finds first | the pre-rename directory — still discovered and used as-is |
 | GitHub repository | `arpadtamasi/kotta` | `arpadtamasi/a-team` (redirects) |
@@ -175,24 +187,26 @@ chat/approval writers are serialized by a repository-wide mutation lock. The con
 must remain checked out in one linked worktree; commands invoked from another worktree route these
 mutations there and refuse rather than writing live state into a feature branch when it is missing.
 
-The contract chat in `kotta ui` is the primary human approval surface. It prepares one exact,
-entity-scoped action, records an explicit approve or reject event, then calls the same validated
-mutation service as the CLI. Open an entity, choose its available **Prepare…** action, inspect the
-displayed operation, then approve or reject it in the timeline. A failed application is recorded as
-failed without consuming the lifecycle transition. The CLI remains the automation and recovery
-fallback.
+The calling agent host is the primary human approval surface. `kotta mcp` exposes structured tools;
+`approval_request` prepares one exact entity-scoped transition, interrupts the current chat with an
+approve/reject/cancel form, records the visible human response, and only then calls the same
+validated mutation service as the CLI. A failed application is durable and never masquerades as a
+successful transition. `kotta integrate codex` adds the project-scoped MCP configuration
+idempotently. The CLI remains the human-operated recovery and terminal-first fallback.
 
-Visible human messages are stored before an agent is launched. Kotta stores the final visible
-assistant response, or a failed-turn marker that can be retried explicitly; it never stores hidden
-reasoning, raw tool output or transient streaming deltas. Restarting `kotta ui` reconstructs the same
-contract timeline from `.kotta/events/`; [the event schema](schemas/event.schema.json) defines the
-stored format.
+The caller can persist exact visible human and assistant messages through the MCP conversation tool;
+Kotta never stores hidden reasoning, raw tool output or transient streaming deltas. Restarting
+`kotta ui` reconstructs the same read-only contract timeline from `.kotta/events/`; [the event
+schema](schemas/event.schema.json) defines the stored format.
 
 Open the local filesystem-backed board from an initialized repository:
 
 ```bash
 kotta ui
 ```
+
+The board is deliberately read-only: it serves canonical state and history through GET requests and
+rejects every mutation endpoint. Actions and approvals stay in the calling chat.
 
 This uses the current directory by default. To serve another checkout or address its
 workspace directly, pass `--workspace <repository-root>` or `--workspace <repository-root>/.kotta`.

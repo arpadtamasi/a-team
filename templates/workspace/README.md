@@ -15,11 +15,11 @@ This directory is the repository's canonical work record. Keep contracts and bat
 Repository files are canonical. Visible contract chat is persisted here; provider internals, hidden
 reasoning and raw tool output are not. Pull-request comments and user interfaces remain views.
 
-Use contract chat for scoped human approvals and the `kotta` CLI as the automation-compatible
-fallback. Both use the same validated services. Live state and visible conversation stay on the
-configured base branch; contract feature worktrees hold implementation code without a competing
-lifecycle copy. `contract execute` launches a fresh brief-only context by default, while
-`contract start --caller` explicitly keeps the caller's context.
+Use the calling host chat's Kotta MCP tools for scoped human approvals and the `kotta` CLI as the
+automation-compatible fallback. Both use the same validated services. `kotta ui` is read-only. Live
+state and visible conversation stay on the configured base branch; contract feature worktrees hold
+implementation code without a competing lifecycle copy. `contract execute` launches a fresh
+brief-only context by default, while `contract_start_caller` explicitly keeps the caller's context.
 
 A decision draft uses `title` frontmatter and non-empty `Decision`, `Context`, and
 `Consequences` sections. The CLI assigns a stable `D-001`-style identifier and date,

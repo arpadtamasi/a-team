@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 //
-// Passive board navigation only reads. Scoped chat and approval writes appear after an
-// entity is opened; merely browsing views never mutates canonical state.
+// The board is a pure projection. Opening every view and drawer must still leave the
+// calling chat as the only interactive lifecycle surface.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { App } from "../../ui/src/App";
 import { decision, observation, batch, contract, workspace } from "./fixtures";
 
-const WRITE_PATHS = ["/api/chat", "/api/contract/sign", "/api/batch", "/api/batch/contracts", "/api/observation", "/api/observation/resolve"];
+const WRITE_PATHS = ["/api/chat", "/api/approval/propose", "/api/approval/decide", "/api/contract/sign", "/api/batch", "/api/batch/contracts", "/api/observation", "/api/observation/resolve"];
 
 const data = workspace({
   contracts: [
@@ -50,7 +50,7 @@ describe("Passive board navigation", () => {
     expect(new Set(calls.map((call) => call.method))).toEqual(new Set(["GET"]));
   });
 
-  it("keeps mutation controls inside entity drawers", async () => {
+  it("keeps every view and entity drawer free of mutation controls", async () => {
     await boot();
     const views = ["Observations", "Contracts", "Batches", "Decisions", "Home"];
     let rendered = document.body.innerHTML;
@@ -58,6 +58,12 @@ describe("Passive board navigation", () => {
       go(view);
       rendered += document.body.innerHTML;
     }
+    go("Contracts");
+    const contractRow = screen.getAllByText("Make the UI workspace argument explicit").map((node) => node.closest("button")).find(Boolean);
+    if (!contractRow) throw new Error("Contract row was not rendered.");
+    fireEvent.click(contractRow);
+    rendered += document.body.innerHTML;
+    fireEvent.keyDown(window, { key: "Escape" });
     // both overlays too
     fireEvent.keyDown(window, { key: "w" });
     rendered += document.body.innerHTML;
@@ -69,8 +75,7 @@ describe("Passive board navigation", () => {
     for (const path of WRITE_PATHS) expect(rendered).not.toContain(`"${path}"`);
     expect(rendered).not.toMatch(/<form\b/);
     expect(rendered).not.toMatch(/type="submit"/);
-    // What it does offer instead: the command, spelled out.
-    expect(rendered).toContain("kotta contract execute T-014 --agent codex");
+    expect(rendered).toContain("read-only");
   });
 
   it("clicking every control on every view still issues no write", async () => {
@@ -87,11 +92,12 @@ describe("Passive board navigation", () => {
     await waitFor(() => expect(calls.every((call) => call.method === "GET" && call.url === "/api/workspace")).toBe(true));
   });
 
-  it("presents the CLI as a fallback to chat-first approvals", async () => {
+  it("presents the CLI only as a fallback to caller-chat approvals", async () => {
     await boot();
     fireEvent.click(screen.getByRole("button", { name: /CLI/ }));
     const sheet = await screen.findByRole("dialog", { name: "CLI fallback" });
-    expect(sheet.textContent).toContain("Chat is the primary approval surface.");
+    expect(sheet.textContent).toContain("The calling chat is the primary approval surface.");
+    expect(sheet.textContent).toContain("The board is read-only.");
     expect(sheet.textContent).toContain("kotta contract close <id> --approve");
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();

@@ -41,7 +41,7 @@ describe("Home — the three bands", () => {
     renderHome();
     const headings = screen.getAllByRole("heading", { level: 2 }).map((node) => node.textContent);
     expect(headings).toEqual(["Waiting on you", "Doesn't add up", "What runs next?"]);
-    expect(screen.getByText(/Human gates ready for an explicit decision in contract chat/)).toBeDefined();
+    expect(screen.getByText(/Human gates waiting for an explicit decision in the calling chat/)).toBeDefined();
     expect(screen.getByText("Two sources disagree, or the data contradicts its own definition. The board will not pick a story.")).toBeDefined();
     expect(screen.getByText(/A menu, not a debt\./)).toBeDefined();
   });

@@ -1,7 +1,7 @@
 ---
 id: T-01kz8tk2t53jbax6mrseka50v9
 title: 'Live control plane, persistent contract chat and chat-first approvals'
-status: active
+status: review
 origin: human
 types:
   - workflow
@@ -15,7 +15,7 @@ depends_on: []
 blocks: []
 branch: >-
   feat/T-01kz8tk2t53jbax6mrseka50v9-live-control-plane-persistent-contract-chat-and-chat-first-a
-pull_request: null
+pull_request: 'https://github.com/arpadtamasi/kotta/pull/26'
 created_at: '2026-08-05'
 updated_at: '2026-08-05'
 assigned_agent: codex
@@ -232,3 +232,43 @@ None.
 - Prefer one immutable event file per event, named by sortable collision-resistant id, over a shared append-only file that creates merge and partial-write hazards.
 - Commit completed chat turns and lifecycle events to the control branch in small Kotta-owned commits. Never persist token-by-token deltas.
 - Package release is a minor SemVer bump because this adds backward-compatible workflow and UI capabilities. Follow `README.md` maintainer release rules and the existing tag-driven npm workflow.
+
+## Review evidence
+
+| Acceptance condition | Evidence |
+|---|---|
+| Starting a contract from `main` or a linked worktree yields exactly one claim, feature branch and worktree; the canonical contract becomes active on the configured base branch and the board shows it without merging the feature branch. | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| Review, discovered observations and close invoked from a contract worktree update the control plane and are immediately visible to the board. | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| Feature branches do not acquire divergent active/review/done copies of canonical contract state, and merging implementation code does not create duplicate lifecycle files. | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| Concurrent mutations are serialized; injected failures at each start transition boundary leave a valid workspace with no orphaned claim, branch or worktree created by the failed attempt. | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| `contract execute` still launches a fresh executor whose intent input is the deterministic brief. `contract start` clearly supports the caller continuing in the returned worktree and labels that mode inherited-context. | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| A completed human/assistant chat exchange survives board process restart and appears in stable order. Streaming deltas, hidden reasoning and raw tool output are absent from persisted files. | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| A proposed chat action names the exact entity and transition. One explicit human approval applies it once, is durably linked to the human event and remains visible after restart. | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| Ambiguous chat text, agent messages and duplicate submissions cannot approve an action. Rejection and failed application are durable and do not change lifecycle state. | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| Chat-first paths cover contract sign, observation disposition, review accept/request-changes, contract close and batch close; equivalent CLI paths continue to pass their existing tests. | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| The chat timeline has verified loading, empty, error, success and disabled states; keyboard operation and accessible names pass component tests and an axe check. | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| Existing workspaces migrate or read compatibly with no required manual transcript creation, and `kotta validate` verifies all new canonical records and references. | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| `npm test`, `npm run typecheck`, `npm run build` and `npm run test:site` pass. | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| The pull request is reviewed and merged; GitHub Pages serves the updated site, and the tagged minor version is installable as `kotta` from npm with the new UI and CLI behaviour. | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| workflow: happy_path_verified | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| workflow: failure_and_cancellation_paths_verified | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| workflow: authorization_and_idempotency_verified | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| ui: required_states_verified | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| ui: accessibility_verified | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+| ui: visual_evidence_present | Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes. |
+
+### Verification performed
+
+Caller-chat MCP, CLI, read-only board API, wave Run integration and UI tests pass (37/37 after main integration); site Playwright passes 5/5; typecheck, build and pack allowlist pass for @arpadtamasi/kotta@0.5.0; PR #26 site-build check passes.
+
+### Deviations
+
+Per the human's later direction, approvals moved from the board drawer to the calling host chat through MCP elicitation; the board is now a read-only canonical projection. The CLI remains the terminal-first fallback.
+
+### Observations created
+
+F-01kz9c3h0jddvtwq4feaag2s6z records npm rejecting the unscoped name; F-01kz9d5nqwdwb7r2c0jdzchspa records the stale live-site quickstart.
+
+### Known concerns
+
+npm Trusted Publishing still needs to be configured for @arpadtamasi/kotta before a future first-time tag can publish without a maintainer's browser-authenticated fallback.

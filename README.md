@@ -17,7 +17,7 @@ by the installer may expose installed skills differently.
 Install the public CLI and confirm the exact version:
 
 ```bash
-npm install --global @arpadtamasi/kotta@0.4.1
+npm install --global @arpadtamasi/kotta@0.4.2
 kotta --version
 ```
 

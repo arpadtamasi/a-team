@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-08-05
+
+### Fixed
+
+- The maintainer-triage integration fixture now supplies its own Git identity, so CI exercises
+  observation-resolution state commits without relying on machine-global configuration.
+
 ## [0.4.1] - 2026-08-05
 
 ### Fixed

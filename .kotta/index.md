@@ -13,7 +13,6 @@ None.
 ## Defined contracts
 
 - az-agenseknek-szolo-szabalyok-csak-egy-masolt-agents-md-ben--bd1366pk
-- live-control-plane-persistent-contract-chat-and-chat-first-a-seka50v9
 
 ## Active contracts
 
@@ -21,7 +20,7 @@ None.
 
 ## Review
 
-None.
+- live-control-plane-persistent-contract-chat-and-chat-first-a-seka50v9
 
 ## Blocked
 

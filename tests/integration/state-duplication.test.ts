@@ -60,8 +60,6 @@ describe("one entity in two state directories (T-036)", () => {
     // no longer creates this shape, but dedupe must still repair repositories that already have it.
     const commonBase = git(root, "rev-parse", "HEAD");
     run(root, ["contract", "sign", contract.id, "--approve"]);
-    git(root, "add", "-A");
-    git(root, "commit", "-m", "defined");
     git(root, "branch", "branch-defined");
     git(root, "reset", "--hard", commonBase);
     run(root, ["contract", "cancel", contract.id, "--resolution", "obsolete", "--approve"]);
@@ -167,8 +165,6 @@ describe("one entity in two state directories (T-036)", () => {
 
     const commonBase = git(root, "rev-parse", "HEAD");
     run(root, ["contract", "sign", contract.id, "--approve"]);
-    git(root, "add", "-A");
-    git(root, "commit", "-m", "defined");
     git(root, "branch", "branch-defined");
     git(root, "reset", "--hard", commonBase);
 

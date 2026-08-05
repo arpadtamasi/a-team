@@ -17,7 +17,7 @@ by the installer may expose installed skills differently.
 Install the public CLI and confirm the exact version:
 
 ```bash
-npm install --global kotta@0.4.0
+npm install --global @arpadtamasi/kotta@0.4.1
 kotta --version
 ```
 
@@ -377,24 +377,26 @@ the test.
 tag/version mismatch or a commit outside `main`, runs the full tests, inspects the packed
 allowlist, and exercises a clean install before publishing.
 
-### The first release under the name `kotta`
+### The first release under the scoped package name
 
-The package name changed with 0.3.0, and a name that does not exist yet on the registry has no
-trusted publisher configured — so the **first** `kotta` release is published by a maintainer by
-hand, from a clean `main` checkout at the release commit:
+The CLI was renamed with 0.3.0. npm rejected the unscoped `kotta` package name as too similar to
+existing packages, so the public package is `@arpadtamasi/kotta`; its installed executable remains
+`kotta`. A package that does not exist yet on the registry has no trusted publisher configured, so
+the **first** scoped release is published by a maintainer by hand, from a clean `main` checkout at
+the release commit:
 
 ```bash
 npm run verify:pack                  # build, pack, inspect the allowlist
-npm publish --access public          # first publish of the name `kotta`
+npm publish --access public --provenance=false
 ```
 
 Then point the old batch at the new one, once:
 
 ```bash
-npm deprecate @arpadtamasi/a-team "Renamed to 'kotta'. Install with: npm i -g kotta"
+npm deprecate @arpadtamasi/a-team "Renamed to '@arpadtamasi/kotta'. Install with: npm i -g @arpadtamasi/kotta"
 ```
 
-Afterwards configure Trusted Publishing for `kotta` on npmjs.com (repository
+Afterwards configure Trusted Publishing for `@arpadtamasi/kotta` on npmjs.com (repository
 `arpadtamasi/kotta`, workflow `.github/workflows/npm-release.yml`, environment `npm-release`);
 every later release goes back through the tag-driven workflow below and needs no local publish.
 

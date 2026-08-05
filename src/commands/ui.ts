@@ -458,8 +458,8 @@ function assertApprovalApplicable(root: string, entity: string, action: string):
 function applyApprovedAction(root: string, proposal: KottaEvent): unknown {
   const payload = proposal.payload ?? {};
   switch (proposal.action) {
-    case "contract.sign": return signContract(proposal.entity, true, root, { approvalRecorded: true });
-    case "observation.resolve": return resolveObservation(proposal.entity, String(payload.disposition), true, root, { approvalRecorded: true });
+    case "contract.sign": return signContract(proposal.entity, true, root, { approvalRecorded: true, locked: true, commit: false });
+    case "observation.resolve": return resolveObservation(proposal.entity, String(payload.disposition), true, root, { approvalRecorded: true, locked: true, commit: false });
     case "contract.close": return closeContract(proposal.entity, true, root, { locked: true, commit: false, approvalRecorded: true });
     case "contract.request-changes": return reopenContract(proposal.entity, true, root, { locked: true, commit: false, approvalRecorded: true });
     case "batch.close": return closeBatch(proposal.entity, true, root, { skipClean: true, commit: false, approvalRecorded: true });

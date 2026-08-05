@@ -33,6 +33,8 @@ function fixture(prefix: string): string {
   git(repository, "add", ".");
   git(repository, "commit", "-m", "initial");
   run(repository, ["init"]);
+  git(repository, "add", ".gitattributes", ".gitignore");
+  git(repository, "commit", "-m", "initialize Kotta metadata");
   return repository;
 }
 
@@ -59,15 +61,11 @@ describe("contract cancel", () => {
     const repository = fixture("kotta-cancel-defined-");
     const obsolete = newContract(repository, "Obsolete plan");
     run(repository, ["contract", "sign", obsolete.id, "--approve"]);
-    git(repository, "add", ".");
-    git(repository, "commit", "-m", "defined contract");
     expect(run(repository, ["contract", "cancel", obsolete.id, "--resolution", "obsolete", "--approve"])).toMatchObject({ ok: true, command: "contract cancel", data: { id: obsolete.id, resolution: "obsolete" } });
     expect(existsSync(join(repository, ".kotta/done", basename(obsolete.path)))).toBe(true);
 
     const active = newContract(repository, "Active work");
     run(repository, ["contract", "sign", active.id, "--approve"]);
-    git(repository, "add", ".");
-    git(repository, "commit", "-m", "defined second contract");
     run(repository, ["contract", "start", active.id, "--agent", "codex"]);
     const worktree = join(repository, ".worktrees", active.id);
     const refused = fail(worktree, ["contract", "cancel", active.id, "--resolution", "cancelled", "--approve"]);

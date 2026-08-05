@@ -21,13 +21,13 @@ describe("review and close", () => {
     writeFileSync(join(root, "README.md"), "fixture\n");
     git(root, "add", "."); git(root, "commit", "-m", "initial");
     run(root, ["init"]);
+    git(root, "add", ".gitattributes", ".gitignore"); git(root, "commit", "-m", "initialize Kotta metadata");
     const created = (run(root, ["contract", "new", "--title", "Document flow", "--type", "documentation"]) as { data: { id: string; path: string } }).data;
     const id = created.id;
     const filename = basename(created.path);
     const path = created.path;
     writeFileSync(path, readFileSync(path, "utf8").replace("Describe the observable outcome.", "The flow is documented.").replace("- Define an observable condition.", "- Documentation describes the flow.").replace("- Explain how acceptance will be checked.", "- Read the rendered documentation."));
     run(root, ["contract", "sign", id, "--approve"]);
-    git(root, "add", "."); git(root, "commit", "-m", "defined contract");
     run(root, ["contract", "start", id, "--agent", "codex"]);
     const worktree = join(root, ".worktrees", id);
     writeFileSync(join(worktree, "flow.md"), "# Flow\n");

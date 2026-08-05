@@ -94,30 +94,34 @@ export function validateContract(id: string) {
   return { ok: report.valid, command: "contract validate", data: { id, state: contract.state }, errors: report.errors };
 }
 
-export function signContract(id: string, approved: boolean, repositoryRoot?: string, options: { approvalRecorded?: boolean } = {}) {
-  const root = controlPlaneRoot(repositoryRoot ?? findRepositoryRoot());
-  const contract = findContract(root, id);
-  if (contract.state !== "backlog") throw new Error(`Contract ${id} must be in backlog before it can be signed.`);
-  if (!approved) throw new Error("Human sign-off is required. Re-run with --approve after reviewing intent and trade-offs.");
-  const entity = parseMarkdown(readFileSync(contract.path, "utf8"));
-  const dependencies = Array.isArray(entity.data.depends_on) ? entity.data.depends_on.map(String) : [];
-  for (const dependency of dependencies) findContract(root, dependency);
-  entity.data.status = "defined";
-  entity.data.updated_at = new Date().toISOString().slice(0, 10);
-  mkdirSync(workspacePath(root, "defined"), { recursive: true });
-  const destination = workspacePath(root, "defined", contract.filename);
-  writeFileSync(destination, renderMarkdown(entity.data, entity.content));
-  try {
-    assertValid(validateContractFile(destination, "defined"));
-  } catch (error) {
-    unlinkSync(destination);
-    throw error;
-  }
-  unlinkSync(contract.path);
-  regenerateIndex(root);
-  appendLifecycleEvent(root, id, "defined", "Contract approved for execution.");
-  if (!options.approvalRecorded) appendCliApprovalAudit(root, id, "contract.sign");
-  return { ok: true, command: "contract sign", data: { id, path: destination } };
+export function signContract(id: string, approved: boolean, repositoryRoot?: string, options: { approvalRecorded?: boolean; locked?: boolean; commit?: boolean } = {}) {
+  const requestedRoot = repositoryRoot ?? findRepositoryRoot();
+  const sign = (root: string) => {
+    const contract = findContract(root, id);
+    if (contract.state !== "backlog") throw new Error(`Contract ${id} must be in backlog before it can be signed.`);
+    if (!approved) throw new Error("Human sign-off is required. Re-run with --approve after reviewing intent and trade-offs.");
+    const entity = parseMarkdown(readFileSync(contract.path, "utf8"));
+    const dependencies = Array.isArray(entity.data.depends_on) ? entity.data.depends_on.map(String) : [];
+    for (const dependency of dependencies) findContract(root, dependency);
+    entity.data.status = "defined";
+    entity.data.updated_at = new Date().toISOString().slice(0, 10);
+    mkdirSync(workspacePath(root, "defined"), { recursive: true });
+    const destination = workspacePath(root, "defined", contract.filename);
+    writeFileSync(destination, renderMarkdown(entity.data, entity.content));
+    try {
+      assertValid(validateContractFile(destination, "defined"));
+    } catch (error) {
+      unlinkSync(destination);
+      throw error;
+    }
+    unlinkSync(contract.path);
+    regenerateIndex(root);
+    appendLifecycleEvent(root, id, "defined", "Contract approved for execution.");
+    if (!options.approvalRecorded) appendCliApprovalAudit(root, id, "contract.sign");
+    if (options.commit !== false) commitControlState(root, `chore(kotta): sign ${id}`);
+    return { ok: true, command: "contract sign", data: { id, path: destination } };
+  };
+  return options.locked ? sign(requestedRoot) : withControlPlaneMutation(requestedRoot, sign, { requireClean: false });
 }
 
 export function startContract(id: string, agent: string, executionMode: "fresh" | "inherited" = "fresh") {

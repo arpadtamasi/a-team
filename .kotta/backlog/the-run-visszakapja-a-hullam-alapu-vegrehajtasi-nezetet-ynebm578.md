@@ -111,10 +111,11 @@ restoring the old left-to-right wave graph that made dependencies and parallel w
 
 ## Open decisions
 
-None. The user approved the dark-shell wave direction on 2026-08-05.
+None.
 
 ## Execution notes
 
+- The user approved the dark-shell wave direction on 2026-08-05.
 - The old implementation at commit `4536763` contains a small `computeWaves` and `WaveGraph`, but it
   is reference material, not code to copy blindly: it had a 12-iteration guard and silently forced
   cyclic leftovers into arbitrary waves. The new helper must make malformed topology explicit.

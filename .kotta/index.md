@@ -61,6 +61,7 @@ None.
 - gray-matter-memoizes-frontmatter-so-every-writer-mutates-a-s-s8j3h62g
 - harom-szomszed-repo-agents-md-je-ideiglenes-szabalyblokkot-h-10cpc3k3
 - kotta-migrate-writes-a-root-gitattributes-it-never-reports-i-hkr7tyh2
+- live-pages-quickstart-still-advertises-kotta-0-3-0-jdzchspa
 - migration-json-keeps-the-pre-vocabulary-words-and-nothing-de-3hcysj58
 - nincs-agents-md-semmi-nem-mondja-meg-egy-erkezo-agensnek-hog-pky2an1x
 - nincs-backlog-review-es-epp-azert-kell-tolnia-magat-a-termek-sjb9v9w9

@@ -1,5 +1,5 @@
 import { execFileSync, spawn, spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, test } from "vitest";
@@ -122,7 +122,7 @@ function agentEnvironment(fixtureUnderTest: Fixture, mode: string): Record<strin
 }
 
 function claimPath(repository: string, id: string): string {
-  return join(repository, ".worktrees", id, ".kotta/claims", `${id}.yaml`);
+  return join(repository, ".kotta/claims", `${id}.yaml`);
 }
 
 describe("contract execute (T-035 / D-009)", () => {
@@ -286,6 +286,45 @@ describe("contract execute (T-035 / D-009)", () => {
 
     const resumed = expectOk(cliRun(repository, ["contract", "execute", id, "--resume", "--json"], agentEnvironment(context, "commit"))) as { data: Record<string, unknown> };
     expect(resumed.data).toMatchObject({ state: "implemented", resumed: true, agent: "claude" });
+  });
+
+  test("contract start can explicitly hand execution to the caller", () => {
+    const context = fixture("caller");
+    const result = cliRun(context.repository, ["contract", "start", context.id, "--agent", "codex", "--caller", "--json"]);
+    const data = (expectOk(result) as { data: Record<string, unknown> }).data;
+    expect(data).toMatchObject({ executionMode: "inherited" });
+    expect(String(data.callerStep)).toContain("inherited-context mode");
+    expect(readFileSync(claimPath(context.repository, context.id), "utf8")).toContain("execution_mode: inherited");
+  });
+
+  test("claim recovery checks the recorded execution worktree and commits canonical state", () => {
+    const context = fixture("release-claim");
+    const started = (expectOk(cliRun(context.repository, ["contract", "start", context.id, "--agent", "codex", "--caller", "--json"])) as { data: { worktree: string } }).data;
+    const executionWorktree = resolve(context.repository, started.worktree);
+    const dirty = join(executionWorktree, "unfinished.txt");
+    writeFileSync(dirty, "not committed\n");
+
+    const refused = cliRun(executionWorktree, ["claim", "release", context.id, "--force", "--json"]);
+    expect(refused.status).not.toBe(0);
+    expect(refused.stdout).toContain(`Execution worktree ${executionWorktree} has uncommitted changes`);
+    expect(existsSync(claimPath(context.repository, context.id))).toBe(true);
+
+    unlinkSync(dirty);
+    expectOk(cliRun(executionWorktree, ["claim", "release", context.id, "--force", "--json"]));
+    expect(existsSync(claimPath(context.repository, context.id))).toBe(false);
+    expect(git(context.repository, "status", "--porcelain")).toBe("");
+  });
+
+  test.each(["after-worktree", "after-active", "after-claim"])("start rolls back cleanly when it fails %s", (boundary) => {
+    const context = fixture(`rollback-${boundary}`);
+    const result = cliRun(context.repository, ["contract", "start", context.id, "--agent", "codex", "--json"], { KOTTA_TEST_FAIL_START_AT: boundary });
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).toContain("Injected start failure");
+    expect(existsSync(join(context.repository, ".worktrees", context.id))).toBe(false);
+    expect(existsSync(claimPath(context.repository, context.id))).toBe(false);
+    expect(git(context.repository, "branch", "--list", `feat/${context.id}-ship-the-exporter`)).toBe("");
+    expect(expectOk(cliRun(context.repository, ["contract", "validate", context.id, "--json"]))).toMatchObject({ data: { state: "defined" } });
+    expect(git(context.repository, "status", "--porcelain")).toBe("");
   });
 
   test("an interrupt leaves the claim and worktree in place and names the manual decision", async () => {

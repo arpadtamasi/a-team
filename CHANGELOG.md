@@ -6,7 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-05
+
+### Added
+
+- **Live control plane and persistent contract chat.** Canonical lifecycle state, claims, visible
+  messages, failed turns, execution outcomes and scoped approvals remain on the configured base
+  branch while implementation stays isolated in feature worktrees. The board reconstructs the
+  timeline after restart and offers chat-first sign, disposition, review, close and batch-close gates.
+- **Explicit caller execution.** `kotta contract start <id> --agent <agent> --caller` creates the
+  normal isolated branch and worktree but labels execution as inherited context. Fresh brief-only
+  `contract execute` remains the default.
+
 ### Changed
+
+- Batch coordinators now use their own linked worktree, so starting a batch no longer switches the
+  control checkout away from `main`.
 
 - **The vocabulary is now observation / contract / batch, and one command carries any workspace
   across (D-01kz240dn155hb97h6px6n2p85).** `finding` → **observation**, `ticket` → **contract**,

@@ -57,11 +57,11 @@ describe("dependency-aware batch", () => {
     writeFileSync(blockedBacklog, readFileSync(second, "utf8").replace("status: defined", "status: backlog"));
     unlinkSync(second);
     expect(run(root, ["batch", "sign", batchId, "--approve"])).toMatchObject({ ok: true, command: "batch sign" });
-    git(root, "add", "."); git(root, "commit", "-m", "define batch"); git(root, "checkout", "-b", `coord/${batchId}`);
+    git(root, "add", "."); git(root, "commit", "-m", "define batch");
 
     expect(run(root, ["batch", "validate", batchId])).toMatchObject({ ok: true, data: { waves: [[parser.id], [command.id]] } });
     expect(run(root, ["batch", "start", batchId, "--agent", "codex"])).toMatchObject({ ok: true, data: { started: [parser.id], waiting: [command.id] } });
-    expect(existsSync(join(root, ".worktrees", parser.id, ".kotta/claims", `${parser.id}.yaml`))).toBe(true);
+    expect(existsSync(join(root, ".kotta/claims", `${parser.id}.yaml`))).toBe(true);
     expect(existsSync(join(root, ".worktrees", command.id))).toBe(false);
     expect(run(root, ["batch", "status", batchId])).toMatchObject({
       ok: true,

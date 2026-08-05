@@ -245,24 +245,24 @@ Dock behavior:
 6. **Keyboard-first is welcome** (j/k row nav, `/` search, `g i`/`g s`/`g p`/
    `g r` stage jumps) but progressive — nothing may be keyboard-only.
 
-## 6. Data & API reality (what exists today)
+## 6. Data & API reality
 
 - `GET /api/workspace` — full workspace JSON (contracts, batches, observations,
   optional migration block); UI polls every 1.5 s. Fields: see types in
   `ui/src/App.tsx` (Contract, Batch, Observation, Workspace).
 - `GET /api/agents` — `{ codex: boolean, claude: boolean }`.
-- `POST /api/chat` — `{ contractId, agent, threadId, message }`, NDJSON stream of
-  `{type: "thread"|"delta"|"error"}`. Contract-scoped only today; workspace- and
-  batch-scoped chat is **[backend-gap]**.
-- `POST /api/observation` (capture), `POST /api/observation/resolve`
-  (`create-contract` | `reject`).
+- `POST /api/chat` — persists the human message, streams transient deltas, then persists only
+  the final visible assistant response or a failed-turn marker.
+- `POST /api/approval/propose` and `POST /api/approval/decide` — one durable, entity-scoped
+  approval at a time. Sign, disposition, review acceptance/change request, contract close and
+  batch close all use these endpoints.
+- `POST /api/observation` captures a new observation. Disposition goes through approval.
 - `POST /api/batch` (create), `POST /api/batch/contracts` (add/remove).
-- `POST /api/contract/sign` (validate → defined; returns validation issues).
+- Direct `/api/contract/sign` and `/api/observation/resolve` writes are retired; they return 410
+  so no caller can bypass an explicit approval receipt.
 - `GET /api/source?id|path` — read-only markdown of any canonical file.
-- **[backend-gap]** No endpoints yet for: launch/run control, review
-  accept/reject, claims/worktree/branch introspection, persistent chat threads,
-  drift detection. Design the surfaces; mark them; the frontend contract they
-  imply becomes the backend backlog.
+- Launch/run control remains a CLI/orchestrator action. Claims, worktrees, lifecycle state,
+  persistent chat and drift diagnostics are included in the workspace response.
 
 Migration mode (`workspace.migration != null`) still exists: keep it as a
 clearly-separated overlay/badge on affected contracts plus one entry point to the

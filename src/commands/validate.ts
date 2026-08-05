@@ -8,6 +8,8 @@ import { validateBatch } from "./batch.js";
 import { validateClaim } from "../core/claim.js";
 import { parseMarkdown } from "../core/markdown.js";
 import { validateDecisionFile } from "../core/decision.js";
+import { readEvents, validateEvent } from "../core/events.js";
+import { controlPlaneRoot } from "../git/control-plane.js";
 
 interface Located { state: string; path: string }
 
@@ -38,7 +40,7 @@ function duplicateIssues(located: Map<string, Located[]>, kind: "contract" | "ba
 }
 
 export function validateWorkspace() {
-  const root = findRepositoryRoot();
+  const root = controlPlaneRoot(findRepositoryRoot());
   const errors: Array<{ code: string; message: string; path?: string }> = [];
   if (!existsSync(workspacePath(root))) {
     return { ok: false, command: "validate", data: { contracts: 0 }, errors: [{ code: "WORKSPACE_NOT_FOUND", message: `No ${WORKSPACE_DIRECTORY_LABEL} workspace exists at ${root}. Run kotta init first.`, path: root }] };
@@ -96,7 +98,7 @@ export function validateWorkspace() {
         continue;
       }
       seenBatches.set(id, [...(seenBatches.get(id) ?? []), { state, path }]);
-      const report = validateBatch(id);
+      const report = validateBatch(id, root);
       if (!report.ok) errors.push(...report.errors.map((error) => ({ ...error, path })));
     }
   }
@@ -115,5 +117,15 @@ export function validateWorkspace() {
     if (previous) errors.push({ code: "DUPLICATE_DECISION_ID", message: `${id} appears in both ${previous} and ${path}.`, path });
     else seenDecisions.set(id, path);
   }
-  return { ok: errors.length === 0, command: "validate", data: { contracts: seen.size, decisions: decisions.length }, errors };
+  let events: ReturnType<typeof readEvents> = [];
+  try { events = readEvents(root); }
+  catch (error) {
+    errors.push({ code: "INVALID_EVENT", message: error instanceof Error ? error.message : String(error), path: workspacePath(root, "events") });
+  }
+  for (const event of events) {
+    const path = workspacePath(root, "events", event.entity, `${event.id}.json`);
+    for (const message of validateEvent(event)) errors.push({ code: "INVALID_EVENT", message: `${event.id}: ${message}.`, path });
+    if (event.contract && !seen.has(event.contract)) errors.push({ code: "DANGLING_EVENT_CONTRACT", message: `${event.id} references missing contract ${event.contract}.`, path });
+  }
+  return { ok: errors.length === 0, command: "validate", data: { contracts: seen.size, decisions: decisions.length, events: events.length }, errors };
 }

@@ -137,11 +137,11 @@ describe("durable decision CLI", () => {
     const created = run(worktree, ["decision", "create", "--from", source, "--approve"]);
     expect(created.status).toBe(0);
     const { id, path } = (JSON.parse(created.stdout) as { data: { id: string; path: string } }).data;
-    expect(path.endsWith(join(".worktrees/decision/.kotta/decisions", `${id}.md`))).toBe(true);
+    expect(path.endsWith(join(".kotta/decisions", `${id}.md`))).toBe(true);
     expect(existsSync(path)).toBe(true);
-    expect(readdirSync(join(worktree, ".kotta/decisions"))).toEqual([`${id}.md`]);
-    // The record lands in the worktree only, not in the main checkout.
-    expect(existsSync(join(root, ".kotta/decisions", `${id}.md`))).toBe(false);
+    expect(existsSync(join(worktree, ".kotta/decisions"))).toBe(false);
+    // Durable decisions join lifecycle state on the control plane.
+    expect(existsSync(join(root, ".kotta/decisions", `${id}.md`))).toBe(true);
 
     const validation = run(worktree, ["validate"]);
     expect(validation.status).toBe(0);

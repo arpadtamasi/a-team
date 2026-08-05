@@ -1,7 +1,8 @@
 # AGENTS.md
 
 This repository runs on **Kotta**. Work is defined, executed, reviewed and closed as plain files
-in `.kotta/`, and every state change goes through the `kotta` CLI. Read this before you touch
+in `.kotta/`, and every state change goes through Kotta's validated services via contract chat or
+the `kotta` CLI fallback. Read this before you touch
 anything.
 
 ## The rule everything else follows from
@@ -31,14 +32,21 @@ backlog → defined → active → review → done
 | --- | --- | --- |
 | Capture intent | `kotta contract new --title "…" --type <type> [--profile …]` | human, or agent if allowed by config |
 | Formalize | `kotta contract define <id> --from <file>` then `kotta contract validate <id>` | agent |
-| Approve for execution | `kotta contract sign <id> --approve` | **human only** |
+| Approve for execution | Contract chat approval, or `kotta contract sign <id> --approve` | **human only** |
 | Execute | `kotta contract execute <id> --agent <agent>` | agent, in its own claim + branch + worktree |
 | Submit | `kotta contract review <id> --evidence "…" --pull-request <ref>` | agent |
-| Close | `kotta contract close <id> --approve` | **human only** |
+| Close | Contract chat approval, or `kotta contract close <id> --approve` | **human only** |
 
 `contract execute` does the start, builds the brief and launches a fresh agent context whose only
 input is `kotta contract brief <id>`. Resume an interrupted or failed run with `--resume`; a second
 plain `execute` is refused rather than starting a second agent.
+
+`contract start --caller` is the explicit inherited-context alternative. It returns the isolated
+worktree to the current caller without launching another agent. Fresh remains the default.
+
+Canonical live state, claims and visible conversation stay on `git.base_branch`; implementation
+worktrees contain code and their original baseline, not a divergent lifecycle copy. Commands invoked
+from any linked worktree route state changes back to the checked-out control worktree.
 
 ## Rules for agents
 
@@ -50,12 +58,12 @@ plain `execute` is refused rather than starting a second agent.
    and a human-approved `kotta observation resolve <id> --disposition <disposition> --approve`.
 4. **Do not invent product intent or accepted trade-offs.** Ask the human. Durable answers are
    recorded with `kotta decision create --from <file> --approve`.
-5. **`--approve` is a human gate.** Never pass it on the human's behalf.
+5. **Approval is a human gate.** Never click a chat approval or pass `--approve` on the human's behalf.
 6. **One active contract = one claim, one feature branch, one worktree.** Parallel work uses
    separate worktrees. Never execute on a protected branch.
 7. **Review needs acceptance-to-evidence mapping**; closing needs accepted review, integration and
    verified acceptance conditions.
-8. **Execute from the brief.** If the brief plus the code in the worktree is not enough to finish
+8. **Execute from the brief unless `--caller` was explicit.** If the brief plus the code in the worktree is not enough to finish
    the contract, the contract is incomplete — record the gap; do not widen your context.
 
 ## Skills

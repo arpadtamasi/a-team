@@ -5,6 +5,10 @@ export default defineConfig({
   // without importing React, matching how `npm run build:ui` compiles the board.
   esbuild: { jsx: "automatic" },
   test: {
+    // The coordinator suite spends over a minute in synchronous Git fixtures. Fork-pool RPC can
+    // time out while that child process is busy even though every test passes; threads keep the
+    // control channel responsive and give the release gate a truthful exit status.
+    pool: "threads",
     fileParallelism: false,
     testTimeout: 15_000,
     // Node is the default for every test file. A UI test opts into the browser-like

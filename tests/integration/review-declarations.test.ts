@@ -33,14 +33,14 @@ const setup = () => {
   return { root, worktree, id, filename: basename(path) };
 };
 
-const reviewedContract = (worktree: string, filename: string) => readFileSync(join(worktree, ".kotta/review", filename), "utf8");
+const reviewedContract = (root: string, filename: string) => readFileSync(join(root, ".kotta/review", filename), "utf8");
 const reviewEvidenceBlock = (content: string) => content.slice(content.indexOf("## Review evidence"));
 
 describe("review declarations", () => {
   test("writes caller-declared deviations, observations, and concerns verbatim", () => {
-    const { worktree, id, filename } = setup();
+    const { root, worktree, id, filename } = setup();
     run(worktree, ["contract", "review", id, "--evidence", "flow.md inspected", "--deviations", "Skipped the diagram; contract allowed text only.", "--observations-created", "F-101", "--known-concerns", "Rendering untested on Windows."]);
-    const content = reviewEvidenceBlock(reviewedContract(worktree, filename));
+    const content = reviewEvidenceBlock(reviewedContract(root, filename));
     expect(content).toContain("### Deviations\n\nSkipped the diagram; contract allowed text only.\n");
     expect(content).toContain("### Observations created\n\nF-101\n");
     expect(content).toContain("### Known concerns\n\nRendering untested on Windows.\n");
@@ -48,9 +48,9 @@ describe("review declarations", () => {
   });
 
   test("records 'Not declared.' — never 'None.' — when the caller stays silent", () => {
-    const { worktree, id, filename } = setup();
+    const { root, worktree, id, filename } = setup();
     run(worktree, ["contract", "review", id, "--evidence", "flow.md inspected"]);
-    const content = reviewEvidenceBlock(reviewedContract(worktree, filename));
+    const content = reviewEvidenceBlock(reviewedContract(root, filename));
     expect(content).toContain("### Deviations\n\nNot declared.\n");
     expect(content).toContain("### Observations created\n\nNot declared.\n");
     expect(content).toContain("### Known concerns\n\nNot declared.\n");
@@ -58,9 +58,9 @@ describe("review declarations", () => {
   });
 
   test("writes 'None.' only when explicitly declared", () => {
-    const { worktree, id, filename } = setup();
+    const { root, worktree, id, filename } = setup();
     run(worktree, ["contract", "review", id, "--evidence", "flow.md inspected", "--deviations", "None."]);
-    const content = reviewEvidenceBlock(reviewedContract(worktree, filename));
+    const content = reviewEvidenceBlock(reviewedContract(root, filename));
     expect(content).toContain("### Deviations\n\nNone.\n");
     expect(content).toContain("### Observations created\n\nNot declared.\n");
   });

@@ -5,12 +5,14 @@ import { findContract } from "../filesystem/entities.js";
 import { entityFilename, filenameMatchesId, mintId } from "../core/identity.js";
 import { parseMarkdown, renderMarkdown, sections } from "../core/markdown.js";
 import { newContract } from "./contract.js";
+import { commitControlState, controlPlaneRoot, withControlPlaneMutation } from "../git/control-plane.js";
+import { appendCliApprovalAudit, appendLifecycleEvent } from "../core/events.js";
 
 function slugify(value: string): string {
   return value.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
 }
 
-function findObservation(root: string, id: string) {
+export function findObservation(root: string, id: string) {
   for (const state of ["new", "resolved"]) {
     const directory = workspacePath(root, "observations", state);
     if (!existsSync(directory)) continue;
@@ -21,7 +23,20 @@ function findObservation(root: string, id: string) {
 }
 
 export function newObservation(options: { title: string; type: string; evidence: string; discoveredDuring?: string }, repositoryRoot?: string) {
-  const root = repositoryRoot ?? findRepositoryRoot();
+  const requestedRoot = repositoryRoot ?? findRepositoryRoot();
+  if (options.discoveredDuring) {
+    return withControlPlaneMutation(requestedRoot, (root) => {
+      findContract(root, options.discoveredDuring!);
+      const result = writeObservation(root, options);
+      appendLifecycleEvent(root, result.data.id, "new", `Observation captured during ${options.discoveredDuring}.`, options.discoveredDuring!);
+      commitControlState(root, `chore(kotta): capture ${result.data.id} during ${options.discoveredDuring}`);
+      return result;
+    });
+  }
+  return writeObservation(controlPlaneRoot(requestedRoot), options);
+}
+
+function writeObservation(root: string, options: { title: string; type: string; evidence: string; discoveredDuring?: string }) {
   const id = mintId("F");
   const filename = entityFilename(id, slugify(options.title));
   const directory = workspacePath(root, "observations/new");
@@ -35,7 +50,7 @@ export function newObservation(options: { title: string; type: string; evidence:
 }
 
 export function validateObservation(id: string, repositoryRoot?: string) {
-  const root = repositoryRoot ?? findRepositoryRoot();
+  const root = controlPlaneRoot(repositoryRoot ?? findRepositoryRoot());
   const observation = findObservation(root, id);
   const entity = parseMarkdown(readFileSync(observation.path, "utf8"));
   const body = sections(entity.content);
@@ -62,11 +77,11 @@ export function validateObservation(id: string, repositoryRoot?: string) {
   return { ok: errors.length === 0, command: "observation validate", data: { id, state: observation.state, duplicates }, errors };
 }
 
-export function resolveObservation(id: string, disposition: string, approved: boolean, repositoryRoot?: string) {
+export function resolveObservation(id: string, disposition: string, approved: boolean, repositoryRoot?: string, options: { approvalRecorded?: boolean } = {}) {
   const allowed = ["create-contract", "attach-existing", "investigate", "accept-risk", "reject", "merge-duplicate"];
   if (!allowed.includes(disposition)) throw new Error(`Unknown disposition '${disposition}'.`);
   if (!approved) throw new Error("Human approval is required to resolve a observation.");
-  const root = repositoryRoot ?? findRepositoryRoot();
+  const root = controlPlaneRoot(repositoryRoot ?? findRepositoryRoot());
   const observation = findObservation(root, id);
   if (observation.state !== "new") throw new Error(`Observation ${id} is already resolved.`);
   const validation = validateObservation(id, root);
@@ -92,5 +107,7 @@ export function resolveObservation(id: string, disposition: string, approved: bo
   writeFileSync(destination, renderMarkdown(entity.data, entity.content));
   unlinkSync(observation.path);
   regenerateIndex(root);
+  appendLifecycleEvent(root, id, "resolved", `Observation resolved with disposition ${disposition}.`, typeof entity.data.discovered_during === "string" ? entity.data.discovered_during : null);
+  if (!options.approvalRecorded) appendCliApprovalAudit(root, id, "observation.resolve", { disposition }, typeof entity.data.discovered_during === "string" ? entity.data.discovered_during : null);
   return { ok: true, command: "observation resolve", data: { id, disposition, contractId } };
 }

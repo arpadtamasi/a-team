@@ -33,6 +33,18 @@
     },
     "blocked": { "type": "boolean" },
     "blocked_reason": { "type": "string", "minLength": 1 },
+    "coordinator": {
+      "type": "object",
+      "required": ["branch", "base_branch", "base_commit"],
+      "properties": {
+        "branch": { "type": "string", "minLength": 1 },
+        "base_branch": { "type": "string", "minLength": 1 },
+        "base_commit": { "type": "string", "minLength": 7 },
+        "worktree": { "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }] },
+        "cleaned_at": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/date" }] }
+      },
+      "additionalProperties": false
+    },
     "created_at": { "$ref": "#/$defs/date" },
     "updated_at": { "$ref": "#/$defs/date" }
   },

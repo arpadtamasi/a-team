@@ -1,4 +1,5 @@
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
@@ -8,6 +9,8 @@ import { validateClaim } from "../../src/core/claim.js";
 import { CONTRACT_ID, displayId, entityFilename, filenameMatchesId, isMintedId, mintId, shortId } from "../../src/core/identity.js";
 import { createDecision } from "../../src/commands/decision.js";
 import { decisionDraftFromSource, renderDecision, validateDecision } from "../../src/core/decision.js";
+
+const git = (cwd: string, ...args: string[]): string => execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
 describe("core deterministic rules", () => {
   test("generates stable branch names from contract type and title", () => {
@@ -82,6 +85,9 @@ describe("core deterministic rules", () => {
   test("rejects a duplicate decision without changing the existing record", () => {
     // Legacy-name workspace on purpose (T-020): the decision writer must find `.a-team/` as well.
     const root = mkdtempSync(join(tmpdir(), "kotta-decision-duplicate-"));
+    git(root, "init", "-b", "main");
+    git(root, "config", "user.name", "Kotta Test");
+    git(root, "config", "user.email", "test@example.com");
     mkdirSync(join(root, ".a-team/decisions"), { recursive: true });
     const source = join(root, "decision.md");
     writeFileSync(source, "---\ntitle: Cut over\n---\n## Decision\n\nProceed.\n\n## Context\n\nReady.\n\n## Consequences\n\nMonitor.\n");

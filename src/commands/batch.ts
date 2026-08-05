@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { findRepositoryRoot, regenerateIndex, workspaceDirectoryName, workspacePath } from "../filesystem/workspace.js";
 import { findContract, resolveEffectiveContract } from "../filesystem/entities.js";
 import { entityFilename, filenameMatchesId, mintId } from "../core/identity.js";
@@ -8,6 +8,8 @@ import { readWorkspaceConfig } from "../core/config.js";
 import { assertClean, git } from "../git/git.js";
 import { branchExists, classifyBaseUpdate, classifyIntegration, coordinatorBranchName, linkedWorktrees, type CleanupState, type CoordinatorMetadata } from "../git/coordinator.js";
 import { slugify, startContract } from "./contract.js";
+import { appendCliApprovalAudit, appendLifecycleEvent } from "../core/events.js";
+import { commitControlState, controlPlaneRoot } from "../git/control-plane.js";
 
 interface BatchData {
   id: string;
@@ -74,7 +76,7 @@ function warnOnBatchKind(id: string, data: Record<string, unknown>): void {
 }
 
 export function newBatch(options: { title: string; goal?: string; parallelism?: number }, repositoryRoot?: string) {
-  const root = repositoryRoot ?? findRepositoryRoot();
+  const root = controlPlaneRoot(repositoryRoot ?? findRepositoryRoot());
   const title = options.title.trim();
   if (!title) throw new Error("Batch title is required.");
   const parallelism = options.parallelism ?? 2;
@@ -98,7 +100,7 @@ export function newBatch(options: { title: string; goal?: string; parallelism?: 
 }
 
 export function updateBatchContracts(id: string, contractId: string, action: "add" | "remove", repositoryRoot?: string) {
-  const root = repositoryRoot ?? findRepositoryRoot();
+  const root = controlPlaneRoot(repositoryRoot ?? findRepositoryRoot());
   const batch = findBatch(root, id);
   if (batch.state !== "backlog") throw new Error(`Batch ${id} membership can only change while it is in backlog.`);
   const contract = findContract(root, contractId);
@@ -124,7 +126,7 @@ export function updateBatchContracts(id: string, contractId: string, action: "ad
 }
 
 export function validateBatch(id: string, repositoryRoot?: string) {
-  const root = repositoryRoot ?? findRepositoryRoot();
+  const root = controlPlaneRoot(repositoryRoot ?? findRepositoryRoot());
   const batch = findBatch(root, id);
   const entity = parseMarkdown(readFileSync(batch.path, "utf8"));
   const data = entity.data as BatchData;
@@ -147,7 +149,7 @@ export function validateBatch(id: string, repositoryRoot?: string) {
 }
 
 export function signBatch(id: string, approved: boolean, repositoryRoot?: string) {
-  const root = repositoryRoot ?? findRepositoryRoot();
+  const root = controlPlaneRoot(repositoryRoot ?? findRepositoryRoot());
   const batch = findBatch(root, id);
   if (batch.state !== "backlog") throw new Error(`Batch ${id} must be in backlog before it can be signed.`);
   if (!approved) throw new Error("Human sign-off is required. Re-run with --approve after reviewing batch scope and ordering.");
@@ -181,23 +183,26 @@ function establishCoordinator(root: string, id: string, data: BatchData): { acti
   const currentBranch = git(root, ["branch", "--show-current"]);
   const recorded = (data.coordinator ?? null) as CoordinatorMetadata | null;
   if (recorded?.branch) {
-    if (currentBranch !== recorded.branch) throw new Error(`Batch ${id} coordinates on '${recorded.branch}' but the checkout is on '${currentBranch}'. Run 'git switch ${recorded.branch}' before starting; coordinator metadata is never overwritten from another branch.`);
+    const linked = linkedWorktrees(root).find((entry) => entry.branch === recorded.branch);
+    if (!linked && currentBranch !== recorded.branch) throw new Error(`Batch ${id} coordinates on '${recorded.branch}', but its worktree is missing. Restore '${recorded.worktree ?? `.worktrees/batches/${id}`}' or recover the batch before resuming.`);
     return { action: "resumed", coordinator: recorded };
   }
   if (currentBranch === branch) {
     const baseCommit = branchExists(root, config.baseBranch) ? git(root, ["merge-base", branch, config.baseBranch]) : git(root, ["rev-parse", "HEAD"]);
-    return { action: "adopted", coordinator: { branch, base_branch: config.baseBranch, base_commit: baseCommit, cleaned_at: null } };
+    return { action: "adopted", coordinator: { branch, base_branch: config.baseBranch, base_commit: baseCommit, worktree: root, cleaned_at: null } };
   }
-  if (currentBranch !== config.baseBranch) throw new Error(`Batch ${id} must start from the configured base branch '${config.baseBranch}' or from its coordinator branch '${branch}'; the checkout is on '${currentBranch || "a detached HEAD"}'.`);
+  if (currentBranch !== config.baseBranch) throw new Error(`Batch ${id} must start from the configured base branch '${config.baseBranch}'; the checkout is on '${currentBranch || "a detached HEAD"}'.`);
   if (branchExists(root, branch)) throw new Error(`Branch '${branch}' already exists while batch ${id} records no coordinator. Switch to it to adopt it, or delete it first; start never overwrites an existing branch.`);
   const baseCommit = git(root, ["rev-parse", "HEAD"]);
-  git(root, ["switch", "-c", branch]);
-  return { action: "created", coordinator: { branch, base_branch: config.baseBranch, base_commit: baseCommit, cleaned_at: null } };
+  const worktree = join(root, ".worktrees", "batches", id);
+  git(root, ["worktree", "add", worktree, "-b", branch, "HEAD"]);
+  return { action: "created", coordinator: { branch, base_branch: config.baseBranch, base_commit: baseCommit, worktree: `.worktrees/batches/${id}`, cleaned_at: null } };
 }
 
 export function startBatch(id: string, agent: string) {
-  const root = findRepositoryRoot();
-  const validation = validateBatch(id);
+  const requestedRoot = findRepositoryRoot();
+  const root = controlPlaneRoot(requestedRoot);
+  const validation = validateBatch(id, root);
   if (!validation.ok) throw new Error(validation.errors.map((error) => error.message).join("\n"));
   assertClean(root);
   const batch = findBatch(root, id);
@@ -232,13 +237,13 @@ export function startBatch(id: string, agent: string) {
     writeFileSync(join(directory, batch.filename), renderMarkdown(data as Record<string, unknown>, entity.content));
     if (activating) unlinkSync(batch.path);
     regenerateIndex(root);
-    git(root, ["add", workspaceDirectoryName(root)]);
-    git(root, ["commit", "-m", `chore(kotta): start batch ${id}`]);
+    appendLifecycleEvent(root, id, "active", `Batch execution started on ${coordinator.branch}.`);
+    commitControlState(root, `chore(kotta): start batch ${id}`);
   }
   return {
     ok: failures.length === 0,
     command: "batch start",
-    data: { id, started, waiting: ids.filter((contractId) => !started.includes(contractId) && !done.has(contractId)), failures, coordinator: { branch: coordinator.branch, base_branch: coordinator.base_branch, action: coordinatorAction } },
+    data: { id, started, waiting: ids.filter((contractId) => !started.includes(contractId) && !done.has(contractId)), failures, coordinator: { branch: coordinator.branch, base_branch: coordinator.base_branch, worktree: coordinator.worktree, action: coordinatorAction } },
   };
 }
 
@@ -250,6 +255,7 @@ interface CoordinatorInspection {
   legacy: boolean;
   integration: ReturnType<typeof classifyIntegration> | null;
   baseUpdate: ReturnType<typeof classifyBaseUpdate> | null;
+  coordinatorWorktree: string | null;
   blockers: string[];
 }
 
@@ -262,7 +268,10 @@ function inspectCoordinator(root: string, id: string, batchState: string, data: 
   const legacy = !recorded?.branch && branchExists(root, conventional);
   const branch = recorded?.branch ?? (legacy ? conventional : null);
   const baseBranch = recorded?.base_branch ?? config.baseBranch;
-  const base = { state: "unstarted" as CleanupState, branch, baseBranch, currentBranch, legacy, integration: null, baseUpdate: null, blockers: [] as string[] };
+  const linked = linkedWorktrees(root);
+  const coordinatorEntry = branch ? linked.find((entry) => entry.branch === branch) : undefined;
+  const coordinatorWorktree = coordinatorEntry?.path ?? (currentBranch === branch ? root : null);
+  const base = { state: "unstarted" as CleanupState, branch, baseBranch, currentBranch, legacy, integration: null, baseUpdate: null, coordinatorWorktree, blockers: [] as string[] };
   if (recorded?.cleaned_at) return { ...base, state: "cleaned" };
   if (!branch) return base;
   if (!branchExists(root, branch)) return { ...base, state: "cleaned" };
@@ -277,10 +286,11 @@ function inspectCoordinator(root: string, id: string, batchState: string, data: 
   // Claims are written inside the contract's worktree, so check there as well as in the coordinator checkout.
   const claimed = contractIds.filter((contractId) => [workspacePath(root, "claims", `${contractId}.yaml`), workspacePath(join(root, ".worktrees", contractId), "claims", `${contractId}.yaml`)].some((path) => existsSync(path)));
   if (claimed.length) blockers.push(`Active claims remain for ${claimed.join(", ")}; close or release them before cleanup.`);
-  const linked = linkedWorktrees(root);
   const contractWorktrees = linked.filter((entry) => contractIds.some((contractId) => entry.path.endsWith(`/${contractId}`)));
   if (contractWorktrees.length) blockers.push(`Contract worktrees are still linked: ${contractWorktrees.map((entry) => entry.path).join(", ")}.`);
-  const elsewhere = linked.filter((entry) => entry.branch === branch || entry.branch === baseBranch);
+  if (coordinatorWorktree && git(coordinatorWorktree, ["status", "--porcelain"])) blockers.push(`The coordinator worktree at ${coordinatorWorktree} has pending changes; commit or remove them before cleanup.`);
+  const expectedCoordinator = typeof recorded?.worktree === "string" ? resolve(root, recorded.worktree) : coordinatorWorktree;
+  const elsewhere = linked.filter((entry) => entry.branch === baseBranch || (entry.branch === branch && expectedCoordinator && resolve(entry.path) !== expectedCoordinator));
   if (elsewhere.length) blockers.push(`Another worktree holds ${elsewhere.map((entry) => `${entry.branch} (${entry.path})`).join(", ")}; cleanup would fight it.`);
   const baseUpdate = branchExists(root, baseBranch) ? classifyBaseUpdate(root, baseBranch) : null;
   if (!baseUpdate) blockers.push(`The configured base branch '${baseBranch}' does not exist locally.`);
@@ -294,14 +304,17 @@ function inspectCoordinator(root: string, id: string, batchState: string, data: 
 }
 
 export function batchStatus(id: string) {
-  const root = findRepositoryRoot();
+  const root = controlPlaneRoot(findRepositoryRoot());
   const batch = findBatch(root, id);
   const entity = parseMarkdown(readFileSync(batch.path, "utf8"));
   const data = entity.data as BatchData;
   const ids = Array.isArray(entity.data.contracts) ? entity.data.contracts.map(String) : [];
   const contracts = ids.map((contractId) => {
     const effective = resolveEffectiveContract(root, contractId, (contract) => contract.state);
-    return { id: contractId, state: effective.value, ...(effective.worktree ? { worktree: effective.worktree } : {}) };
+    const contract = findContract(root, contractId);
+    const entity = parseMarkdown(readFileSync(contract.path, "utf8"));
+    const recordedWorktree = typeof entity.data.worktree === "string" ? resolve(root, entity.data.worktree) : null;
+    return { id: contractId, state: effective.value, ...(recordedWorktree || effective.worktree ? { worktree: recordedWorktree ?? effective.worktree } : {}) };
   });
   const inspection = inspectCoordinator(root, id, batch.state, data);
   return {
@@ -323,8 +336,8 @@ export function batchStatus(id: string) {
  * `contract close`/`cancel` already complete a containing batch on their own; this is the explicit
  * path for a batch whose contracts finished outside the batch flow. It never touches a contract.
  */
-export function closeBatch(id: string, approved: boolean, repositoryRoot?: string) {
-  const root = repositoryRoot ?? findRepositoryRoot();
+export function closeBatch(id: string, approved: boolean, repositoryRoot?: string, options: { skipClean?: boolean; commit?: boolean; approvalRecorded?: boolean } = {}) {
+  const root = controlPlaneRoot(repositoryRoot ?? findRepositoryRoot());
   const batch = findBatch(root, id);
   const entity = parseMarkdown(readFileSync(batch.path, "utf8"));
   const data = entity.data as BatchData;
@@ -338,7 +351,7 @@ export function closeBatch(id: string, approved: boolean, repositoryRoot?: strin
     .map((contractId) => ({ id: contractId, state: resolveEffectiveContract(root, contractId, (contract) => contract.state).value }))
     .filter((member) => member.state !== "done");
   if (open.length) throw new Error(`Batch ${id} cannot close while ${open.map((member) => `${member.id} is ${member.state}`).join(", ")}. Every member contract must reach done first.`);
-  assertClean(root);
+  if (!options.skipClean) assertClean(root);
   data.status = "done";
   data.updated_at = new Date().toISOString().slice(0, 10);
   const directory = workspacePath(root, "batches/done");
@@ -347,14 +360,18 @@ export function closeBatch(id: string, approved: boolean, repositoryRoot?: strin
   writeFileSync(destination, renderMarkdown(data as Record<string, unknown>, entity.content));
   unlinkSync(batch.path);
   regenerateIndex(root);
-  git(root, ["add", workspaceDirectoryName(root)]);
-  git(root, ["commit", "-m", `chore(kotta): close batch ${id}`]);
+  appendLifecycleEvent(root, id, "done", "All member contracts completed; batch closed.");
+  if (!options.approvalRecorded) appendCliApprovalAudit(root, id, "batch.close", {}, null);
+  if (options.commit !== false) {
+    git(root, ["add", workspaceDirectoryName(root)]);
+    git(root, ["commit", "-m", `chore(kotta): close batch ${id}`]);
+  }
   return { ok: true, command: "batch close", data: { id, status: "done", path: destination, changed: true } };
 }
 
 /** Opt-in, post-integration cleanup. Every precondition is recomputed here; nothing is forced. */
 export function finalizeBatch(id: string, repositoryRoot?: string) {
-  const root = repositoryRoot ?? findRepositoryRoot();
+  const root = controlPlaneRoot(repositoryRoot ?? findRepositoryRoot());
   const batch = findBatch(root, id);
   const entity = parseMarkdown(readFileSync(batch.path, "utf8"));
   const data = entity.data as BatchData;
@@ -375,13 +392,13 @@ export function finalizeBatch(id: string, repositoryRoot?: string) {
   if (inspection.legacy) actions.push(`adopted-legacy-branch:${inspection.branch}`);
 
   const branch = inspection.branch as string;
-  if (inspection.currentBranch !== inspection.baseBranch) {
-    git(root, ["switch", inspection.baseBranch]);
-    actions.push(`switched-to:${inspection.baseBranch}`);
-  }
   if (inspection.baseUpdate?.kind === "fast-forward") {
     git(root, ["merge", "--ff-only", inspection.baseUpdate.remote]);
     actions.push(`fast-forwarded:${inspection.baseBranch}`);
+  }
+  if (inspection.coordinatorWorktree && resolve(inspection.coordinatorWorktree) !== resolve(root)) {
+    git(root, ["worktree", "remove", inspection.coordinatorWorktree]);
+    actions.push(`removed-worktree:${inspection.coordinatorWorktree}`);
   }
   // -d refuses an unmerged branch on its own; it is the second proof after the ancestry check.
   git(root, ["branch", "-d", branch]);
@@ -392,7 +409,7 @@ export function finalizeBatch(id: string, repositoryRoot?: string) {
 
 function recordCleaned(root: string, path: string, entity: { content: string }, data: BatchData, id: string) {
   const existing = (data.coordinator ?? null) as CoordinatorMetadata | null;
-  data.coordinator = { branch: existing?.branch ?? coordinatorBranchName(id), base_branch: existing?.base_branch ?? readWorkspaceConfig(root).baseBranch, base_commit: existing?.base_commit ?? "", cleaned_at: new Date().toISOString().slice(0, 10) };
+  data.coordinator = { branch: existing?.branch ?? coordinatorBranchName(id), base_branch: existing?.base_branch ?? readWorkspaceConfig(root).baseBranch, base_commit: existing?.base_commit ?? "", worktree: existing?.worktree ?? null, cleaned_at: new Date().toISOString().slice(0, 10) };
   data.updated_at = new Date().toISOString().slice(0, 10);
   writeFileSync(path, renderMarkdown(data as Record<string, unknown>, entity.content));
   regenerateIndex(root);

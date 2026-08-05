@@ -166,9 +166,15 @@ backlog → defined → active → review → done
 - Profiles add work-specific requirements for bugs, UI, performance, workflows, metrics, refactors, and discovery.
 - Batches coordinate sprints, milestones, batches, or missions with sequential, parallel, or dependency-aware execution.
 - Observations capture possible bugs and technical debt without silently expanding active work.
-- Claims connect each active contract to one agent, one feature branch, and one isolated execution context.
+- Claims connect each active contract to one agent, one feature branch, and one isolated implementation worktree.
 
-All mutations go through the `kotta` CLI. Skills, automation, and a future local UI share the same command and validation services; none implements a competing workflow.
+Live lifecycle state, claims, decisions, visible chat and approval events stay on the configured base
+branch (`main` by default). Feature worktrees contain implementation code without a competing active,
+review or done copy. Every writer is serialized by a repository-wide mutation lock.
+
+The contract chat in `kotta ui` is the primary human approval surface. It prepares one exact,
+entity-scoped action, records an explicit approve or reject event, then calls the same validated
+mutation service as the CLI. The CLI remains the automation and recovery fallback.
 
 Open the local filesystem-backed board from an initialized repository:
 
@@ -286,6 +292,7 @@ kotta contract define T-014 --from /tmp/T-014-definition.md
 kotta contract validate T-014
 kotta contract sign T-014 --approve
 kotta contract start T-014 --agent codex
+kotta contract start T-014 --agent codex --caller
 kotta contract brief T-014 --out /tmp/T-014-brief.md
 kotta contract execute T-014 --agent claude
 kotta contract execute T-014 --resume
@@ -313,6 +320,11 @@ Every command supports `--json`. Mutations validate before writing and report bo
 **Small contexts by default.** Each contract executes in a fresh agent context whose intent input is `kotta contract brief <id>` — the contract body, its referenced decisions, its profiles and its claim, nothing else. The brief is deterministic and reports an approximate token count; above a threshold (`--warn-tokens`, default 12000) it warns that the contract is probably too large or under-referenced. This is a quality gauge, not a thrift trick: if a contract cannot be executed from its brief plus the code in the worktree, the contract is incomplete — record the gap instead of widening the context.
 
 **`contract execute` is the command that makes that the default (D-009).** `kotta contract execute <id> --agent <agent>` does the start, assembles the brief and launches the agent with the brief as its only input — the caller's context never reaches it. It refuses before creating anything when the contract is not defined, a claim or execution context already exists, the repository is dirty, or the agent command is missing, so a missing binary can never leave a half-built worktree. The output — human and `--json` — names the brief's token count, the agent, the branch and the worktree; record the token count per contract in the run log.
+
+When continuity matters more than isolation, `kotta contract start <id> --agent <agent> --caller`
+creates the same branch, claim and worktree but labels the run `inherited`. The current caller then
+continues inside the returned worktree. This is explicit and opt-in; fresh brief-only execution stays
+the default, and persisted chat is never injected wholesale into a fresh executor.
 
 A non-zero exit or an empty result is `agent-failed`: the claim and worktree are kept for inspection and the contract does not move to review. An interrupt terminates the agent, keeps the claim and worktree, and names what to decide by hand. Retry with `kotta contract execute <id> --resume`, which reuses the existing execution context (and is also how a context created by `contract start` gets its agent) — a second plain `execute` always refuses rather than starting a second agent. Context carry-over is an explicit, logged exception: `--inherit-context "<reason>"` requires a reason, appends it to the prompt as a declared deviation and reports it in the output.
 

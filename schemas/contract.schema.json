@@ -29,6 +29,8 @@
     "branch": { "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }] },
     "pull_request": { "oneOf": [{ "type": "null" }, { "type": ["string", "integer"], "minLength": 1 }] },
     "assigned_agent": { "type": "string", "minLength": 1 },
+    "worktree": { "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }] },
+    "execution_mode": { "enum": ["fresh", "inherited"] },
     "blocked": { "type": "boolean" },
     "blocked_reason": { "type": "string", "minLength": 1 },
     "resolution": { "enum": ["completed", "cancelled", "duplicate", "obsolete"] },
@@ -42,7 +44,7 @@
     },
     {
       "if": { "properties": { "status": { "const": "active" } }, "required": ["status"] },
-      "then": { "required": ["branch", "assigned_agent"], "properties": { "branch": { "type": "string", "minLength": 1 } } }
+      "then": { "required": ["branch", "assigned_agent", "worktree", "execution_mode"], "properties": { "branch": { "type": "string", "minLength": 1 } } }
     },
     {
       "if": { "properties": { "status": { "const": "done" } }, "required": ["status"] },

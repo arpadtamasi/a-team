@@ -73,7 +73,8 @@ describe("contract cancel", () => {
     const refused = fail(worktree, ["contract", "cancel", active.id, "--resolution", "cancelled", "--approve"]);
     expect(refused.status).not.toBe(0);
     expect(refused.stdout).toContain("can only be cancelled from backlog or defined");
-    expect(existsSync(join(worktree, ".kotta/active", basename(active.path)))).toBe(true);
+    expect(existsSync(join(repository, ".kotta/active", basename(active.path)))).toBe(true);
+    expect(existsSync(join(worktree, ".kotta/active", basename(active.path)))).toBe(false);
   });
 
   test("rejects cancel without --approve and leaves the contract in place", () => {

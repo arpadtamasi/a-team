@@ -22,6 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Batch coordinators now use their own linked worktree, so starting a batch no longer switches the
   control checkout away from `main`.
+- Contract readiness now accepts `None`, `N/A` or `No open decisions`, with an optional final period,
+  as equivalent empty `Open decisions` markers. A real unresolved choice still blocks signing.
 
 - **The vocabulary is now observation / contract / batch, and one command carries any workspace
   across (D-01kz240dn155hb97h6px6n2p85).** `finding` → **observation**, `ticket` → **contract**,

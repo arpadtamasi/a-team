@@ -9,8 +9,9 @@ anything.
 
 `.kotta/` is the canonical source of truth for work: contracts, observations, batches, lifecycle
 state, claims and decisions. Chat, the board (`kotta ui`), pull requests and CI are views or
-history — they never override `.kotta/`. Never hand-edit workspace files; use the CLI, which
-validates before it writes and names the violated rule when it refuses.
+history — they never override `.kotta/`. Never hand-edit workspace files; use contract chat for
+human approvals and the CLI for automation and recovery. Both validate before writing and name the
+violated rule when they refuse.
 
 ## Orient yourself first
 
@@ -43,6 +44,9 @@ plain `execute` is refused rather than starting a second agent.
 
 `contract start --caller` is the explicit inherited-context alternative. It returns the isolated
 worktree to the current caller without launching another agent. Fresh remains the default.
+
+A contract with no unresolved choice may use `None`, `N/A`, or `No open decisions` (with or
+without a final period) under `Open decisions`. Any substantive text there blocks signing.
 
 Canonical live state, claims and visible conversation stay on `git.base_branch`; implementation
 worktrees contain code and their original baseline, not a divergent lifecycle copy. Commands invoked

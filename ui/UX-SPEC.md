@@ -222,9 +222,9 @@ Dock behavior:
   `entity:` link behavior) and navigate to the right stage/detail.
 - Seeded prompt starters per context (keep the current two for contracts; add
   batch- and workspace-level starters).
-- **[backend-gap]** Threads are currently in-memory client state, lost on
-  reload. Spec requires persistent threads (per entity, on disk, since the
-  filesystem is canonical) — flag it, design as if it exists.
+- Contract threads persist per entity on the control plane and survive reloads. Workspace- and
+  batch-level threads remain **[backend-gap]** surfaces; design them with the same persistence
+  contract rather than falling back to in-memory history.
 
 ## 5. What the design must express (principles)
 

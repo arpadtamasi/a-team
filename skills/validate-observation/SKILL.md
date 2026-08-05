@@ -14,6 +14,9 @@ Treat a observation as evidence awaiting disposition, not as a contract. Use the
 5. Run `kotta observation validate <observation-id>` and present its result.
 6. Obtain the required human decision before creating scheduled work or accepting a trade-off.
    Record an explicitly approved durable trade-off with `kotta decision create --from <draft.md> --approve`; never hand-edit `.kotta/decisions/`.
-7. Finalize with `kotta observation resolve <observation-id> --disposition <disposition>` and any command-required references.
+7. For the chat surface's available create-contract and reject dispositions, prepare the exact
+   action there and let the human approve it. For another supported disposition, or as recovery,
+   give the human the CLI fallback: `kotta observation resolve <observation-id> --disposition
+   <disposition> --approve` with any command-required references.
 
 Never silently expand the contract during which the issue was discovered. A created contract begins in backlog unless an explicit, separately validated defined transition is authorized.

@@ -14,4 +14,6 @@ Use the `kotta` CLI as the canonical mutation interface. Do not create or edit `
 5. Summarize the created workspace and configuration, including the base branch and worktree policy.
 6. Tell the user that `/define-contract` creates the first executable work contract and `kotta status` shows current state.
 
-The filesystem under `.kotta/` is canonical, but all workflow mutations must pass through the CLI so validation, index generation, and transaction safety stay consistent.
+The filesystem under `.kotta/` is canonical, but all workflow mutations must pass through Kotta's
+validated services so validation, index generation, and transaction safety stay consistent. Contract
+chat is the primary human approval surface; the CLI remains the automation and recovery fallback.

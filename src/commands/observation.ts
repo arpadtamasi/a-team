@@ -77,37 +77,41 @@ export function validateObservation(id: string, repositoryRoot?: string) {
   return { ok: errors.length === 0, command: "observation validate", data: { id, state: observation.state, duplicates }, errors };
 }
 
-export function resolveObservation(id: string, disposition: string, approved: boolean, repositoryRoot?: string, options: { approvalRecorded?: boolean } = {}) {
+export function resolveObservation(id: string, disposition: string, approved: boolean, repositoryRoot?: string, options: { approvalRecorded?: boolean; locked?: boolean; commit?: boolean } = {}) {
   const allowed = ["create-contract", "attach-existing", "investigate", "accept-risk", "reject", "merge-duplicate"];
   if (!allowed.includes(disposition)) throw new Error(`Unknown disposition '${disposition}'.`);
   if (!approved) throw new Error("Human approval is required to resolve a observation.");
-  const root = controlPlaneRoot(repositoryRoot ?? findRepositoryRoot());
-  const observation = findObservation(root, id);
-  if (observation.state !== "new") throw new Error(`Observation ${id} is already resolved.`);
-  const validation = validateObservation(id, root);
-  if (!validation.ok) throw new Error((validation.errors ?? []).map((error) => error.message).join("\n"));
-  const entity = parseMarkdown(readFileSync(observation.path, "utf8"));
-  let contractId: string | undefined;
-  if (disposition === "create-contract") {
-    const created = newContract({ title: String(entity.data.title), type: "feature", profiles: [] }, root);
-    contractId = created.data.id;
-    const contract = findContract(root, contractId);
-    const contractEntity = parseMarkdown(readFileSync(contract.path, "utf8"));
-    contractEntity.data.origin = "observation";
-    contractEntity.data.source_observation = id;
-    writeFileSync(contract.path, renderMarkdown(contractEntity.data, contractEntity.content));
-  }
-  entity.data.status = "resolved";
-  entity.data.disposition = disposition;
-  entity.data.resolved_at = new Date().toISOString();
-  if (contractId) entity.data.contract = contractId;
-  const directory = workspacePath(root, "observations/resolved");
-  mkdirSync(directory, { recursive: true });
-  const destination = join(directory, observation.filename);
-  writeFileSync(destination, renderMarkdown(entity.data, entity.content));
-  unlinkSync(observation.path);
-  regenerateIndex(root);
-  appendLifecycleEvent(root, id, "resolved", `Observation resolved with disposition ${disposition}.`, typeof entity.data.discovered_during === "string" ? entity.data.discovered_during : null);
-  if (!options.approvalRecorded) appendCliApprovalAudit(root, id, "observation.resolve", { disposition }, typeof entity.data.discovered_during === "string" ? entity.data.discovered_during : null);
-  return { ok: true, command: "observation resolve", data: { id, disposition, contractId } };
+  const requestedRoot = repositoryRoot ?? findRepositoryRoot();
+  const resolveInControlPlane = (root: string) => {
+    const observation = findObservation(root, id);
+    if (observation.state !== "new") throw new Error(`Observation ${id} is already resolved.`);
+    const validation = validateObservation(id, root);
+    if (!validation.ok) throw new Error((validation.errors ?? []).map((error) => error.message).join("\n"));
+    const entity = parseMarkdown(readFileSync(observation.path, "utf8"));
+    let contractId: string | undefined;
+    if (disposition === "create-contract") {
+      const created = newContract({ title: String(entity.data.title), type: "feature", profiles: [] }, root);
+      contractId = created.data.id;
+      const contract = findContract(root, contractId);
+      const contractEntity = parseMarkdown(readFileSync(contract.path, "utf8"));
+      contractEntity.data.origin = "observation";
+      contractEntity.data.source_observation = id;
+      writeFileSync(contract.path, renderMarkdown(contractEntity.data, contractEntity.content));
+    }
+    entity.data.status = "resolved";
+    entity.data.disposition = disposition;
+    entity.data.resolved_at = new Date().toISOString();
+    if (contractId) entity.data.contract = contractId;
+    const directory = workspacePath(root, "observations/resolved");
+    mkdirSync(directory, { recursive: true });
+    const destination = join(directory, observation.filename);
+    writeFileSync(destination, renderMarkdown(entity.data, entity.content));
+    unlinkSync(observation.path);
+    regenerateIndex(root);
+    appendLifecycleEvent(root, id, "resolved", `Observation resolved with disposition ${disposition}.`, typeof entity.data.discovered_during === "string" ? entity.data.discovered_during : null);
+    if (!options.approvalRecorded) appendCliApprovalAudit(root, id, "observation.resolve", { disposition }, typeof entity.data.discovered_during === "string" ? entity.data.discovered_during : null);
+    if (options.commit !== false) commitControlState(root, `chore(kotta): resolve ${id}`);
+    return { ok: true, command: "observation resolve", data: { id, disposition, contractId } };
+  };
+  return options.locked ? resolveInControlPlane(requestedRoot) : withControlPlaneMutation(requestedRoot, resolveInControlPlane, { requireClean: false });
 }

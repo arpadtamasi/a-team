@@ -18,6 +18,7 @@ function repository(): string {
   git(root, "init", "-b", "main"); git(root, "config", "user.name", "Kotta Test"); git(root, "config", "user.email", "test@example.com");
   writeFileSync(join(root, "README.md"), "fixture\n"); git(root, "add", "."); git(root, "commit", "-m", "initial");
   run(root, ["init"]);
+  git(root, "add", ".gitattributes", ".gitignore"); git(root, "commit", "-m", "initialize Kotta metadata");
   return root;
 }
 
@@ -43,7 +44,6 @@ describe("mutation safety", () => {
     const created = (run(root, ["contract", "new", "--title", "Safe start", "--type", "feature"]) as { data: { id: string; path: string } }).data;
     completeTemplate(root, created.path);
     run(root, ["contract", "sign", created.id, "--approve"]);
-    git(root, "add", "."); git(root, "commit", "-m", "defined");
     writeFileSync(join(root, "dirty.txt"), "pending\n");
     expect(invoke(root, ["contract", "start", created.id, "--agent", "codex"]).status).toBe(1);
     expect(existsSync(join(root, ".worktrees", created.id))).toBe(false);

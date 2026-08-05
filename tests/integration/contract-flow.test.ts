@@ -20,6 +20,8 @@ describe("contract execution vertical slice", () => {
   test("defines a complete backlog contract through the canonical CLI", () => {
     const repository = mkdtempSync(join(tmpdir(), "kotta-define-"));
     git(repository, "init", "-b", "main");
+    git(repository, "config", "user.name", "Kotta Test");
+    git(repository, "config", "user.email", "test@example.com");
     writeFileSync(join(repository, "README.md"), "fixture\n");
     run(repository, ["init"]);
     const first = run(repository, ["contract", "new", "--title", "Release CLI", "--type", "feature", "--profile", "workflow"]) as { data: { id: string; path: string } };
@@ -113,6 +115,8 @@ None.
     expect(readFileSync(contract, "utf8")).toContain("priority: high");
     expect(readFileSync(contract, "utf8")).toContain(`blocks:\n  - ${second.data.id}`);
     expect(run(repository, ["contract", "sign", first.data.id, "--approve"])).toMatchObject({ ok: true, command: "contract sign" });
+    expect(execFileSync("git", ["status", "--porcelain", "--", ".kotta"], { cwd: repository, encoding: "utf8" })).toBe("");
+    expect(execFileSync("git", ["log", "-1", "--format=%s"], { cwd: repository, encoding: "utf8" }).trim()).toBe(`chore(kotta): sign ${first.data.id}`);
   });
 
   test("rejects unsupported definition metadata without changing the contract", () => {
@@ -134,6 +138,8 @@ None.
   test("sign accepts an unambiguous no-open-decisions statement without exact punctuation", () => {
     const repository = mkdtempSync(join(tmpdir(), "kotta-open-decisions-"));
     git(repository, "init", "-b", "main");
+    git(repository, "config", "user.name", "Kotta Test");
+    git(repository, "config", "user.email", "test@example.com");
     writeFileSync(join(repository, "README.md"), "fixture\n");
     run(repository, ["init"]);
     const created = run(repository, ["contract", "new", "--title", "Flexible approval", "--type", "feature"]) as { data: { id: string; path: string } };
@@ -155,6 +161,8 @@ None.
     git(repository, "commit", "-m", "initial");
 
     run(repository, ["init"]);
+    git(repository, "add", ".gitattributes", ".gitignore");
+    git(repository, "commit", "-m", "initialize Kotta metadata");
     const created = run(repository, ["contract", "new", "--title", "Ship export", "--type", "feature", "--profile", "workflow"]) as { data: { id: string; path: string } };
     const id = created.data.id;
     expect(created).toMatchObject({ ok: true, command: "contract new" });
@@ -170,8 +178,6 @@ None.
     rmSync(join(repository, ".kotta/defined"), { recursive: true });
     expect(run(repository, ["contract", "sign", id, "--approve"])).toMatchObject({ ok: true, command: "contract sign" });
     expect(existsSync(join(repository, ".kotta/defined", basename(contract)))).toBe(true);
-    git(repository, "add", ".");
-    git(repository, "commit", "-m", "define defined contract");
 
     const started = run(repository, ["contract", "start", id, "--agent", "codex"]);
     expect(started).toMatchObject({ ok: true, command: "contract start", data: { branch: `feat/${id}-ship-export` } });

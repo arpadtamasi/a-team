@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-05
+
+### Fixed
+
+- Human-approved CLI contract signing and observation resolution now serialize through the control
+  plane and commit their canonical state instead of leaving `main` dirty.
+- The public install path uses `@arpadtamasi/kotta`; npm rejected the unscoped `kotta` name as too
+  similar to existing packages. The installed executable remains `kotta`.
+- The live-site quickstart now advertises the current package and version.
+
 ## [0.4.0] - 2026-08-05
 
 ### Added

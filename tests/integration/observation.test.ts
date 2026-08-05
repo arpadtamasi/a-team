@@ -15,6 +15,8 @@ describe("observation disposition", () => {
   test("keeps a observation separate until a human resolves it into backlog work", () => {
     const root = mkdtempSync(join(tmpdir(), "kotta-observation-"));
     execFileSync("git", ["init", "-b", "main"], { cwd: root });
+    execFileSync("git", ["config", "user.name", "Kotta Test"], { cwd: root });
+    execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: root });
     writeFileSync(join(root, "README.md"), "fixture\n");
     run(root, ["init"]);
     const created = run(root, ["observation", "new", "--title", "Divergent permission checks", "--type", "inconsistency", "--evidence", "src/a.ts and src/b.ts differ"]) as { ok: boolean; data: { id: string; path: string } };
@@ -30,5 +32,7 @@ describe("observation disposition", () => {
     expect(existsSync(join(root, ".kotta/observations/resolved", basename(created.data.path)))).toBe(true);
     const contract = join(root, ".kotta/backlog", `divergent-permission-checks-${contractId.slice(-8)}.md`);
     expect(readFileSync(contract, "utf8")).toContain(`source_observation: ${observationId}`);
+    expect(execFileSync("git", ["status", "--porcelain", "--", ".kotta"], { cwd: root, encoding: "utf8" })).toBe("");
+    expect(execFileSync("git", ["log", "-1", "--format=%s"], { cwd: root, encoding: "utf8" }).trim()).toBe(`chore(kotta): resolve ${observationId}`);
   });
 });

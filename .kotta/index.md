@@ -13,6 +13,7 @@ None.
 ## Defined contracts
 
 - az-agenseknek-szolo-szabalyok-csak-egy-masolt-agents-md-ben--bd1366pk
+- the-run-visszakapja-a-hullam-alapu-vegrehajtasi-nezetet-ynebm578
 
 ## Active contracts
 

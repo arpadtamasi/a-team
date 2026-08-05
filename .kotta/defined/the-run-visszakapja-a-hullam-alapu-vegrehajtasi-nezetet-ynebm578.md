@@ -1,7 +1,7 @@
 ---
 id: T-01kz9de36qw55z9g73ynebm578
 title: The Run visszakapja a hullám-alapú végrehajtási nézetet
-status: backlog
+status: defined
 origin: human
 types:
   - feature

@@ -1,7 +1,7 @@
 ---
 id: T-01kz8tk2t53jbax6mrseka50v9
 title: 'Live control plane, persistent contract chat and chat-first approvals'
-status: active
+status: review
 origin: human
 types:
   - workflow
@@ -15,7 +15,7 @@ depends_on: []
 blocks: []
 branch: >-
   feat/T-01kz8tk2t53jbax6mrseka50v9-live-control-plane-persistent-contract-chat-and-chat-first-a
-pull_request: null
+pull_request: 'https://github.com/arpadtamasi/kotta/pull/23'
 created_at: '2026-08-05'
 updated_at: '2026-08-05'
 assigned_agent: codex
@@ -232,3 +232,43 @@ None.
 - Prefer one immutable event file per event, named by sortable collision-resistant id, over a shared append-only file that creates merge and partial-write hazards.
 - Commit completed chat turns and lifecycle events to the control branch in small Kotta-owned commits. Never persist token-by-token deltas.
 - Package release is a minor SemVer bump because this adds backward-compatible workflow and UI capabilities. Follow `README.md` maintainer release rules and the existing tag-driven npm workflow.
+
+## Review evidence
+
+| Acceptance condition | Evidence |
+|---|---|
+| Starting a contract from `main` or a linked worktree yields exactly one claim, feature branch and worktree; the canonical contract becomes active on the configured base branch and the board shows it without merging the feature branch. | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| Review, discovered observations and close invoked from a contract worktree update the control plane and are immediately visible to the board. | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| Feature branches do not acquire divergent active/review/done copies of canonical contract state, and merging implementation code does not create duplicate lifecycle files. | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| Concurrent mutations are serialized; injected failures at each start transition boundary leave a valid workspace with no orphaned claim, branch or worktree created by the failed attempt. | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| `contract execute` still launches a fresh executor whose intent input is the deterministic brief. `contract start` clearly supports the caller continuing in the returned worktree and labels that mode inherited-context. | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| A completed human/assistant chat exchange survives board process restart and appears in stable order. Streaming deltas, hidden reasoning and raw tool output are absent from persisted files. | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| A proposed chat action names the exact entity and transition. One explicit human approval applies it once, is durably linked to the human event and remains visible after restart. | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| Ambiguous chat text, agent messages and duplicate submissions cannot approve an action. Rejection and failed application are durable and do not change lifecycle state. | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| Chat-first paths cover contract sign, observation disposition, review accept/request-changes, contract close and batch close; equivalent CLI paths continue to pass their existing tests. | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| The chat timeline has verified loading, empty, error, success and disabled states; keyboard operation and accessible names pass component tests and an axe check. | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| Existing workspaces migrate or read compatibly with no required manual transcript creation, and `kotta validate` verifies all new canonical records and references. | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| `npm test`, `npm run typecheck`, `npm run build` and `npm run test:site` pass. | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| The pull request is reviewed and merged; GitHub Pages serves the updated site, and the tagged minor version is installable as `kotta` from npm with the new UI and CLI behaviour. | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| workflow: happy_path_verified | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| workflow: failure_and_cancellation_paths_verified | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| workflow: authorization_and_idempotency_verified | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| ui: required_states_verified | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| ui: accessibility_verified | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+| ui: visual_evidence_present | Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed. |
+
+### Verification performed
+
+Full suite: 226 passed, 1 skipped; typecheck passed; site suite 5 passed; pack verification passed; audit reports 0 vulnerabilities; targeted CLI and chat approval tests 8 passed.
+
+### Deviations
+
+npm rejected the unscoped package name; the release target is @arpadtamasi/kotta@0.4.1 while the installed executable remains kotta.
+
+### Observations created
+
+F-01kz9c3h0jddvtwq4feaag2s6z records npm rejecting the unscoped name; F-01kz9d5nqwdwb7r2c0jdzchspa records the stale live-site quickstart.
+
+### Known concerns
+
+The first scoped package version must be published manually before npm Trusted Publishing can be configured for future releases.

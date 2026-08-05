@@ -180,6 +180,8 @@ describe("maintainer triage of a submitted issue", () => {
   test("captures the issue URL as a observation and creates no contract", () => {
     const root = mkdtempSync(join(tmpdir(), "kotta-bug-report-"));
     execFileSync("git", ["init", "-b", "main"], { cwd: root });
+    execFileSync("git", ["config", "user.name", "Test User"], { cwd: root });
+    execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: root });
     writeFileSync(join(root, "README.md"), "fixture\n");
     run(root, ["init"]);
 

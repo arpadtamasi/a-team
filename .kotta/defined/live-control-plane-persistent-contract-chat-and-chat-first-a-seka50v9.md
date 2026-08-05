@@ -1,7 +1,7 @@
 ---
 id: T-01kz8tk2t53jbax6mrseka50v9
 title: 'Live control plane, persistent contract chat and chat-first approvals'
-status: active
+status: defined
 origin: human
 types:
   - workflow
@@ -13,12 +13,10 @@ risk: high
 batch: null
 depends_on: []
 blocks: []
-branch: >-
-  feat/T-01kz8tk2t53jbax6mrseka50v9-live-control-plane-persistent-contract-chat-and-chat-first-a
+branch: null
 pull_request: null
 created_at: '2026-08-05'
 updated_at: '2026-08-05'
-assigned_agent: codex
 ---
 # Live control plane, persistent contract chat and chat-first approvals
 

@@ -941,8 +941,113 @@ export function EntityDrawer({ id, workspace, board, onClose, onOpen }: {
 }
 
 /* ══ The run ═══════════════════════════════════════════ */
+export type RunWaves = { waves: Contract[][]; remainder: Contract[] };
+
+/**
+ * Stable topological layers for one batch. Only in-batch edges sequence its
+ * members; cycles are left unresolved so the Run never manufactures an order.
+ */
+export function computeRunWaves(input: Workspace["contracts"]): RunWaves {
+  const members = input.filter((contract, index) => input.findIndex((candidate) => candidate.id === contract.id) === index);
+  const memberIds = new Set(members.map((contract) => contract.id));
+  const placed = new Set<string>();
+  let pending = [...members];
+  const waves: Contract[][] = [];
+
+  while (pending.length > 0) {
+    const wave = pending.filter((contract) => (contract.depends_on ?? []).every((dependency) => !memberIds.has(dependency) || placed.has(dependency)));
+    if (wave.length === 0) break;
+    waves.push(wave);
+    for (const contract of wave) placed.add(contract.id);
+    pending = pending.filter((contract) => !placed.has(contract.id));
+  }
+
+  return { waves, remainder: pending };
+}
+
+type RunCardState = Status | "blocked" | "inconsistent";
+const runCardState = (contract: Contract): RunCardState => contract.blocked ? "blocked" : contract.status === "backlog" ? "inconsistent" : contract.status;
+const runCardLabel = (contract: Contract) => contract.blocked ? "blocked" : contract.status;
+
+function runComposition(contracts: Contract[]): string {
+  const order: Array<[RunCardState, string]> = [
+    ["done", "done"], ["active", "active"], ["review", "review"], ["blocked", "blocked"], ["defined", "waiting"], ["inconsistent", "inconsistent"],
+  ];
+  return order
+    .map(([state, label]) => [contracts.filter((contract) => runCardState(contract) === state).length, label] as const)
+    .filter(([count]) => count > 0)
+    .map(([count, label]) => `${count} ${label}`)
+    .join(" · ");
+}
+
+function runWaitingReason(contract: Contract, memberById: Map<string, Contract>, unresolved: boolean): string {
+  const dependencies = contract.depends_on ?? [];
+  const missing = dependencies.filter((id) => !memberById.has(id));
+  if (missing.length > 0) return `unresolved dependency · ${missing.map(displayId).join(", ")}`;
+  if (unresolved) return "dependency cycle or blocked chain";
+  if (contract.blocked) return contract.sections.blocker ?? contract.sections.blocked ?? "blocked in canonical workspace";
+  if (contract.status === "backlog") return "backlog member · inconsistent with an active batch";
+  const waiting = dependencies.filter((id) => memberById.get(id)?.status !== "done");
+  if (waiting.length > 0) return `waiting on ${waiting.map(displayId).join(", ")}`;
+  return "ready to start";
+}
+
+function RunContractCard({ contract, memberById, unresolved, selected, onSelect }: {
+  contract: Contract; memberById: Map<string, Contract>; unresolved: boolean; selected: boolean; onSelect: (id: string) => void;
+}) {
+  const state = runCardState(contract);
+  const claimed = Boolean(contract.assigned_agent);
+  const alreadyStarted = contract.status === "active" || contract.status === "review" || contract.status === "done";
+  return <button
+    type="button"
+    className={`run__card run__card--${state}`}
+    aria-pressed={selected}
+    title={entityLabel(contract.id)}
+    onClick={() => onSelect(contract.id)}
+  >
+    <span className="run__card-top"><Tail id={contract.id} /><StateTag state={runCardLabel(contract)} /></span>
+    <span className="run__card-title">{contract.title}</span>
+    <span className="run__card-meta">
+      {claimed
+        ? <><ClaimDot agent={contract.assigned_agent} />{contract.assigned_agent} · {relativeTime(contract.updated_at)}</>
+        : alreadyStarted ? `no canonical claim · ${relativeTime(contract.updated_at)}` : runWaitingReason(contract, memberById, unresolved)}
+    </span>
+  </button>;
+}
+
+function RunWaveGraph({ batch, members, selectedId, onSelect }: {
+  batch: Batch; members: Contract[]; selectedId: string | null; onSelect: (id: string) => void;
+}) {
+  const topology = computeRunWaves(members);
+  const memberById = new Map(members.map((contract) => [contract.id, contract]));
+  const groups = [
+    ...topology.waves.map((contracts, index) => ({ key: `wave-${index + 1}`, label: `Wave ${index + 1}`, contracts, unresolved: false })),
+    ...(topology.remainder.length > 0 ? [{ key: "unresolved", label: "Unresolved topology", contracts: topology.remainder, unresolved: true }] : []),
+  ];
+
+  if (groups.length === 0) return <p className="run__empty">No members to sequence.</p>;
+  return <div className="run__graph-scroll scroll" tabIndex={0} aria-label={`Execution waves for ${batch.title}`}>
+    <div className="run__waves">
+      {groups.map((group, index) => <div className="run__wave-unit" key={group.key}>
+        <section className={`run__wave${group.unresolved ? " run__wave--unresolved" : ""}`} aria-labelledby={`${batch.id}-${group.key}`}>
+          <div className="run__wave-head"><b id={`${batch.id}-${group.key}`}>{group.label}</b><span>{runComposition(group.contracts)}</span></div>
+          <div className="run__wave-stack">
+            {group.contracts.map((contract) => <RunContractCard
+              key={contract.id} contract={contract} memberById={memberById} unresolved={group.unresolved}
+              selected={selectedId === contract.id} onSelect={onSelect}
+            />)}
+          </div>
+        </section>
+        {index < groups.length - 1 && <div className="run__connector" aria-hidden="true"><span /></div>}
+      </div>)}
+    </div>
+  </div>;
+}
+
 export function RunOverlay({ board, onClose, onOpen }: { board: Board; onClose: () => void; onOpen: (id: string) => void }) {
   const ref = useDialog(onClose);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = selectedId ? board.contractById.get(selectedId) ?? null : null;
   const recent = [...board.contracts]
     .filter((t) => t.updated_at)
     .sort((a, b) => (parseDate(b.updated_at) ?? 0) - (parseDate(a.updated_at) ?? 0))
@@ -951,7 +1056,8 @@ export function RunOverlay({ board, onClose, onOpen }: { board: Board; onClose: 
     <div className="run__bar">
       <span className="pulse is-live" aria-hidden="true" />
       <h2>The run</h2>
-      <span className="run__note">Read-only. Nothing here edits anything.</span>
+      <span className="run__note">See the whole execution, not only what is active now.</span>
+      <span className="run__readonly">read-only derived view</span>
       <button type="button" className="run__close" onClick={onClose}>Close · esc</button>
     </div>
     <div className="run__body">
@@ -960,24 +1066,34 @@ export function RunOverlay({ board, onClose, onOpen }: { board: Board; onClose: 
         {board.activeBatches.map((batch) => {
           const members = batch.contracts.map((id) => board.contractById.get(id)).filter((t): t is Contract => Boolean(t));
           const done = members.filter((t) => t.status === "done").length;
-          const rows = members.filter((t) => t.status === "active" || t.status === "review");
+          const active = members.filter((t) => t.status === "active").length;
+          const review = members.filter((t) => t.status === "review").length;
+          const blocked = members.filter((t) => t.blocked).length;
+          const progress = batch.contracts.length ? Math.round((done / batch.contracts.length) * 100) : 0;
           return <section key={batch.id} className="run__batch">
             <div className="run__batch-head">
-              <h3>{batch.title}</h3>
-              <Tail id={batch.id} />
-              <span className="run__progress">{done}/{batch.contracts.length}</span>
-              <span className="bar bar--dark"><span style={{ width: `${batch.contracts.length ? (done / batch.contracts.length) * 100 : 0}%` }} /></span>
+              <div className="run__batch-title">
+                <div><h3>{batch.title}</h3><Tail id={batch.id} /></div>
+                <span>{batch.execution?.mode ?? "dependency-aware"} · parallelism {batch.execution?.parallelism ?? 2} · {(batch.execution?.stop_on_failure ?? true) ? "stop on failure" : "continue on failure"}</span>
+              </div>
+              <div className="run__summary" aria-label="Run summary">
+                <span><b>{active}</b>active</span><span><b>{review}</b>review</span><span><b>{blocked}</b>blocked</span>
+              </div>
+              <div className="run__progress" aria-label={`${done} of ${batch.contracts.length} complete`}>
+                <span><b>{done} / {batch.contracts.length} complete</b><b>{progress}%</b></span>
+                <span className="bar bar--dark"><span style={{ width: `${progress}%` }} /></span>
+              </div>
             </div>
-            {rows.map((contract) => <EntityButton key={contract.id} id={contract.id} className="run__row" onOpen={onOpen}>
-              <span className="run__row-title">{contract.title}</span>
-              <StateTag state={contract.status} />
-              <span className="run__row-claim"><ClaimDot agent={contract.assigned_agent} />{contract.assigned_agent ?? "no claim"} · {contract.branch ?? "no branch"}</span>
-              <span className="run__row-act">{relativeTime(contract.updated_at)}</span>
-            </EntityButton>)}
+            <div className="run__canvas-head"><b>Execution order</b><span>Waves are sequential. Cards inside a wave may run in parallel.</span><span className="run__scroll-hint">shift + wheel ↔</span></div>
+            <RunWaveGraph batch={batch} members={members} selectedId={selectedId} onSelect={setSelectedId} />
+            <div className="run__legend" aria-label="Contract state legend">
+              {[["done", "done"], ["active", "active"], ["review", "review"], ["defined", "defined"], ["blocked", "blocked"], ["inconsistent", "backlog / inconsistent"]].map(([state, label]) => <span key={state}><i className={`run__legend-swatch run__legend-swatch--${state}`} />{label}</span>)}
+              <em>Choose a contract to inspect it without leaving the run.</em>
+            </div>
           </section>;
         })}
         {board.running.filter((t) => !t.batch).length > 0 && <section className="run__batch">
-          <div className="run__batch-head"><h3>Outside every batch</h3></div>
+          <div className="run__loose-head"><h3>Outside every batch</h3><span>Loose work</span></div>
           {board.running.filter((t) => !t.batch).map((contract) => <EntityButton key={contract.id} id={contract.id} className="run__row" onOpen={onOpen}>
             <span className="run__row-title">{contract.title}</span>
             <StateTag state={contract.status} />
@@ -987,16 +1103,27 @@ export function RunOverlay({ board, onClose, onOpen }: { board: Board; onClose: 
         </section>}
         <p className="run__foot">Nothing on this screen can be edited. Planning happens on the other side — home, the chain, the menu.</p>
       </div>
-      <div className="run__side">
-        <div className="run__side-head">Latest movements</div>
-        <div className="run__ticker scroll">
-          {recent.map((contract) => <div key={contract.id} className="run__tick">
-            <span className="run__tick-time">{relativeTime(contract.updated_at)}</span>
-            <span className="run__tick-text">{stateLabel(contract.status)} · {contract.title}</span>
-          </div>)}
-          {recent.length === 0 && <p className="run__empty">No dated movement on record.</p>}
-          <p className="run__side-note">This ticker is derived from <code>updated_at</code>; open an entity for its persisted event timeline.</p>
-        </div>
+      <div className="run__side" aria-live="polite">
+        <div className="run__side-head"><span>{selected ? "Contract context" : "Latest movements"}</span>{selected && <button type="button" onClick={() => setSelectedId(null)}>← Latest movements</button>}</div>
+        {selected ? <div className="run__context scroll">
+          <div className="run__context-state"><Tail id={selected.id} /><StateTag state={runCardLabel(selected)} /></div>
+          <h3>{selected.title}</h3>
+          <dl className="run__facts">
+            <div><dt>claim</dt><dd>{selected.assigned_agent ?? "unclaimed"}</dd></div>
+            <div><dt>branch</dt><dd>{selected.branch ?? "not started"}</dd></div>
+            <div><dt>activity</dt><dd>{relativeTime(selected.updated_at)}</dd></div>
+            <div><dt>depends on</dt><dd>{selected.depends_on?.length ? selected.depends_on.map(displayId).join(", ") : "none"}</dd></div>
+          </dl>
+          <button type="button" className="run__open-detail" onClick={() => onOpen(selected.id)}>Open full contract detail →</button>
+          <p className="run__side-note">Claim, branch, activity and dependencies come from the canonical workspace read.</p>
+        </div> : <div className="run__ticker scroll">
+            {recent.map((contract) => <div key={contract.id} className="run__tick">
+              <span className="run__tick-time">{relativeTime(contract.updated_at)}</span>
+              <span className="run__tick-text">{stateLabel(contract.status)} · {contract.title}</span>
+            </div>)}
+            {recent.length === 0 && <p className="run__empty">No dated movement on record.</p>}
+            <p className="run__side-note">This ticker is derived from persisted <code>updated_at</code> timestamps; full detail carries the event timeline.</p>
+          </div>}
       </div>
     </div>
   </div>;

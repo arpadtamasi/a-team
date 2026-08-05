@@ -17,11 +17,11 @@ None.
 
 ## Active contracts
 
-None.
+- live-control-plane-persistent-contract-chat-and-chat-first-a-seka50v9
 
 ## Review
 
-- live-control-plane-persistent-contract-chat-and-chat-first-a-seka50v9
+None.
 
 ## Blocked
 

@@ -1,7 +1,7 @@
 ---
 id: T-01kz8tk2t53jbax6mrseka50v9
 title: 'Live control plane, persistent contract chat and chat-first approvals'
-status: review
+status: active
 origin: human
 types:
   - workflow
@@ -15,7 +15,7 @@ depends_on: []
 blocks: []
 branch: >-
   feat/T-01kz8tk2t53jbax6mrseka50v9-live-control-plane-persistent-contract-chat-and-chat-first-a
-pull_request: 'https://github.com/arpadtamasi/kotta/pull/22'
+pull_request: null
 created_at: '2026-08-05'
 updated_at: '2026-08-05'
 assigned_agent: codex
@@ -232,43 +232,3 @@ None.
 - Prefer one immutable event file per event, named by sortable collision-resistant id, over a shared append-only file that creates merge and partial-write hazards.
 - Commit completed chat turns and lifecycle events to the control branch in small Kotta-owned commits. Never persist token-by-token deltas.
 - Package release is a minor SemVer bump because this adds backward-compatible workflow and UI capabilities. Follow `README.md` maintainer release rules and the existing tag-driven npm workflow.
-
-## Review evidence
-
-| Acceptance condition | Evidence |
-|---|---|
-| Starting a contract from `main` or a linked worktree yields exactly one claim, feature branch and worktree; the canonical contract becomes active on the configured base branch and the board shows it without merging the feature branch. | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| Review, discovered observations and close invoked from a contract worktree update the control plane and are immediately visible to the board. | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| Feature branches do not acquire divergent active/review/done copies of canonical contract state, and merging implementation code does not create duplicate lifecycle files. | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| Concurrent mutations are serialized; injected failures at each start transition boundary leave a valid workspace with no orphaned claim, branch or worktree created by the failed attempt. | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| `contract execute` still launches a fresh executor whose intent input is the deterministic brief. `contract start` clearly supports the caller continuing in the returned worktree and labels that mode inherited-context. | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| A completed human/assistant chat exchange survives board process restart and appears in stable order. Streaming deltas, hidden reasoning and raw tool output are absent from persisted files. | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| A proposed chat action names the exact entity and transition. One explicit human approval applies it once, is durably linked to the human event and remains visible after restart. | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| Ambiguous chat text, agent messages and duplicate submissions cannot approve an action. Rejection and failed application are durable and do not change lifecycle state. | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| Chat-first paths cover contract sign, observation disposition, review accept/request-changes, contract close and batch close; equivalent CLI paths continue to pass their existing tests. | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| The chat timeline has verified loading, empty, error, success and disabled states; keyboard operation and accessible names pass component tests and an axe check. | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| Existing workspaces migrate or read compatibly with no required manual transcript creation, and `kotta validate` verifies all new canonical records and references. | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| `npm test`, `npm run typecheck`, `npm run build` and `npm run test:site` pass. | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| The pull request is reviewed and merged; GitHub Pages serves the updated site, and the tagged minor version is installable as `kotta` from npm with the new UI and CLI behaviour. | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| workflow: happy_path_verified | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| workflow: failure_and_cancellation_paths_verified | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| workflow: authorization_and_idempotency_verified | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| ui: required_states_verified | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| ui: accessibility_verified | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-| ui: visual_evidence_present | npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed. |
-
-### Verification performed
-
-npm test: 226 passed, 1 skipped; npm run typecheck; npm run build; npm run test:site: 5 passed; npm run verify:pack; npm audit: 0 vulnerabilities; kotta validate; pre-landing code, UX and documentation review completed.
-
-### Deviations
-
-None.
-
-### Observations created
-
-None.
-
-### Known concerns
-
-None.

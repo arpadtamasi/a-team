@@ -17,11 +17,10 @@ None.
 ## Active contracts
 
 - live-control-plane-persistent-contract-chat-and-chat-first-a-seka50v9
-- the-run-visszakapja-a-hullam-alapu-vegrehajtasi-nezetet-ynebm578
 
 ## Review
 
-None.
+- the-run-visszakapja-a-hullam-alapu-vegrehajtasi-nezetet-ynebm578
 
 ## Blocked
 

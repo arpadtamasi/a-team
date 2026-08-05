@@ -846,7 +846,7 @@ function approvalLabel(action?: string, payload?: Record<string, unknown>): stri
 }
 
 function EntityTimeline({ id, workspace }: {
-  id: string; contract?: Contract; batch?: Batch; observation?: Observation; workspace: Workspace; onRefresh: () => Promise<void>;
+  id: string; workspace: Workspace;
 }) {
   const events = (workspace.events ?? []).filter((event) => event.entity === id);
   const approvalOutcome = (approvalId?: string) => [...events].reverse().find((event) => event.kind === "approval" && event.approval_id === approvalId && event.phase !== "proposed");
@@ -877,8 +877,8 @@ function EntityTimeline({ id, workspace }: {
   </section>;
 }
 
-export function EntityDrawer({ id, workspace, board, onClose, onOpen, onRefresh }: {
-  id: string; workspace: Workspace; board: Board; onClose: () => void; onOpen: (id: string) => void; onRefresh?: () => Promise<void>;
+export function EntityDrawer({ id, workspace, board, onClose, onOpen }: {
+  id: string; workspace: Workspace; board: Board; onClose: () => void; onOpen: (id: string) => void;
 }) {
   const ref = useDialog(onClose);
   const contract = board.contractById.get(id);
@@ -927,7 +927,7 @@ export function EntityDrawer({ id, workspace, board, onClose, onOpen, onRefresh 
               <dd>{ID_TEST.test(value) && titleOf(value) ? <>{titleOf(value)} <Tail id={value} /></> : value}</dd>
             </div>)}
           </dl>
-          {(contract || batch || observation) && <EntityTimeline id={id} contract={contract} batch={batch} observation={observation} workspace={workspace} onRefresh={onRefresh ?? (async () => {})} />}
+          {(contract || batch || observation) && <EntityTimeline id={id} workspace={workspace} />}
           <DerivationPanel id={id} board={board} onOpen={onOpen} />
           {Object.entries(entity.sections ?? {}).map(([name, body]) => body && body.trim()
             ? <section key={name} className="drawer__section">
@@ -1122,7 +1122,7 @@ export function App() {
       </main>
     </div>
     {watching && board && <RunOverlay board={board} onClose={() => setWatching(false)} onOpen={(id) => { setWatching(false); setDetailId(id); }} />}
-    {detailId && workspace && board && <EntityDrawer id={detailId} workspace={workspace} board={board} onClose={() => setDetailId(null)} onOpen={setDetailId} onRefresh={refresh} />}
+    {detailId && workspace && board && <EntityDrawer id={detailId} workspace={workspace} board={board} onClose={() => setDetailId(null)} onOpen={setDetailId} />}
     {helpOpen && <CliSheet onClose={() => setHelpOpen(false)} />}
   </div>;
 }

@@ -10,8 +10,8 @@ const eventId = (tail: string) => `E-01kz8tk2t53jbax6mrseka${tail}`;
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
-function Drawer({ data, onRefresh = async () => undefined }: { data: Workspace; onRefresh?: () => Promise<void> }) {
-  return <EntityDrawer id={ID} workspace={data} board={readBoard(data)} onClose={() => undefined} onOpen={() => undefined} onRefresh={onRefresh} />;
+function Drawer({ data }: { data: Workspace }) {
+  return <EntityDrawer id={ID} workspace={data} board={readBoard(data)} onClose={() => undefined} onOpen={() => undefined} />;
 }
 
 describe("persistent contract conversation", () => {

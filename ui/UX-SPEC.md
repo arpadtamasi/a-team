@@ -67,9 +67,8 @@ an editorial poster. Concrete UX failures to fix:
 2. **Design-first, UX-second.** Numbered section labels ("01 / 02 / 03"),
    decorative eyebrows ("CONTEXT SEAL", "MIGRATION CONTROL ROOM"), staggered
    card animations. Ornament outranks information.
-3. **Chat is buried.** The agent chat only exists inside a contract drawer, behind
-   a click, in a cramped side panel — although talking to agents is a primary
-   verb, arguably *the* primary verb.
+3. **The old board mixed viewing and control.** Agent chat and lifecycle actions lived inside a
+   contract drawer, creating a second control surface that diverged from the calling chat.
 4. **The batch is not a launch unit in the UI.** Batches are cards with a
    progress bar and a member-editor. There is no "launch," no execution-mode
    display, no run monitor. The climax of the product is missing.
@@ -115,7 +114,7 @@ tabs — designer's choice, but order and grouping are fixed:
 │                     current stage view                       │
 │                                                              │
 ├──────────────────────────────────────────────────────────────┤
-│  Chat dock (global, collapsible, context-aware)              │
+│  Read-only entity activity drawer                            │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -125,7 +124,7 @@ Always visible, one row, answers question #1 without navigation. Items, each a
 count + one-click jump:
 
 - Observations awaiting disposition → Inbox
-- Contracts in review (evidence waiting for accept/reject) → Run
+- Contracts in review (decision waiting in the calling chat) → Run
 - Blocked contracts → Run
 - Failed / stalled runs → Run
 - State-drift warnings (see §7) → wherever the drift is
@@ -134,13 +133,12 @@ Empty state is a feature: "Nothing needs you — N contracts running, M defined.
 
 ### 4.2 Stage: Inbox (observations)
 
-Purpose: disposition observations in seconds, keep the intake cheap.
+Purpose: inspect observations and their disposition state without mutating them from the board.
 
 - List of `new` observations, newest first: id, title, type, severity, confidence,
   `discovered_during` link, evidence preview (expandable, markdown).
-- Per-item verbs: **Reject** · **Create contract →** (existing API), and
-  **Discuss** — opens the chat dock pre-loaded with the observation context.
-- Capture form (title, type, evidence) — keep current fields, keep it light.
+- Per-item state shows the next legal disposition and whether a caller-chat decision is pending.
+- Capture and disposition happen through the caller-chat tools; the board contains no form.
 - Resolved observations collapse into a history section, not deleted from view.
 - Metric worth showing: observations dispositioned vs. arriving (intake health).
 
@@ -152,11 +150,8 @@ Purpose: turn raw items into executable contracts.
   batchd/launched).
 - Contract rows, not cards: id, title, type/profile chips, priority/risk, batch
   membership (or "unbatchd" chip), depends_on.
-- Primary verb on a backlog contract: **Validate → Ready** (existing API). On
-  failure, show the validator's issues inline on the row — the current
-  toast-in-the-corner pattern loses the context.
-- Secondary verb: **Shape with agent** — chat dock with the contract attached,
-  seeded prompts ("tighten acceptance", "split this", "fill verification").
+- Validation state and any rule violations appear inline on the row. Definition and validation
+  happen through the calling chat.
 - Ready pane groups by batch; unbatchd defined contracts are visually flagged
   (they are launchable-but-unbatched — a decision waiting to happen).
 
@@ -171,30 +166,21 @@ product's climax — invest here.
   - goal (markdown), member contracts with live status,
   - dependency graph of members (even a simple topological column layout is
     enough — the operator must see what runs in parallel vs. sequenced),
-  - execution settings (mode, parallelism, stop_on_failure) — read from
-    frontmatter; editable only while the batch is in backlog,
-  - membership editing (existing add/remove API) while in backlog, with the
-    current "membership locked after backlog" rule made visible.
-- **Launch.** A prominent, deliberate action on a defined batch. v1 may not have
-  a backend endpoint for this (execution is started via the `execute-batch`
-  skill in an agent session); design it anyway:
-  - enabled state = all member contracts defined, no validation errors;
-  - shows a pre-flight summary (what will run, in what order, how parallel);
-  - if the backend can't start runs yet, the button produces the exact
-    copy-paste command / agent instruction — the UX must still end in "go",
-    not in a dead end. Mark this **[backend-gap]**.
+  - execution settings (mode, parallelism, stop_on_failure) read from frontmatter,
+  - membership and launch readiness, including why a batch is blocked.
+- Composition and launch happen through caller-chat tools or the CLI fallback; the board only
+  reflects their resulting canonical state.
 
 ### 4.5 Stage: Run (execution + review)
 
-Purpose: watch the machine work; accept or reject what comes back.
+Purpose: watch the machine work and see what decision is waiting in the calling chat.
 
 - Organized **by batch run**, not by kanban column. Each running batch is a
   block; its member contracts are rows with: status (active/review/blocked/done),
   claim (agent name), branch, worktree path, last activity.
 - Contract row expands to: acceptance contract vs. evidence (for review state),
   PR link, and its chat thread.
-- Review verbs: **Accept** / **Request changes** — if no API exists, same
-  [backend-gap] pattern as Launch: surface the exact next command.
+- Review rows show acceptance evidence and the exact pending decision, without action controls.
 - Independent (non-batch) active contracts appear in their own "loose work"
   block.
 - Done batches/contracts roll into **Done** (an archive stage or filter —
@@ -261,7 +247,7 @@ the detection API; the design must reserve the slot.
 
 ## 9. Acceptance for the design deliverable
 
-1. IA matches §4: four stages + needs-you strip + chat dock.
+1. IA matches §4: four stages + needs-you strip + read-only entity activity drawer.
 2. Every canonical state and history capability has a board view; write capabilities live in the
    calling-chat MCP tools and never appear as board controls.
 3. Every [backend-gap] surface is designed and visibly marked in the deliverable

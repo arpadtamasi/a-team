@@ -1,7 +1,7 @@
 ---
 id: T-01kz9de36qw55z9g73ynebm578
 title: The Run visszakapja a hullám-alapú végrehajtási nézetet
-status: review
+status: done
 origin: human
 types:
   - feature
@@ -15,10 +15,11 @@ branch: >-
   feat/T-01kz9de36qw55z9g73ynebm578-the-run-visszakapja-a-hullam-alapu-vegrehajtasi-nezetet
 pull_request: 'https://github.com/arpadtamasi/kotta/pull/25'
 created_at: '2026-08-05'
-updated_at: '2026-08-05'
+updated_at: '2026-08-07'
 assigned_agent: codex
 worktree: .worktrees/T-01kz9de36qw55z9g73ynebm578
 execution_mode: fresh
+resolution: completed
 ---
 # T-01kz9de36qw55z9g73ynebm578 — The Run restores the wave-based execution map
 

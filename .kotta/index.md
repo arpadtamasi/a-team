@@ -20,7 +20,7 @@ None.
 
 ## Review
 
-- the-run-visszakapja-a-hullam-alapu-vegrehajtasi-nezetet-ynebm578
+None.
 
 ## Blocked
 

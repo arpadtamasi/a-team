@@ -1,7 +1,7 @@
 ---
 id: T-01kzda6d8qr4yxqcb41yd5vn20
 title: defineContract accepts definition content instead of a filesystem path
-status: defined
+status: active
 origin: human
 types:
   - refactor
@@ -12,10 +12,14 @@ risk: low
 batch: null
 depends_on: []
 blocks: []
-branch: null
+branch: >-
+  refactor/T-01kzda6d8qr4yxqcb41yd5vn20-definecontract-accepts-definition-content-instead-of-a-files
 pull_request: null
 created_at: '2026-08-07'
 updated_at: '2026-08-07'
+assigned_agent: claude
+worktree: .worktrees/T-01kzda6d8qr4yxqcb41yd5vn20
+execution_mode: fresh
 ---
 # T-01kzda6d8qr4yxqcb41yd5vn20 — defineContract accepts definition content instead of a filesystem path
 

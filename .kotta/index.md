@@ -81,6 +81,7 @@ None.
 - the-a-team-directory-name-outlives-the-vocabulary-migration--1n909nqf
 - the-advertised-install-version-is-hardcoded-in-three-files-a-wn3kw5t7
 - the-board-cannot-show-two-contradiction-classes-that-a-team--2s40aw1j
+- the-claude-agent-is-invoked-without-a-permission-flag-so-eve-1me3jkh4
 - the-executor-discards-the-agent-stdout-it-captured-so-no-run-e3z74k41
 - the-implemented-execution-state-never-checks-whether-the-run-rq792eky
 - the-published-json-schemas-are-documentation-nothing-checks-ge5asz8x

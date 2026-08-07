@@ -75,12 +75,15 @@ None.
 - npm-rejects-the-unscoped-kotta-package-name-as-too-similar-eaag2s6z
 - ready-ticket-szovege-nem-javithato-a-define-csak-backlogbol--147t946f
 - renaming-the-workspace-drops-tracked-but-now-ignored-files-o-nkb8sbc4
+- resuming-with-a-different-agent-runs-the-new-agent-but-leave-8m4rw9a3
 - schemas-package-schema-json-rejects-every-started-package-an-8et554b5
 - state-drift-has-no-reconcile-command-so-the-board-can-only-p-5mqcvk49
 - tests-integration-ui-port-cli-test-ts-is-flaky-aftereach-tim-hqqt57nj
 - the-a-team-directory-name-outlives-the-vocabulary-migration--1n909nqf
 - the-advertised-install-version-is-hardcoded-in-three-files-a-wn3kw5t7
 - the-board-cannot-show-two-contradiction-classes-that-a-team--2s40aw1j
+- the-executor-discards-the-agent-stdout-it-captured-so-no-run-e3z74k41
+- the-implemented-execution-state-never-checks-whether-the-run-rq792eky
 - the-published-json-schemas-are-documentation-nothing-checks-ge5asz8x
 - ui-port-cli-tests-silently-assert-nothing-when-4311-is-alrea-nbxc71r5
 - ui-ux-spec-md-describes-the-pre-v2-board-and-has-no-owner-af-a4dg5622

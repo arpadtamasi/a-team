@@ -1,7 +1,7 @@
 ---
 id: T-01kzda6nj9hd2z45tt06fw8n0g
 title: One operation registry derives both the CLI and the MCP surface
-status: backlog
+status: defined
 origin: human
 types:
   - refactor

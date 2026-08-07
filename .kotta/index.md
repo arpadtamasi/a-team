@@ -13,6 +13,7 @@ None.
 ## Defined contracts
 
 - az-agenseknek-szolo-szabalyok-csak-egy-masolt-agents-md-ben--bd1366pk
+- definecontract-accepts-definition-content-instead-of-a-files-1yd5vn20
 
 ## Active contracts
 
@@ -62,6 +63,7 @@ None.
 - crm-kit-and-flowbench-cannot-be-migrated-unrelated-dirty-tre-9m3dkmxv
 - gray-matter-memoizes-frontmatter-so-every-writer-mutates-a-s-s8j3h62g
 - harom-szomszed-repo-agents-md-je-ideiglenes-szabalyblokkot-h-10cpc3k3
+- kotta-integrate-only-supports-codex-so-claude-code-sessions--n5cp4s0q
 - kotta-migrate-writes-a-root-gitattributes-it-never-reports-i-hkr7tyh2
 - live-pages-quickstart-still-advertises-kotta-0-3-0-jdzchspa
 - migration-json-keeps-the-pre-vocabulary-words-and-nothing-de-3hcysj58

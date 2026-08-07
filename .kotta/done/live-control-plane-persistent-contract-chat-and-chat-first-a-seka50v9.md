@@ -1,7 +1,7 @@
 ---
 id: T-01kz8tk2t53jbax6mrseka50v9
 title: 'Live control plane, persistent contract chat and chat-first approvals'
-status: review
+status: done
 origin: human
 types:
   - workflow
@@ -17,8 +17,9 @@ branch: >-
   feat/T-01kz8tk2t53jbax6mrseka50v9-live-control-plane-persistent-contract-chat-and-chat-first-a
 pull_request: 'https://github.com/arpadtamasi/kotta/pull/26'
 created_at: '2026-08-05'
-updated_at: '2026-08-05'
+updated_at: '2026-08-07'
 assigned_agent: codex
+resolution: completed
 ---
 # Live control plane, persistent contract chat and chat-first approvals
 

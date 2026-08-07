@@ -18,6 +18,10 @@ export default defineConfig({
     // No test may launch a real browser: every `kotta ui` here — in process or spawned,
     // which inherits this — hands its URL to a no-op instead of the platform opener.
     env: { KOTTA_UI_OPEN_COMMAND: "true" },
-    exclude: [...configDefaults.exclude, "site/tests/**"],
+    // Kotta gives every active contract a linked worktree under `worktree_root` (.worktrees by
+    // default), and each one is a full checkout carrying its own copy of tests/. Vitest ignores
+    // .gitignore when discovering tests, so without this the suite runs once per open contract
+    // against a `dist/` resolved from this root — a result that means nothing in either direction.
+    exclude: [...configDefaults.exclude, "site/tests/**", ".worktrees/**"],
   },
 });
